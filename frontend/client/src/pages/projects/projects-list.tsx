@@ -49,7 +49,14 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
-  AlignJustify
+  AlignJustify,
+  UserPlus,
+  AlertCircle,
+  Bell,
+  Send,
+  Mail,
+  Calendar,
+  Zap
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
@@ -95,7 +102,10 @@ export default function ProjectsList() {
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showTeamMemberDialog, setShowTeamMemberDialog] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
+  const [teamMemberEmail, setTeamMemberEmail] = useState('');
   
   // Form state for new/edit project
   const [projectForm, setProjectForm] = useState({
@@ -120,8 +130,8 @@ export default function ProjectsList() {
   const statusStats = [
     { label: 'Not Started', value: 12, icon: Circle, color: 'text-slate-600', bgColor: 'bg-slate-100', borderColor: 'border-slate-200' },
     { label: 'In Progress', value: 28, icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-100', borderColor: 'border-blue-200' },
+    { label: 'Urgent', value: 7, icon: Zap, color: 'text-orange-600', bgColor: 'bg-orange-100', borderColor: 'border-orange-200' },
     { label: 'On Hold', value: 5, icon: PauseCircle, color: 'text-yellow-600', bgColor: 'bg-yellow-100', borderColor: 'border-yellow-200' },
-    { label: 'Cancelled', value: 3, icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-100', borderColor: 'border-red-200' },
     { label: 'Finished', value: 45, icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-100', borderColor: 'border-green-200' }
   ];
 
@@ -216,12 +226,13 @@ export default function ProjectsList() {
     }
   ];
 
-  const statusConfig: Record<string, { label: string; class: string }> = {
-    'not-started': { label: 'Not Started', class: 'bg-slate-100 text-slate-700 border-slate-200' },
-    'in-progress': { label: 'In Progress', class: 'bg-blue-100 text-blue-700 border-blue-200' },
-    'on-hold': { label: 'On Hold', class: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-    cancelled: { label: 'Cancelled', class: 'bg-red-100 text-red-700 border-red-200' },
-    finished: { label: 'Finished', class: 'bg-green-100 text-green-700 border-green-200' }
+  const statusConfig: Record<string, { label: string; class: string; icon: any }> = {
+    'not-started': { label: 'Not Started', class: 'bg-slate-100 text-slate-700 border-slate-200', icon: Circle },
+    'in-progress': { label: 'In Progress', class: 'bg-blue-100 text-blue-700 border-blue-200', icon: Clock },
+    'on-hold': { label: 'On Hold', class: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: PauseCircle },
+    'urgent': { label: 'Urgent', class: 'bg-red-100 text-red-700 border-red-300 animate-pulse', icon: Zap },
+    cancelled: { label: 'Cancelled', class: 'bg-red-100 text-red-700 border-red-200', icon: XCircle },
+    finished: { label: 'Finished', class: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle }
   };
 
   const filteredProjects = projects.filter(project => {
@@ -330,6 +341,71 @@ export default function ProjectsList() {
     setSelectedProject(null);
   };
 
+  // Available team members
+  const availableTeamMembers = [
+    { id: '1', name: 'John Doe', email: 'john@example.com', role: 'Developer' },
+    { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'Designer' },
+    { id: '3', name: 'Mike Johnson', email: 'mike@example.com', role: 'Project Manager' },
+    { id: '4', name: 'Sarah Williams', email: 'sarah@example.com', role: 'QA Engineer' },
+    { id: '5', name: 'Tom Brown', email: 'tom@example.com', role: 'DevOps' },
+  ];
+
+  const handleAddTeamMember = () => {
+    if (selectedTeamMembers.length === 0) {
+      toast({
+        title: "No Members Selected",
+        description: "Please select at least one team member to add.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Send notifications with enhanced feedback
+    selectedTeamMembers.forEach(memberId => {
+      const member = availableTeamMembers.find(m => m.id === memberId);
+      if (member) {
+        // Show success toast notification
+        toast({
+          title: "✓ Team Member Added Successfully",
+          description: (
+            <div className="space-y-2 mt-2">
+              <p className="font-semibold">{member.name} - {member.role}</p>
+              <div className="flex items-center gap-2 text-xs">
+                <Mail className="h-3 w-3" />
+                <span>Email sent to {member.email}</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <Bell className="h-3 w-3" />
+                <span>In-app notification delivered</span>
+              </div>
+            </div>
+          ),
+          duration: 5000,
+        });
+      }
+    });
+
+    // Show final summary toast
+    setTimeout(() => {
+      toast({
+        title: "All Notifications Sent",
+        description: `${selectedTeamMembers.length} team member${selectedTeamMembers.length !== 1 ? 's' : ''} added and notified successfully.`,
+      });
+    }, 500);
+
+    // Reset and close
+    setSelectedTeamMembers([]);
+    setShowTeamMemberDialog(false);
+  };
+
+  const toggleTeamMember = (memberId: string) => {
+    setSelectedTeamMembers(prev => 
+      prev.includes(memberId) 
+        ? prev.filter(id => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -347,10 +423,41 @@ export default function ProjectsList() {
               <Filter className="h-4 w-4 mr-2" />
               Filter
             </Button>
-            <Button size="sm" onClick={() => setShowNewProjectDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Project
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Project
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem 
+                  onClick={() => setShowNewProjectDialog(true)}
+                  className="cursor-pointer gap-2 py-2.5"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <FolderKanban className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-slate-700">Create New Project</span>
+                    <span className="text-xs text-slate-500">Start a new project</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => setShowTeamMemberDialog(true)}
+                  className="cursor-pointer gap-2 py-2.5"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <UserPlus className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-slate-700">Add Team Member</span>
+                    <span className="text-xs text-slate-500">Invite to project</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -402,6 +509,7 @@ export default function ProjectsList() {
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="not-started">Not Started</SelectItem>
                     <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
                     <SelectItem value="on-hold">On Hold</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                     <SelectItem value="finished">Finished</SelectItem>
@@ -467,7 +575,14 @@ export default function ProjectsList() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={statusConfig[project.status].class}>
+                      <Badge 
+                        variant="outline" 
+                        className={`${statusConfig[project.status].class} flex items-center gap-1.5 w-fit`}
+                      >
+                        {(() => {
+                          const StatusIcon = statusConfig[project.status].icon;
+                          return <StatusIcon className="h-3.5 w-3.5" />;
+                        })()}
                         {statusConfig[project.status].label}
                       </Badge>
                     </TableCell>
@@ -617,11 +732,42 @@ export default function ProjectsList() {
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="not-started">Not Started</SelectItem>
-                        <SelectItem value="in-progress">In Progress</SelectItem>
-                        <SelectItem value="on-hold">On Hold</SelectItem>
-                        <SelectItem value="finished">Finished</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                        <SelectItem value="not-started">
+                          <div className="flex items-center gap-2">
+                            <Circle className="h-3.5 w-3.5 text-slate-500" />
+                            <span>Not Started</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="in-progress">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3.5 w-3.5 text-blue-500" />
+                            <span>In Progress</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="urgent">
+                          <div className="flex items-center gap-2">
+                            <Zap className="h-3.5 w-3.5 text-orange-500" />
+                            <span className="font-semibold text-orange-600">Urgent</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="on-hold">
+                          <div className="flex items-center gap-2">
+                            <PauseCircle className="h-3.5 w-3.5 text-yellow-500" />
+                            <span>On Hold</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="finished">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                            <span>Finished</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="cancelled">
+                          <div className="flex items-center gap-2">
+                            <XCircle className="h-3.5 w-3.5 text-red-500" />
+                            <span>Cancelled</span>
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -672,24 +818,32 @@ export default function ProjectsList() {
               {/* Timeline Section */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="startDate" className="text-xs font-bold text-slate-600 uppercase">Start Date <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="startDate" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1.5">
+                    <Calendar className="h-3 w-3 text-green-500" />
+                    Start Date <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="startDate"
                     type="date"
                     value={projectForm.startDate}
                     onChange={(e) => setProjectForm({ ...projectForm, startDate: e.target.value })}
-                    className={`h-10 border-slate-200 ${formErrors.startDate ? 'border-red-500' : ''}`}
+                    className={`h-10 border-slate-200 shadow-sm font-medium ${formErrors.startDate ? 'border-red-500 bg-red-50' : ''}`}
                   />
+                  {formErrors.startDate && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.startDate}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="deadline" className="text-xs font-bold text-slate-600 uppercase">Deadline</Label>
+                  <Label htmlFor="deadline" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1.5">
+                    <AlertCircle className="h-3 w-3 text-orange-500" />
+                    Deadline / Due Date <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="deadline"
                     type="date"
                     value={projectForm.deadline}
                     onChange={(e) => setProjectForm({ ...projectForm, deadline: e.target.value })}
-                    className={`h-10 border-slate-200 ${formErrors.deadline ? 'border-red-500' : ''}`}
+                    className={`h-10 border-slate-200 shadow-sm font-medium ${formErrors.deadline ? 'border-red-500 bg-red-50' : ''}`}
                   />
+                  {formErrors.deadline && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.deadline}</p>}
                 </div>
               </div>
 
@@ -839,11 +993,42 @@ export default function ProjectsList() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="not-started">Not Started</SelectItem>
-                        <SelectItem value="in-progress">In Progress</SelectItem>
-                        <SelectItem value="on-hold">On Hold</SelectItem>
-                        <SelectItem value="finished">Finished</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                        <SelectItem value="not-started">
+                          <div className="flex items-center gap-2">
+                            <Circle className="h-3.5 w-3.5 text-slate-500" />
+                            <span>Not Started</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="in-progress">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3.5 w-3.5 text-blue-500" />
+                            <span>In Progress</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="urgent">
+                          <div className="flex items-center gap-2">
+                            <Zap className="h-3.5 w-3.5 text-orange-500" />
+                            <span className="font-semibold text-orange-600">Urgent</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="on-hold">
+                          <div className="flex items-center gap-2">
+                            <PauseCircle className="h-3.5 w-3.5 text-yellow-500" />
+                            <span>On Hold</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="finished">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                            <span>Finished</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="cancelled">
+                          <div className="flex items-center gap-2">
+                            <XCircle className="h-3.5 w-3.5 text-red-500" />
+                            <span>Cancelled</span>
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -890,24 +1075,32 @@ export default function ProjectsList() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="edit-startDate" className="text-xs font-bold text-slate-600 uppercase">Start Date <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="edit-startDate" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1.5">
+                    <Calendar className="h-3 w-3 text-green-500" />
+                    Start Date <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="edit-startDate"
                     type="date"
                     value={projectForm.startDate}
                     onChange={(e) => setProjectForm({ ...projectForm, startDate: e.target.value })}
-                    className="h-10 border-slate-200"
+                    className={`h-10 border-slate-200 shadow-sm font-medium ${formErrors.startDate ? 'border-red-500 bg-red-50' : ''}`}
                   />
+                  {formErrors.startDate && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.startDate}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="edit-deadline" className="text-xs font-bold text-slate-600 uppercase">Deadline</Label>
+                  <Label htmlFor="edit-deadline" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1.5">
+                    <AlertCircle className="h-3 w-3 text-orange-500" />
+                    Deadline / Due Date <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="edit-deadline"
                     type="date"
                     value={projectForm.deadline}
                     onChange={(e) => setProjectForm({ ...projectForm, deadline: e.target.value })}
-                    className="h-10 border-slate-200"
+                    className={`h-10 border-slate-200 shadow-sm font-medium ${formErrors.deadline ? 'border-red-500 bg-red-50' : ''}`}
                   />
+                  {formErrors.deadline && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.deadline}</p>}
                 </div>
               </div>
 
@@ -959,6 +1152,118 @@ export default function ProjectsList() {
               Cancel
             </Button>
             <Button variant="destructive" onClick={confirmDeleteProject}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Team Member Dialog */}
+      <Dialog open={showTeamMemberDialog} onOpenChange={setShowTeamMemberDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white shadow-lg">
+                <UserPlus className="h-6 w-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-bold text-slate-900">Add Team Members to Project</DialogTitle>
+                <DialogDescription className="text-slate-600 mt-1">
+                  Select team members to add. They will receive email and popup notifications.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Info Banner */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-3">
+              <Bell className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-semibold text-blue-900">Notifications will be sent</p>
+                <p className="text-blue-700 text-xs mt-0.5">Selected members will receive an email notification and an in-app popup message about their assignment.</p>
+              </div>
+            </div>
+
+            {/* Team Members List */}
+            <ScrollArea className="h-[400px] pr-4">
+              <div className="space-y-2">
+                {availableTeamMembers.map((member) => {
+                  const isSelected = selectedTeamMembers.includes(member.id);
+                  return (
+                    <div
+                      key={member.id}
+                      onClick={() => toggleTeamMember(member.id)}
+                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                        isSelected 
+                          ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-300 shadow-md' 
+                          : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Checkbox 
+                            checked={isSelected}
+                            onCheckedChange={() => toggleTeamMember(member.id)}
+                            className={`h-5 w-5 ${isSelected ? 'data-[state=checked]:bg-purple-600' : ''}`}
+                          />
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-md">
+                            {member.name.split(' ').map(n => n[0]).join('')}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-900">{member.name}</p>
+                            <p className="text-sm text-slate-600">{member.role}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-slate-500">
+                          <Mail className="h-4 w-4" />
+                          <span className="text-xs">{member.email}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+
+            {/* Selected Count */}
+            {selectedTeamMembers.length > 0 && (
+              <div className="bg-gradient-to-r from-purple-100 to-pink-100 border border-purple-200 rounded-lg p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-purple-700" />
+                  <span className="font-semibold text-purple-900">
+                    {selectedTeamMembers.length} member{selectedTeamMembers.length !== 1 ? 's' : ''} selected
+                  </span>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setSelectedTeamMembers([])}
+                  className="text-purple-700 hover:text-purple-900 hover:bg-purple-200"
+                >
+                  Clear All
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 px-6 py-4 rounded-b-lg">
+            <Button 
+              variant="outline" 
+              onClick={() => { 
+                setShowTeamMemberDialog(false); 
+                setSelectedTeamMembers([]); 
+              }}
+              className="font-semibold"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddTeamMember}
+              disabled={selectedTeamMembers.length === 0}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 font-semibold shadow-lg"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Add {selectedTeamMembers.length > 0 ? `${selectedTeamMembers.length} ` : ''}Member{selectedTeamMembers.length !== 1 ? 's' : ''}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

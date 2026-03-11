@@ -43,9 +43,6 @@ import ContractsDashboard from "@/pages/contracts/contracts-dashboard";
 // Vendors Module Pages
 import VendorsLanding from "@/pages/vendors/VendorsLanding";
 
-// Products Module Pages
-import ProductsDashboard from "@/pages/products/ProductsDashboard";
-
 // Profile Module Pages
 import EmployeeProfile from "@/pages/profile/EmployeeProfile";
 
@@ -60,12 +57,6 @@ import AdminSetup from "@/pages/admin/AdminSetup";
 
 // Contacts Module
 // ContactsList removed
-
-// Finance Module
-import TaxRates from "@/pages/finance/TaxRates";
-import Currency from "@/pages/finance/Currency";
-import PaymentModes from "@/pages/finance/PaymentModes";
-import ExpenseCategories from "@/pages/finance/ExpenseCategories";
 
 // Setup Module
 import StaffSetup from "@/pages/setup/StaffSetup";
@@ -156,8 +147,6 @@ function AppRouter() {
       
       <Route path="/vendors/*" component={VendorsLanding} />
       <Route path="/vendors" component={VendorsLanding} />
-      <Route path="/products/*" component={ProductsDashboard} />
-      <Route path="/products" component={ProductsDashboard} />
       <Route path="/profile/*" component={EmployeeProfile} />
       <Route path="/profile" component={EmployeeProfile} />
       
@@ -168,9 +157,6 @@ function AppRouter() {
       {/* Organizations Module */}
       <Route path="/organizations/*" component={OrganizationsManagement} />
       <Route path="/organizations" component={OrganizationsManagement} />
-      
-      {/* Finance Module */}
-      <Route path="/dashboard/finance/*" component={TaxRates} />
       
       {/* Setup Module */}
       <Route path="/dashboard/setup/groups" component={GroupsPage} />

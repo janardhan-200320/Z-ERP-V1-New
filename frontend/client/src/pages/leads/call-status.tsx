@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { 
   PhoneCall, Phone, User, Building2, Mail, Clock,
-  Search, Filter, Download, History, Sparkles,
+  Search, Filter, Download, History,
   PhoneIncoming, PhoneOutgoing, PhoneMissed, PhoneOff,
   CheckCircle, XCircle, AlertCircle, MessageSquare,
   MoreVertical, Edit, Eye, RefreshCw, Loader2,
@@ -414,19 +414,6 @@ export default function LeadCallStatus() {
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">CRM - Call Status</h1>
               <p className="text-sm text-gray-600">Track lead call outcomes and manage follow-ups</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Enhancement Banner */}
-        <div className="mb-6 p-4 bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200 rounded-lg">
-          <div className="flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-orange-900 mb-1">Smart Call Tracking System</h3>
-              <p className="text-sm text-orange-700">
-                📞 5 call statuses • 📊 Success rate tracking • 📝 Call notes & duration • 🔄 Follow-up scheduling • 📈 Call attempt counter
-              </p>
             </div>
           </div>
         </div>

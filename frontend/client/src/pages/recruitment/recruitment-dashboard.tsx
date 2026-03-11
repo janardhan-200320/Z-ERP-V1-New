@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { 
   Briefcase, 
   Users, 
@@ -32,7 +33,9 @@ import {
   BarChart3,
   TrendingUp,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -45,10 +48,21 @@ import {
   Cell
 } from 'recharts';
 
+// API and Types
+import recruitmentApi from '@/lib/recruitment-api';
+import { 
+  RecruitmentStats,
+  EMPLOYMENT_TYPES,
+  WORK_MODES,
+  EXPERIENCE_LEVELS,
+  EDUCATION_LEVELS
+} from '@/lib/recruitment-types';
+
 // Sub-module components
 import JobDescriptionsModule from './job-descriptions';
 import InterviewScheduleModule from './interview-schedule';
 import CandidatesModule from './candidates';
+import RecruitmentFormsModule from './recruitment-forms';
 
 // ─── Shared Types ──────────────────────────────────
 export interface Job {

@@ -184,17 +184,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
         { name: 'Documentation', path: '/vendors/documentation' },
       ]
     },
-    { 
-      name: 'Items', 
-      icon: Package, 
-      path: '/products',
-      hasSubmenu: true,
-      submenuKey: 'items',
-      submenu: [
-        { name: 'Products', path: '/items/products' },
-        { name: 'Services', path: '/items/services' },
-      ]
-    },
 
     { 
       name: 'Team Space', 
@@ -211,19 +200,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     { name: 'Profile', icon: Users, path: '/profile' },
     
     { name: 'Subscription', icon: CreditCard, path: '/subscriptions' },
-    { 
-      name: 'Finance', 
-      icon: DollarSign, 
-      path: '/dashboard/finance/tax-rates',
-      hasSubmenu: true,
-      submenuKey: 'finance',
-      submenu: [
-        { name: 'Tax Rates', path: '/dashboard/finance/tax-rates' },
-        { name: 'Currency', path: '/dashboard/finance/currency' },
-        { name: 'Payment Modes', path: '/dashboard/finance/payment-modes' },
-        { name: 'Expense Categories', path: '/dashboard/finance/expense-categories' },
-      ]
-    },
     { 
       name: 'Setup', 
       icon: Settings, 
@@ -275,7 +251,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
         { name: 'General', path: '/dashboard/settings/general' },
         { name: 'Email', path: '/dashboard/settings/email' },
         { name: 'E-Sign', path: '/dashboard/settings/esign' },
-        { name: 'Finance', path: '/dashboard/settings/finance' },
         { name: 'Leads', path: '/dashboard/settings/leads' },
       ]
     },
@@ -292,7 +267,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     vendors: false,
     leads: false,
     admin: false,
-    finance: false,
     setup: false,
     contracts: false,
     customers: false,
@@ -429,7 +403,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     { name: 'Banking', path: '/accounts/banking', category: 'Accounts', keywords: 'bank transactions' },
     { name: 'Customers', path: '/customers', category: 'Sales', keywords: 'clients contacts CRM' },
     { name: 'Vendors', path: '/vendors', category: 'Purchases', keywords: 'suppliers vendors procurement' },
-    { name: 'Products', path: '/products', category: 'Inventory', keywords: 'items stock catalog' },
     { name: 'Subscriptions', path: '/subscriptions', category: 'Accounts', keywords: 'recurring billing plans' },
     { name: 'Leads', path: '/leads', category: 'Sales', keywords: 'prospects opportunities pipeline' },
     { name: 'Admin Setup', path: '/admin', category: 'Admin', keywords: 'configuration permissions users' },

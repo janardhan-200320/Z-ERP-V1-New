@@ -1,0 +1,52 @@
+Module Name: Team Space
+The Team Space Module is a centralized collaboration workspace designed for all departments to plan, communicate, schedule, and manage daily operational activities in real time.
+This module improves:
+• Team coordination
+• Internal communication
+• Task visibility
+• Productivity tracking
+• File and information sharing
+It works like a combination of:
+Slack + Zoho Cliq + Microsoft Teams (ERP integrated)
+Module Users
+• Management
+• Sales Team
+• Design Team
+• Development Team
+• Marketing Team
+• Accounts Team
+• Operations Team
+Feature 1: Meetings & Reminder
+Buttons:
+• Schedule Meeting
+• Edit
+• Cancel
+Reminder:
+System notification + WhatsApp + Email
+
+
+
+Feature 2: Calls & Reminder
+• Scheduled
+• Completed
+• Missed
+• Follow-up required
+Reminder Option:
+Yes / No
+
+Feature 3: Team Chats
+Real-time communication between team members.
+Similar to WhatsApp / Slack
+Features:
+• Direct chat
+• Group chat
+• Emoji
+• File share
+Feature 4: File Sharing
+Share project files internally.
+Supported files:
+• Images
+• Link 
+• PDF
+• Documents
+

@@ -1170,7 +1170,19 @@ export default function HRMEmployees() {
                           </div>
                           <div className="space-y-2">
                             <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Department *</Label>
-                            <Select onValueChange={(v) => setNewEmployee({...newEmployee, department: v})} value={newEmployee.department}>
+                            <Select 
+                              onValueChange={(v) => {
+                                if (v === 'Custom') {
+                                  const customName = window.prompt("Enter new custom department name:");
+                                  if (customName && customName.trim()) {
+                                    setNewEmployee({...newEmployee, department: customName.trim()});
+                                  }
+                                } else {
+                                  setNewEmployee({...newEmployee, department: v});
+                                }
+                              }} 
+                              value={newEmployee.department !== '' && ['Engineering', 'Product', 'Design', 'Sales', 'Marketing', 'Human Resources', 'Custom'].indexOf(newEmployee.department) === -1 ? newEmployee.department : newEmployee.department}
+                            >
                               <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
                                 <SelectValue placeholder="Select Department" />
                               </SelectTrigger>
@@ -1181,19 +1193,23 @@ export default function HRMEmployees() {
                                 <SelectItem value="Sales">Sales</SelectItem>
                                 <SelectItem value="Marketing">Marketing</SelectItem>
                                 <SelectItem value="Human Resources">Human Resources</SelectItem>
+
+                                {/* Keep selected custom value alive to prevent Select visual bugs */}
+                                {newEmployee.department && 
+                                 !['Engineering', 'Product', 'Design', 'Sales', 'Marketing', 'Human Resources', 'Custom', ''].includes(newEmployee.department) && (
+                                  <SelectItem value={newEmployee.department}>{newEmployee.department}</SelectItem>
+                                )}
+
+                                <div className="px-1 py-1 mt-1 border-t border-slate-100">
+                                  <SelectItem value="Custom" className="text-blue-600 font-medium justify-center py-2 cursor-pointer focus:bg-blue-50 focus:text-blue-700">
+                                    <div className="flex items-center justify-center w-full">
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Add Custom
+                                    </div>
+                                  </SelectItem>
+                                </div>
                               </SelectContent>
                             </Select>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="w-full mt-2 border-dashed border-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/50 rounded-xl transition-all"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                // Logic for custom department can go here
-                              }}
-                            >
-                              <Plus className="h-4 w-4 mr-2" /> Add Custom Department
-                            </Button>
                           </div>
                           <div className="space-y-2">
                             <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Blood Group</Label>
@@ -2701,9 +2717,18 @@ export default function HRMEmployees() {
                     <Label htmlFor="edit-department" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
                       Department <span className="text-red-500">*</span>
                     </Label>
-                    <Select 
-                      value={editingEmployee.department} 
-                      onValueChange={(value) => setEditingEmployee({...editingEmployee, department: value})}
+                    <Select
+                      value={editingEmployee.department !== '' && ['Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'Human Resources', 'Finance', 'Operations', 'Customer Support', 'Custom'].indexOf(editingEmployee.department) === -1 ? editingEmployee.department : editingEmployee.department}
+                      onValueChange={(value) => {
+                        if (value === 'Custom') {
+                          const customName = window.prompt("Enter new custom department name:");
+                          if (customName && customName.trim()) {
+                            setEditingEmployee({...editingEmployee, department: customName.trim()});
+                          }
+                        } else {
+                          setEditingEmployee({...editingEmployee, department: value});
+                        }
+                      }}
                     >
                       <SelectTrigger className="rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500 h-11">
                         <SelectValue placeholder="Select department" />
@@ -2718,6 +2743,21 @@ export default function HRMEmployees() {
                         <SelectItem value="Finance">💰 Finance</SelectItem>
                         <SelectItem value="Operations">⚙️ Operations</SelectItem>
                         <SelectItem value="Customer Support">🎧 Customer Support</SelectItem>
+                        
+                        {/* Custom Value Render Wrapper */}
+                        {editingEmployee.department && 
+                         !['Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'Human Resources', 'Finance', 'Operations', 'Customer Support', 'Custom', ''].includes(editingEmployee.department) && (
+                          <SelectItem value={editingEmployee.department}>{editingEmployee.department}</SelectItem>
+                        )}
+
+                        <div className="px-1 py-1 mt-1 border-t border-slate-100">
+                          <SelectItem value="Custom" className="text-blue-600 font-medium justify-center py-2 cursor-pointer focus:bg-blue-50 focus:text-blue-700">
+                            <div className="flex items-center justify-center w-full">
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Custom
+                            </div>
+                          </SelectItem>
+                        </div>
                       </SelectContent>
                     </Select>
                   </div>

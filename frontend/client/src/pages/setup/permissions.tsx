@@ -1,374 +1,241 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
-import { Lock, Search, Shield, Eye, Edit, Trash2, Plus, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ACTION_LABEL, AccessAction, ModuleNode, RBAC_TREE, ROLE_TEMPLATES, keyOf } from './rbac-data';
 
-interface Permission {
-  id: string;
-  name: string;
-  module: string;
-  description: string;
-  action: 'Create' | 'Read' | 'Update' | 'Delete';
-  roles: string[];
-  enabled: boolean;
-}
+const buildRoleMap = () => {
+  const map: Record<string, string[]> = {};
+  ROLE_TEMPLATES.forEach((template) => {
+    map[template.name] = template.permissionKeys;
+  });
+  return map;
+};
 
 export default function PermissionsPage() {
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeModule, setActiveModule] = useState('all');
+  const [tree, setTree] = useState<ModuleNode[]>(RBAC_TREE);
+  const [rolePermissionMap, setRolePermissionMap] = useState<Record<string, string[]>>(buildRoleMap());
+  const [activeRole, setActiveRole] = useState(ROLE_TEMPLATES[0].name);
+  const [search, setSearch] = useState('');
 
-  const [permissions, setPermissions] = useState<Permission[]>([
-    {
-      id: 'PERM-001',
-      name: 'Create Users',
-      module: 'User Management',
-      description: 'Ability to create new user accounts',
-      action: 'Create',
-      roles: ['Super Admin', 'HR Manager'],
-      enabled: true,
-    },
-    {
-      id: 'PERM-002',
-      name: 'View Reports',
-      module: 'Reporting',
-      description: 'Access to view system reports',
-      action: 'Read',
-      roles: ['Manager', 'Analyst'],
-      enabled: true,
-    },
-    {
-      id: 'PERM-003',
-      name: 'Edit Customers',
-      module: 'CRM',
-      description: 'Modify customer information',
-      action: 'Update',
-      roles: ['Sales Manager', 'Sales Rep'],
-      enabled: true,
-    },
-    {
-      id: 'PERM-004',
-      name: 'Delete Invoices',
-      module: 'Finance',
-      description: 'Remove invoices from the system',
-      action: 'Delete',
-      roles: ['Super Admin', 'Finance Manager'],
-      enabled: false,
-    },
-    {
-      id: 'PERM-005',
-      name: 'Approve Leaves',
-      module: 'HR',
-      description: 'Approve or reject leave requests',
-      action: 'Update',
-      roles: ['HR Manager', 'Department Manager'],
-      enabled: true,
-    },
-    {
-      id: 'PERM-006',
-      name: 'View Payroll',
-      module: 'HR',
-      description: 'Access payroll information',
-      action: 'Read',
-      roles: ['HR Manager', 'Accountant'],
-      enabled: true,
-    },
-    {
-      id: 'PERM-007',
-      name: 'Create Projects',
-      module: 'Project Management',
-      description: 'Create new projects',
-      action: 'Create',
-      roles: ['Project Manager', 'Super Admin'],
-      enabled: true,
-    },
-    {
-      id: 'PERM-008',
-      name: 'Delete Products',
-      module: 'Inventory',
-      description: 'Remove products from inventory',
-      action: 'Delete',
-      roles: ['Super Admin', 'Inventory Manager'],
-      enabled: true,
-    },
-  ]);
-
-  const modules = ['all', ...Array.from(new Set(permissions.map(p => p.module)))];
-
-  const filteredPermissions = permissions.filter(permission => {
-    const matchesSearch = permission.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      permission.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      permission.module.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesModule = activeModule === 'all' || permission.module === activeModule;
-    
-    return matchesSearch && matchesModule;
+  const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
+  const [newNode, setNewNode] = useState({
+    module: '',
+    section: '',
+    component: '',
+    action: 'view' as AccessAction,
   });
 
-  const handleTogglePermission = (permissionId: string) => {
-    setPermissions(prev =>
-      prev.map(p =>
-        p.id === permissionId ? { ...p, enabled: !p.enabled } : p
-      )
-    );
-    toast({
-      title: 'Permission Updated',
-      description: 'Permission status has been updated successfully.',
+  const rows = useMemo(
+    () =>
+      tree.flatMap((mod) =>
+        mod.sections.flatMap((sec) =>
+          sec.components.flatMap((comp) =>
+            comp.actions.map((action) => ({
+              module: mod.module,
+              section: sec.section,
+              component: comp.component,
+              action,
+              key: keyOf(mod.module, sec.section, comp.component, action),
+            })),
+          ),
+        ),
+      ),
+    [tree],
+  );
+
+  const visibleRows = rows.filter((row) => {
+    const text = `${row.module} ${row.section} ${row.component} ${row.action}`.toLowerCase();
+    return text.includes(search.toLowerCase());
+  });
+
+  const activeKeys = rolePermissionMap[activeRole] ?? [];
+
+  const togglePermission = (permissionKey: string, enabled: boolean) => {
+    setRolePermissionMap((prev) => {
+      const current = prev[activeRole] ?? [];
+      const next = enabled ? Array.from(new Set([...current, permissionKey])) : current.filter((k) => k !== permissionKey);
+      return { ...prev, [activeRole]: next };
     });
   };
 
-  const getActionColor = (action: string) => {
-    switch (action) {
-      case 'Create':
-        return 'bg-green-100 text-green-700 border-green-200';
-      case 'Read':
-        return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'Update':
-        return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'Delete':
-        return 'bg-red-100 text-red-700 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-700 border-gray-200';
-    }
-  };
+  const addCustomNode = () => {
+    const moduleName = newNode.module.trim();
+    const sectionName = newNode.section.trim();
+    const componentName = newNode.component.trim();
 
-  const permissionsByModule = modules.filter(m => m !== 'all').map(module => ({
-    module,
-    permissions: permissions.filter(p => p.module === module),
-  }));
+    if (!moduleName || !sectionName || !componentName) {
+      toast({ title: 'Missing fields', description: 'Please fill module, section, and component.', variant: 'destructive' });
+      return;
+    }
+
+    setTree((prev) => {
+      const next = structuredClone(prev);
+      let moduleNode = next.find((item) => item.module === moduleName);
+      if (!moduleNode) {
+        moduleNode = { module: moduleName, sections: [] };
+        next.push(moduleNode);
+      }
+
+      let sectionNode = moduleNode.sections.find((item) => item.section === sectionName);
+      if (!sectionNode) {
+        sectionNode = { section: sectionName, components: [] };
+        moduleNode.sections.push(sectionNode);
+      }
+
+      let componentNode = sectionNode.components.find((item) => item.component === componentName);
+      if (!componentNode) {
+        componentNode = { component: componentName, actions: [] };
+        sectionNode.components.push(componentNode);
+      }
+
+      if (!componentNode.actions.includes(newNode.action)) {
+        componentNode.actions.push(newNode.action);
+      }
+      return next;
+    });
+
+    const key = keyOf(moduleName, sectionName, componentName, newNode.action);
+    setRolePermissionMap((prev) => ({
+      ...prev,
+      [activeRole]: Array.from(new Set([...(prev[activeRole] ?? []), key])),
+    }));
+
+    setNewNode({ module: '', section: '', component: '', action: 'view' });
+    setIsAddNodeOpen(false);
+    toast({ title: 'Permission added', description: 'Custom permission node created.' });
+  };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Permissions Management</h1>
-            <p className="text-slate-600 mt-1">Configure system-wide access permissions</p>
+            <h1 className="text-3xl font-bold text-slate-900">Permissions</h1>
+            <p className="text-slate-600 mt-1">Minimal view to manage what each role can access.</p>
           </div>
-          <Button className="bg-indigo-600 hover:bg-indigo-700">
+          <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setIsAddNodeOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
-            Create Permission
+            Add Custom Permission
           </Button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Total Permissions</p>
-                  <p className="text-2xl font-bold text-slate-900">{permissions.length}</p>
-                </div>
-                <Lock className="w-8 h-8 text-indigo-600" />
-              </div>
+              <p className="text-sm text-slate-500">Permission Rows</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{rows.length}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Active</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {permissions.filter(p => p.enabled).length}
-                  </p>
-                </div>
-                <CheckCircle className="w-8 h-8 text-green-600" />
-              </div>
+              <p className="text-sm text-slate-500">Active Role</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{activeRole}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Disabled</p>
-                  <p className="text-2xl font-bold text-slate-400">
-                    {permissions.filter(p => !p.enabled).length}
-                  </p>
-                </div>
-                <XCircle className="w-8 h-8 text-slate-400" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Modules</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {modules.length - 1}
-                  </p>
-                </div>
-                <Shield className="w-8 h-8 text-purple-600" />
-              </div>
+              <p className="text-sm text-slate-500">Allowed Keys</p>
+              <p className="text-2xl font-bold text-emerald-600 mt-1">{activeKeys.length}</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content */}
-        <Tabs value={activeModule} onValueChange={setActiveModule}>
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <CardTitle>System Permissions</CardTitle>
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    placeholder="Search permissions..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+        <Card>
+          <CardHeader className="space-y-3">
+            <CardTitle>Permission List</CardTitle>
+            <div className="grid md:grid-cols-2 gap-2">
+              <Select value={activeRole} onValueChange={setActiveRole}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.keys(rolePermissionMap).map((roleName) => (
+                    <SelectItem key={roleName} value={roleName}>{roleName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search module, section, component" />
               </div>
-              <TabsList className="mt-4">
-                {modules.map(module => (
-                  <TabsTrigger key={module} value={module} className="capitalize">
-                    {module === 'all' ? 'All Modules' : module}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </CardHeader>
-            <CardContent>
-              <TabsContent value="all" className="mt-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Permission</TableHead>
-                      <TableHead>Module</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Assigned Roles</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredPermissions.map((permission) => (
-                      <TableRow key={permission.id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium text-slate-900">{permission.name}</p>
-                            <p className="text-sm text-slate-500">{permission.description}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
-                            {permission.module}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={getActionColor(permission.action)}>
-                            {permission.action}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {permission.roles.map((role, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-xs">
-                                {role}
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Switch
-                            checked={permission.enabled}
-                            onCheckedChange={() => handleTogglePermission(permission.id)}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Trash2 className="w-4 h-4 text-red-600" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TabsContent>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[520px] rounded-xl border border-slate-200">
+              <div className="min-w-[740px]">
+                <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-slate-50 text-xs font-semibold text-slate-600 border-b border-slate-200">
+                  <div className="col-span-3">Module</div>
+                  <div className="col-span-3">Section</div>
+                  <div className="col-span-3">Component / Action</div>
+                  <div className="col-span-3 text-right">Allow</div>
+                </div>
+                {visibleRows.map((row) => {
+                  const checked = activeKeys.includes(row.key);
+                  return (
+                    <div key={row.key} className="grid grid-cols-12 gap-2 px-3 py-2 border-b border-slate-100 text-sm">
+                      <div className="col-span-3 text-slate-800">{row.module}</div>
+                      <div className="col-span-3 text-slate-700">{row.section}</div>
+                      <div className="col-span-3">
+                        <p className="text-slate-900">{row.component}</p>
+                        <Badge variant="outline" className="mt-1 text-[11px]">{ACTION_LABEL[row.action]}</Badge>
+                      </div>
+                      <div className="col-span-3 flex justify-end items-center">
+                        <Checkbox checked={checked} onCheckedChange={(value) => togglePermission(row.key, value === true)} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
 
-              {permissionsByModule.map(({ module, permissions: modulePerms }) => (
-                <TabsContent key={module} value={module} className="mt-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Permission</TableHead>
-                        <TableHead>Action</TableHead>
-                        <TableHead>Assigned Roles</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {modulePerms.filter(p => 
-                        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        p.description.toLowerCase().includes(searchQuery.toLowerCase())
-                      ).map((permission) => (
-                        <TableRow key={permission.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-slate-900">{permission.name}</p>
-                              <p className="text-sm text-slate-500">{permission.description}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={getActionColor(permission.action)}>
-                              {permission.action}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {permission.roles.map((role, idx) => (
-                                <Badge key={idx} variant="secondary" className="text-xs">
-                                  {role}
-                                </Badge>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Switch
-                              checked={permission.enabled}
-                              onCheckedChange={() => handleTogglePermission(permission.id)}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="sm">
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm">
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm">
-                                <Trash2 className="w-4 h-4 text-red-600" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TabsContent>
-              ))}
-            </CardContent>
-          </Card>
-        </Tabs>
+        <Dialog open={isAddNodeOpen} onOpenChange={setIsAddNodeOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Custom Permission</DialogTitle>
+              <DialogDescription>Add your own module/section/component/action key.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>Module</Label>
+                <Input value={newNode.module} onChange={(e) => setNewNode((prev) => ({ ...prev, module: e.target.value }))} placeholder="e.g. Support" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Section</Label>
+                <Input value={newNode.section} onChange={(e) => setNewNode((prev) => ({ ...prev, section: e.target.value }))} placeholder="e.g. Tickets" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Component</Label>
+                <Input value={newNode.component} onChange={(e) => setNewNode((prev) => ({ ...prev, component: e.target.value }))} placeholder="e.g. Escalation Panel" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Action</Label>
+                <Select value={newNode.action} onValueChange={(value) => setNewNode((prev) => ({ ...prev, action: value as AccessAction }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ACTION_LABEL).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddNodeOpen(false)}>Cancel</Button>
+              <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={addCustomNode}>Add</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

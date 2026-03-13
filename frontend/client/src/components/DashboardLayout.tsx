@@ -71,6 +71,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [hoveredNav, setHoveredNav] = useState<string | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [orgLogo, setOrgLogo] = useState<string>('');
+  const [allowedModules, setAllowedModules] = useState<string[] | null>(null);
   const { selectedWorkspace } = useWorkspace();
   
   // New state for header actions
@@ -256,6 +257,11 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     },
   ], []);
 
+  const filteredNavigation = useMemo(() => {
+    if (!Array.isArray(allowedModules) || allowedModules.length === 0) return navigation;
+    return navigation.filter(item => allowedModules.includes(item.name));
+  }, [navigation, allowedModules]);
+
   // State for expandable menus
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
     sales: false,
@@ -298,6 +304,23 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const resolveModuleForPath = useCallback((path: string): string | null => {
+    for (const item of navigation) {
+      if (item.path === path) return item.name;
+      if (item.submenu) {
+        for (const sub of item.submenu) {
+          if (sub.path === path) return item.name;
+          if (sub.submenu) {
+            for (const leaf of sub.submenu) {
+              if (leaf.path === path) return item.name;
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }, [navigation]);
+
   // Auto-expand parent menu based on current location
   useEffect(() => {
     if (!location) return;
@@ -329,6 +352,44 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       }
     });
   }, [location, navigation]); // Removed expandedMenus from dependencies to prevent unintended overrides during interaction
+
+  useEffect(() => {
+    const loadSession = () => {
+      try {
+        const raw = localStorage.getItem('z_erp_active_session');
+        if (!raw) {
+          setAllowedModules(null);
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        const modules = Array.isArray(parsed?.allowedModules) ? parsed.allowedModules : null;
+        setAllowedModules(modules);
+      } catch {
+        setAllowedModules(null);
+      }
+    };
+
+    loadSession();
+    window.addEventListener('focus', loadSession);
+    window.addEventListener('storage', loadSession);
+    return () => {
+      window.removeEventListener('focus', loadSession);
+      window.removeEventListener('storage', loadSession);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!Array.isArray(allowedModules) || allowedModules.length === 0) return;
+    if (!location || location === '/login') return;
+
+    const moduleName = resolveModuleForPath(location);
+    if (!moduleName) return;
+
+    if (!allowedModules.includes(moduleName)) {
+      const fallback = filteredNavigation[0]?.path ?? '/';
+      navigate(fallback);
+    }
+  }, [allowedModules, location, filteredNavigation, navigate, resolveModuleForPath]);
 
   useEffect(() => {
     const savedCompany = safeGetItem<Company | null>('zervos_company', null);
@@ -441,7 +502,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
 
   const isActive = useCallback((path: string) => location === path, [location]);
 
-  const activeNavItem = useMemo(() => navigation.find(item => {
+  const activeNavItem = useMemo(() => filteredNavigation.find(item => {
     if (item.hasSubmenu && item.submenu) {
       // Check if any submenu or nested submenu item is active
       return item.submenu.some(subItem => {
@@ -453,11 +514,11 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       }) || location === item.path;
     }
     return location === item.path;
-  }), [location]);
+  }), [location, filteredNavigation]);
 
   const renderNavItems = (expanded: boolean) => (
     <LayoutGroup>
-      {navigation.map((item) => {
+      {filteredNavigation.map((item) => {
         if (item.hasSubmenu && item.submenu) {
           // Render menu item with submenu
           const menuExpanded = expandedMenus[item.submenuKey || ''];

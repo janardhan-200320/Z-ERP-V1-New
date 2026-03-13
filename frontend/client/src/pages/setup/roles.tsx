@@ -1,384 +1,515 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Shield, Plus, Search, Edit, Trash2, UserCheck, Award, Lock } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Search, UserPlus, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { RBAC_TREE, ROLE_TEMPLATES, flattenPermissionKeys } from './rbac-data';
 
-interface Role {
+type RoleLevel = 'Admin' | 'Manager' | 'User';
+type RoleStatus = 'Active' | 'Inactive';
+
+interface RoleRecord {
   id: string;
   name: string;
-  description: string;
-  permissions: string[];
+  level: RoleLevel;
+  status: RoleStatus;
   users: number;
-  level: 'Admin' | 'Manager' | 'User';
-  createdDate: string;
-  status: 'Active' | 'Inactive';
+  permissionCount: number;
+  allowedModules: string[];
 }
+
+interface CredentialRecord {
+  id: string;
+  password: string;
+  fullName: string;
+  email: string;
+  roleName: string;
+  status: 'Active' | 'Pending Activation';
+  allowedModules: string[];
+}
+
+const ROLE_STORAGE_KEY = 'z_erp_roles';
+const CREDENTIAL_STORAGE_KEY = 'z_erp_credentials';
+
+const seededRoles: RoleRecord[] = ROLE_TEMPLATES.map((tpl, index) => ({
+  id: `ROLE-${String(index + 1).padStart(3, '0')}`,
+  name: tpl.name,
+  level: tpl.level,
+  status: 'Active',
+  users: [3, 12, 48, 6, 9][index] ?? 0,
+  permissionCount: tpl.permissionKeys.length,
+  allowedModules: Array.from(new Set(tpl.permissionKeys.map((key) => key.split('|')[0]))),
+}));
 
 export default function RolesPage() {
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const allPermissionKeys = flattenPermissionKeys();
 
-  const [roles] = useState<Role[]>([
-    {
-      id: 'ROLE-001',
-      name: 'Super Administrator',
-      description: 'Complete system access and control',
-      permissions: ['All Permissions'],
-      users: 2,
-      level: 'Admin',
-      createdDate: '2024-01-01',
-      status: 'Active',
-    },
-    {
-      id: 'ROLE-002',
-      name: 'Department Manager',
-      description: 'Manage department operations and staff',
-      permissions: ['View Reports', 'Manage Team', 'Approve Requests', 'View Analytics'],
-      users: 8,
-      level: 'Manager',
-      createdDate: '2024-01-05',
-      status: 'Active',
-    },
-    {
-      id: 'ROLE-003',
-      name: 'Sales Representative',
-      description: 'Handle sales and customer interactions',
-      permissions: ['Create Leads', 'Manage Customers', 'Create Invoices', 'View Reports'],
-      users: 15,
-      level: 'User',
-      createdDate: '2024-01-10',
-      status: 'Active',
-    },
-    {
-      id: 'ROLE-004',
-      name: 'HR Specialist',
-      description: 'Human resources operations',
-      permissions: ['Manage Employees', 'Process Payroll', 'View Attendance', 'Manage Leaves'],
-      users: 4,
-      level: 'User',
-      createdDate: '2024-01-15',
-      status: 'Active',
-    },
-    {
-      id: 'ROLE-005',
-      name: 'Accountant',
-      description: 'Financial operations and reporting',
-      permissions: ['Manage Accounts', 'Create Reports', 'Process Payments', 'View Analytics'],
-      users: 3,
-      level: 'User',
-      createdDate: '2024-01-20',
-      status: 'Active',
-    },
-  ]);
+  const [roles, setRoles] = useState<RoleRecord[]>(() => {
+    try {
+      const raw = localStorage.getItem(ROLE_STORAGE_KEY);
+      if (!raw) return seededRoles;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : seededRoles;
+    } catch {
+      return seededRoles;
+    }
+  });
+  const [credentials, setCredentials] = useState<CredentialRecord[]>(() => {
+    try {
+      const raw = localStorage.getItem(CREDENTIAL_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
 
-  const filteredRoles = roles.filter(role =>
-    role.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    role.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const [search, setSearch] = useState('');
+  const [selectedRoleId, setSelectedRoleId] = useState(seededRoles[0]?.id ?? '');
+
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [isCredentialDialogOpen, setIsCredentialDialogOpen] = useState(false);
+
+  const [roleTemplateKey, setRoleTemplateKey] = useState(ROLE_TEMPLATES[1]?.key ?? ROLE_TEMPLATES[0].key);
+  const [roleName, setRoleName] = useState('');
+  const [selectedSubdomains, setSelectedSubdomains] = useState<string[]>(
+    RBAC_TREE.flatMap((node) =>
+      node.sections.flatMap((section) => section.components.map((component) => `${node.module}|${section.section}|${component.component}`)),
+    ),
   );
 
-  const handleAddRole = () => {
-    toast({
-      title: 'Role Created',
-      description: 'New role has been created successfully.',
-    });
-    setIsAddModalOpen(false);
+  const [credentialForm, setCredentialForm] = useState({
+    password: '',
+    fullName: '',
+    email: '',
+    roleId: '',
+    status: 'Pending Activation' as CredentialRecord['status'],
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ROLE_STORAGE_KEY, JSON.stringify(roles));
+    } catch {}
+  }, [roles]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CREDENTIAL_STORAGE_KEY, JSON.stringify(credentials));
+    } catch {}
+  }, [credentials]);
+
+  const filteredRoles = useMemo(
+    () => roles.filter((role) => role.name.toLowerCase().includes(search.toLowerCase())),
+    [roles, search],
+  );
+
+  const selectedRole = roles.find((r) => r.id === selectedRoleId) ?? filteredRoles[0] ?? roles[0];
+
+  const levelBadge = (level: RoleLevel) => {
+    if (level === 'Admin') return 'bg-rose-50 text-rose-700 border-rose-200';
+    if (level === 'Manager') return 'bg-amber-50 text-amber-700 border-amber-200';
+    return 'bg-emerald-50 text-emerald-700 border-emerald-200';
   };
 
-  const handleEditRole = () => {
-    toast({
-      title: 'Role Updated',
-      description: 'Role details have been updated successfully.',
-    });
-    setIsEditModalOpen(false);
+  const subdomainIdFromKey = (permissionKey: string) => permissionKey.split('|').slice(0, 3).join('|');
+
+  const getSubdomainsFromPermissionKeys = (permissionKeys: string[]) =>
+    Array.from(new Set(permissionKeys.map((permissionKey) => subdomainIdFromKey(permissionKey))));
+
+  const getModuleSubdomainIds = (moduleName: string) => {
+    const moduleNode = RBAC_TREE.find((node) => node.module === moduleName);
+    if (!moduleNode) return [] as string[];
+    return moduleNode.sections.flatMap((section) =>
+      section.components.map((component) => `${moduleName}|${section.section}|${component.component}`),
+    );
   };
 
-  const handleDeleteRole = (role: Role) => {
-    toast({
-      title: 'Role Deleted',
-      description: `${role.name} has been removed from the system.`,
-      variant: 'destructive',
+  const toggleModule = (moduleName: string, checked: boolean) => {
+    const moduleSubdomains = getModuleSubdomainIds(moduleName);
+    setSelectedSubdomains((prev) => {
+      if (checked) return Array.from(new Set([...prev, ...moduleSubdomains]));
+      return prev.filter((id) => !moduleSubdomains.includes(id));
     });
   };
 
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case 'Admin':
-        return 'bg-red-100 text-red-700 border-red-200';
-      case 'Manager':
-        return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'User':
-        return 'bg-green-100 text-green-700 border-green-200';
-      default:
-        return 'bg-gray-100 text-gray-700 border-gray-200';
+  const toggleSubdomain = (subdomainId: string, checked: boolean) => {
+    setSelectedSubdomains((prev) => {
+      if (checked) return Array.from(new Set([...prev, subdomainId]));
+      return prev.filter((id) => id !== subdomainId);
+    });
+  };
+
+  const openRoleDialog = () => {
+    const template = ROLE_TEMPLATES.find((t) => t.key === roleTemplateKey) ?? ROLE_TEMPLATES[0];
+    setSelectedSubdomains(getSubdomainsFromPermissionKeys(template.permissionKeys));
+    setIsRoleDialogOpen(true);
+  };
+
+  const createRole = () => {
+    if (!roleName.trim()) {
+      toast({ title: 'Role name required', description: 'Enter a role name.', variant: 'destructive' });
+      return;
     }
+
+    const template = ROLE_TEMPLATES.find((t) => t.key === roleTemplateKey) ?? ROLE_TEMPLATES[0];
+
+    if (selectedSubdomains.length === 0) {
+      toast({ title: 'Select modules/subdomains', description: 'Select at least one subdomain under a module.', variant: 'destructive' });
+      return;
+    }
+
+    const scopedPermissionCount = template.permissionKeys.filter((key) =>
+      selectedSubdomains.includes(subdomainIdFromKey(key)),
+    ).length;
+
+    const allowedModules = Array.from(new Set(selectedSubdomains.map((id) => id.split('|')[0])));
+
+    const newRole: RoleRecord = {
+      id: `ROLE-${String(roles.length + 1).padStart(3, '0')}`,
+      name: roleName.trim(),
+      level: template.level,
+      status: 'Active',
+      users: 0,
+      permissionCount: scopedPermissionCount,
+      allowedModules,
+    };
+
+    setRoles((prev) => [newRole, ...prev]);
+    setSelectedRoleId(newRole.id);
+    setRoleName('');
+    setRoleTemplateKey(template.key);
+    setSelectedSubdomains(getSubdomainsFromPermissionKeys(template.permissionKeys));
+    setIsRoleDialogOpen(false);
+    toast({ title: 'Role created', description: `${newRole.name} is ready.` });
+  };
+
+  const createCredentials = () => {
+    if (!credentialForm.password || !credentialForm.fullName || !credentialForm.email || !credentialForm.roleId) {
+      toast({ title: 'Missing details', description: 'Fill email, password, person details, and role.', variant: 'destructive' });
+      return;
+    }
+
+    const existing = credentials.find((item) => item.email.toLowerCase() === credentialForm.email.toLowerCase());
+    if (existing) {
+      toast({ title: 'Email already exists', description: 'Choose a different email.', variant: 'destructive' });
+      return;
+    }
+
+    const role = roles.find((r) => r.id === credentialForm.roleId);
+    if (!role) return;
+
+    const entry: CredentialRecord = {
+      id: `USR-${1000 + credentials.length + 1}`,
+      password: credentialForm.password,
+      fullName: credentialForm.fullName,
+      email: credentialForm.email,
+      roleName: role.name,
+      status: credentialForm.status,
+      allowedModules: role.allowedModules,
+    };
+
+    setCredentials((prev) => [entry, ...prev]);
+    setRoles((prev) => prev.map((r) => (r.id === role.id ? { ...r, users: r.users + 1 } : r)));
+    setCredentialForm({ password: '', fullName: '', email: '', roleId: '', status: 'Pending Activation' });
+    setIsCredentialDialogOpen(false);
+    toast({ title: 'Credentials created', description: `${entry.fullName} can login using email and password.` });
   };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Roles Management</h1>
-            <p className="text-slate-600 mt-1">Define and manage user roles and permissions</p>
+            <h1 className="text-3xl font-bold text-slate-900">Roles</h1>
+            <p className="text-slate-600 mt-1">Simple role setup and user credential assignment.</p>
           </div>
-          <Button onClick={() => setIsAddModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
-            <Plus className="w-4 h-4 mr-2" />
-            Create Role
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsCredentialDialogOpen(true)}>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Create Credentials
+            </Button>
+            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={openRoleDialog}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Role
+            </Button>
+          </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <Card className="border-amber-200 bg-amber-50/60">
+          <CardContent className="py-3">
+            <p className="text-sm text-amber-800">
+              Note: First create and save the role with required module/subdomain access, then create credentials and assign that role.
+            </p>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Total Roles</p>
-                  <p className="text-2xl font-bold text-slate-900">{roles.length}</p>
-                </div>
-                <Shield className="w-8 h-8 text-indigo-600" />
-              </div>
+              <p className="text-sm text-slate-500">Total Roles</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{roles.length}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Admin Roles</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {roles.filter(r => r.level === 'Admin').length}
-                  </p>
-                </div>
-                <Award className="w-8 h-8 text-red-600" />
-              </div>
+              <p className="text-sm text-slate-500">Users Assigned</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{roles.reduce((sum, role) => sum + role.users, 0)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Manager Roles</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {roles.filter(r => r.level === 'Manager').length}
-                  </p>
-                </div>
-                <UserCheck className="w-8 h-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Total Users</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {roles.reduce((sum, r) => sum + r.users, 0)}
-                  </p>
-                </div>
-                <UserCheck className="w-8 h-8 text-purple-600" />
-              </div>
+              <p className="text-sm text-slate-500">Permission Keys</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{allPermissionKeys.length}</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <Card className="lg:col-span-7">
+            <CardHeader className="space-y-3">
+              <CardTitle>Role List</CardTitle>
+              <div className="relative max-w-sm">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" placeholder="Search role" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Level</TableHead>
+                    <TableHead>Users</TableHead>
+                    <TableHead>Permissions</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRoles.map((role) => (
+                    <TableRow key={role.id} onClick={() => setSelectedRoleId(role.id)} className="cursor-pointer">
+                      <TableCell className="font-medium text-slate-900">{role.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={levelBadge(role.level)}>{role.level}</Badge>
+                      </TableCell>
+                      <TableCell>{role.users}</TableCell>
+                      <TableCell>{role.permissionCount}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={role.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : ''}>
+                          {role.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-5">
+            <CardHeader>
+              <CardTitle>Selected Role</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {selectedRole ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-emerald-600" />
+                    <p className="font-semibold text-slate-900">{selectedRole.name}</p>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Badge variant="outline" className={levelBadge(selectedRole.level)}>{selectedRole.level}</Badge>
+                    <Badge variant="outline">{selectedRole.permissionCount} permissions</Badge>
+                    <Badge variant="outline">{selectedRole.users} users</Badge>
+                    <Badge variant="outline">{selectedRole.allowedModules.length} modules</Badge>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      setRoles((prev) =>
+                        prev.map((role) =>
+                          role.id === selectedRole.id
+                            ? { ...role, status: role.status === 'Active' ? 'Inactive' : 'Active' }
+                            : role,
+                        ),
+                      )
+                    }
+                  >
+                    {selectedRole.status === 'Active' ? 'Deactivate Role' : 'Activate Role'}
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No role selected.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
           <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <CardTitle>System Roles</CardTitle>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  placeholder="Search roles..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
+            <CardTitle>Recent Credentials</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Role Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Level</TableHead>
-                  <TableHead>Users</TableHead>
-                  <TableHead>Permissions</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRoles.map((role) => (
-                  <TableRow key={role.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
-                          <Shield className="w-5 h-5 text-indigo-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{role.name}</p>
-                          <p className="text-sm text-slate-500">{role.id}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <p className="text-sm text-slate-600 max-w-xs">{role.description}</p>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getLevelColor(role.level)}>
-                        {role.level}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <UserCheck className="w-4 h-4 text-slate-400" />
-                        <span className="font-medium">{role.users}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Lock className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm font-medium">{role.permissions.length}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={role.status === 'Active' ? 'default' : 'secondary'}
-                        className={role.status === 'Active' ? 'bg-green-100 text-green-700' : ''}
-                      >
-                        {role.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedRole(role);
-                            setIsEditModalOpen(true);
-                          }}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteRole(role)}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                {credentials.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-sm text-slate-500">No credentials created yet.</TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  credentials.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>{row.fullName}</TableCell>
+                      <TableCell>{row.email}</TableCell>
+                      <TableCell>{row.roleName}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={row.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}>
+                          {row.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
 
-        {/* Add Role Modal */}
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogContent className="max-w-xl">
+        <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+          <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Create New Role</DialogTitle>
-              <DialogDescription>Define a new role with specific permissions and access levels</DialogDescription>
+              <DialogTitle>Add Role</DialogTitle>
+              <DialogDescription>Create a role from a template in 2 quick steps.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Role Name *</Label>
-                <Input id="name" placeholder="e.g., Senior Manager" />
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>Role Name</Label>
+                <Input value={roleName} onChange={(e) => setRoleName(e.target.value)} placeholder="e.g. Branch Staff" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="level">Access Level *</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select access level" />
-                  </SelectTrigger>
+              <div className="space-y-1.5">
+                <Label>Template</Label>
+                <Select
+                  value={roleTemplateKey}
+                  onValueChange={(value) => {
+                    setRoleTemplateKey(value);
+                    const template = ROLE_TEMPLATES.find((t) => t.key === value);
+                    if (template) setSelectedSubdomains(getSubdomainsFromPermissionKeys(template.permissionKeys));
+                  }}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Administrator</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="user">User</SelectItem>
+                    {ROLE_TEMPLATES.map((template) => (
+                      <SelectItem key={template.key} value={template.key}>{template.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe the role's responsibilities and purpose"
-                  rows={3}
-                />
+                <Label>Main Modules and Sub Modules</Label>
+                <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200 p-2.5 space-y-2">
+                  {RBAC_TREE.map((moduleNode) => {
+                    const moduleSubdomains = getModuleSubdomainIds(moduleNode.module);
+                    const checked = moduleSubdomains.length > 0 && moduleSubdomains.every((id) => selectedSubdomains.includes(id));
+                    return (
+                      <div key={moduleNode.module} className="rounded-md border border-slate-200 p-2">
+                        <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-800">
+                          <Checkbox checked={checked} onCheckedChange={(value) => toggleModule(moduleNode.module, value === true)} />
+                          {moduleNode.module}
+                        </label>
+                        <div className="mt-1.5 pl-6 space-y-1">
+                          {moduleNode.sections.map((section) => (
+                            <div key={`${moduleNode.module}-${section.section}`}>
+                              <p className="text-[11px] font-medium text-slate-500 mb-1">{section.section}</p>
+                              <div className="space-y-1">
+                                {section.components.map((component) => {
+                                  const subdomainId = `${moduleNode.module}|${section.section}|${component.component}`;
+                                  return (
+                                    <label key={subdomainId} className="inline-flex items-center gap-2 text-xs text-slate-700 mr-3">
+                                      <Checkbox
+                                        checked={selectedSubdomains.includes(subdomainId)}
+                                        onCheckedChange={(value) => toggleSubdomain(subdomainId, value === true)}
+                                      />
+                                      {component.component}
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-slate-500">
+                  Selected main modules: {new Set(selectedSubdomains.map((id) => id.split('|')[0])).size} | Selected subdomains: {selectedSubdomains.length}
+                </p>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddRole} className="bg-indigo-600 hover:bg-indigo-700">
-                Create Role
-              </Button>
+              <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)}>Cancel</Button>
+              <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={createRole}>Create Role</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Edit Role Modal */}
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent className="max-w-xl">
+        <Dialog open={isCredentialDialogOpen} onOpenChange={setIsCredentialDialogOpen}>
+          <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Edit Role</DialogTitle>
-              <DialogDescription>Update role details and settings</DialogDescription>
+              <DialogTitle>Create Credentials</DialogTitle>
+              <DialogDescription>Assign a person to an existing role.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Role Name *</Label>
-                <Input id="edit-name" defaultValue={selectedRole?.name} />
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>Password</Label>
+                <Input
+                  type="password"
+                  value={credentialForm.password}
+                  onChange={(e) => setCredentialForm((prev) => ({ ...prev, password: e.target.value }))}
+                  placeholder="Set password"
+                />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-level">Access Level *</Label>
-                <Select defaultValue={selectedRole?.level.toLowerCase()}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+              <div className="space-y-1.5">
+                <Label>Full Name</Label>
+                <Input value={credentialForm.fullName} onChange={(e) => setCredentialForm((prev) => ({ ...prev, fullName: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email</Label>
+                <Input type="email" value={credentialForm.email} onChange={(e) => setCredentialForm((prev) => ({ ...prev, email: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Role</Label>
+                <Select value={credentialForm.roleId} onValueChange={(value) => setCredentialForm((prev) => ({ ...prev, roleId: value }))}>
+                  <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Administrator</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="user">User</SelectItem>
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-description">Description</Label>
-                <Textarea
-                  id="edit-description"
-                  defaultValue={selectedRole?.description}
-                  rows={3}
-                />
-              </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleEditRole} className="bg-indigo-600 hover:bg-indigo-700">
-                Update Role
-              </Button>
+              <Button variant="outline" onClick={() => setIsCredentialDialogOpen(false)}>Cancel</Button>
+              <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={createCredentials}>Create</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -386,3 +517,4 @@ export default function RolesPage() {
     </DashboardLayout>
   );
 }
+

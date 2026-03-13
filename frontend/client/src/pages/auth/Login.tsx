@@ -17,8 +17,42 @@ export default function Login() {
     }
     setIsLoading(true);
     setTimeout(() => {
+      const getStoredCredentials = () => {
+        try {
+          const raw = localStorage.getItem('z_erp_credentials');
+          const parsed = raw ? JSON.parse(raw) : [];
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      };
+
+      const credentials = getStoredCredentials();
+      const inputEmail = email.trim().toLowerCase();
+
+      const matched = credentials.find((item: any) =>
+        String(item?.email || '').toLowerCase() === inputEmail && String(item?.password || '') === password,
+      );
+
+      if (!matched) {
+        setIsLoading(false);
+        toast({ title: 'Invalid credentials', description: 'Please check your email and password.', variant: 'destructive' });
+        return;
+      }
+
+      const activeSession = {
+        email: matched.email,
+        roleName: matched.roleName,
+        allowedModules: Array.isArray(matched.allowedModules) ? matched.allowedModules : [],
+        loginAt: new Date().toISOString(),
+      };
+
+      try {
+        localStorage.setItem('z_erp_active_session', JSON.stringify(activeSession));
+      } catch {}
+
       setIsLoading(false);
-      toast({ title: 'Welcome back!', description: 'You have successfully logged in.' });
+      toast({ title: 'Welcome back!', description: `Logged in as ${matched.email}.` });
       window.location.href = '/';
     }, 1800);
   };

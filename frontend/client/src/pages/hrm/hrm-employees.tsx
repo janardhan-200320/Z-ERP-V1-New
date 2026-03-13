@@ -1183,6 +1183,17 @@ export default function HRMEmployees() {
                                 <SelectItem value="Human Resources">Human Resources</SelectItem>
                               </SelectContent>
                             </Select>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="w-full mt-2 border-dashed border-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50/50 rounded-xl transition-all"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                // Logic for custom department can go here
+                              }}
+                            >
+                              <Plus className="h-4 w-4 mr-2" /> Add Custom Department
+                            </Button>
                           </div>
                           <div className="space-y-2">
                             <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Blood Group</Label>

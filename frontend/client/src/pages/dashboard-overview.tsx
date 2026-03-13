@@ -166,14 +166,6 @@ export default function DashboardOverview() {
     { month: 'Jun', amount: 38000, growth: 10.1 }
   ];
 
-  // Customer Satisfaction Data
-  const customerSatisfactionData = [
-    { category: 'Excellent', value: 45, color: '#10b981' },
-    { category: 'Good', value: 32, color: '#3b82f6' },
-    { category: 'Average', value: 15, color: '#f59e0b' },
-    { category: 'Poor', value: 8, color: '#ef4444' }
-  ];
-
   // Team Productivity Metrics
   const teamProductivityData = [
     { metric: 'Tasks Completed', current: 156, target: 150, percentage: 104 },
@@ -772,8 +764,8 @@ export default function DashboardOverview() {
         </div>
         )}
 
-        {/* 6️⃣ ANALYTICS GRID WITH CHARTS - Responsive 4-Column Grid */}
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+        {/* 6️⃣ ANALYTICS GRID WITH CHARTS - Responsive 3-Column Grid */}
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {/* Project Status */}
           <Card className="hover:shadow-md transition-all duration-300">
             <CardHeader className="p-4 sm:p-6">
@@ -867,51 +859,6 @@ export default function DashboardOverview() {
                     </div>
                     <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 text-xs">
                       {item.percentage}%
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Customer Satisfaction */}
-          <Card className="hover:shadow-md transition-all duration-300">
-            <CardHeader className="p-4 sm:p-6">
-              <div className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-green-600" />
-                <CardTitle className="text-base sm:text-lg">Customer Satisfaction</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0">
-              <div className="h-48 sm:h-56 flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPieChart>
-                    <Pie
-                      data={customerSatisfactionData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={45}
-                      outerRadius={65}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {customerSatisfactionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }} />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="space-y-2 mt-3">
-                {customerSatisfactionData.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="text-xs text-slate-600 truncate">{item.category}</span>
-                    </div>
-                    <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 text-xs ml-2">
-                      {item.value}%
                     </Badge>
                   </div>
                 ))}

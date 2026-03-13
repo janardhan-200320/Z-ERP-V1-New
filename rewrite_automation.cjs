@@ -1,4 +1,7 @@
-﻿import { useState } from 'react';
+const fs = require('fs');
+const file = 's:/Z-ERP-V1-New/Z-ERP-V1-New/frontend/client/src/pages/projects/tabs/project-automation-tab.tsx';
+
+let newContent = \import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -95,9 +98,9 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
     
     // Auto-generate next ID based on length
     const nextIdNumber = automationRules.length > 0
-      ? Math.max(...automationRules.map(r => parseInt((r.id.split('-')[1] || '0'), 10) || 0)) + 1
+      ? Math.max(...automationRules.map(r => parseInt(r.id.split('-')[1] || '0') || 0)) + 1
       : 1;
-    const newId = `AR-${String(nextIdNumber).padStart(3, '0')}`;
+    const newId = \AR-\\;
 
     const newRule = {
       id: newId,
@@ -111,7 +114,7 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
 
     toast({
       title: "Automation Rule Created",
-      description: `Rule "${newRule.name}" has been created and activated.`,
+      description: \Rule "\" has been created and activated.\,
     });
     setShowNewRuleDialog(false);
     resetRuleForm();
@@ -136,7 +139,7 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
 
     toast({
       title: "Rule Updated",
-      description: `Automation rule has been updated successfully.`,
+      description: \Automation rule has been updated successfully.\,
     });
     setShowEditRuleDialog(false);
     resetRuleForm();
@@ -147,7 +150,7 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
     setAutomationRules(automationRules.filter(r => r.id !== ruleId));
     toast({
       title: "Rule Deleted",
-      description: `Automation rule ${ruleId} has been removed.`,
+      description: \Automation rule \ has been removed.\,
     });
   };
 
@@ -157,7 +160,7 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
     
     toast({
       title: "Rule Test Executed",
-      description: `Running test: ${triggerLabel} -> ${actionLabel}`,
+      description: \Running test: \ ? \\,
     });
   };
 
@@ -165,7 +168,7 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
     setAutomationRules(automationRules.map(r => r.id === ruleId ? { ...r, status: enabled } : r));
     toast({
       title: enabled ? "Rule Enabled" : "Rule Disabled",
-      description: `Automation rule ${ruleId} has been ${enabled ? 'enabled' : 'disabled'}.`,
+      description: \Automation rule \ has been \.\,
     });
   };
 
@@ -198,13 +201,13 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
           <Card key={rule.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-4">
               <div className="flex items-start gap-4">
-                <div className="p-2 bg-purple-100 rounded-lg shrink-0">
+                <div className="p-2 bg-purple-100 rounded-lg">
                   <Zap className="h-5 w-5 text-purple-600" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                       <h4 className="font-semibold text-slate-900">{rule.name || rule.id}</h4>
+                    <div className="flex items-center gap-2">
+                       <h4 className="font-semibold text-slate-900">{rule.name}</h4>
                        <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">
                          {rule.id}
                        </Badge>
@@ -214,23 +217,22 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
                       onCheckedChange={(checked) => handleToggleRule(rule.id, checked)}
                     />
                   </div>
-                  <div className="space-y-2 mt-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                    <div className="flex items-start gap-3">
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded mt-0.5 uppercase tracking-wider">When</span>
+                  <div className="space-y-2 mt-3">
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded mt-0.5">IF</span>
                       <p className="text-sm text-slate-700">{getTriggerLabel(rule.trigger)}</p>
                     </div>
-                    <div className="pl-3 border-l-2 border-slate-200 ml-3.5 h-3"></div>
-                    <div className="flex items-start gap-3">
-                      <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded mt-0.5 uppercase tracking-wider">Then</span>
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs font-medium text-green-600 bg-green-100 px-2 py-1 rounded mt-0.5">THEN</span>
                       <p className="text-sm text-slate-700">{getActionLabel(rule.action)}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t">
                     <Button variant="ghost" size="sm" onClick={() => handleTestRule(rule)}>
-                      <Play className="h-4 w-4 mr-1 text-slate-500" /> Test
+                      <Play className="h-4 w-4 mr-1" /> Test
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => handleEditRule(rule)}>
-                      <Settings className="h-4 w-4 mr-1 text-slate-500" /> Edit
+                      <Settings className="h-4 w-4 mr-1" /> Edit
                     </Button>
                     <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteRule(rule.id)}>
                       <Trash2 className="h-4 w-4 mr-1" /> Delete
@@ -245,11 +247,11 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
 
       {/* Rule Builder UI */}
       <Card className="border-dashed border-2">
-        <CardContent className="p-10 text-center">
-          <Zap className="h-10 w-10 mx-auto text-slate-300 mb-4" />
+        <CardContent className="p-12 text-center">
+          <Zap className="h-12 w-12 mx-auto text-slate-400 mb-4" />
           <h3 className="font-semibold text-slate-900 mb-2">Create Custom Automation</h3>
           <p className="text-sm text-slate-600 mb-4">
-            Build simple logic rules to streamline your project transitions.
+            Build IF ? THEN automation rules to streamline your workflow
           </p>
           <Button onClick={() => setShowNewRuleDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -263,65 +265,74 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Create Automation Rule</DialogTitle>
-            <DialogDescription>Define what triggers the automation and what action occurs.</DialogDescription>
+            <DialogDescription>Set up an IF ? THEN automation rule for your project.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="rule-name">Rule Name <span className="text-red-500">*</span></Label>
+              <Label htmlFor="rule-name">Rule Name *</Label>
               <Input
                 id="rule-name"
                 value={ruleForm.name}
                 onChange={(e) => setRuleForm({ ...ruleForm, name: e.target.value })}
                 placeholder="e.g., Notify PM on Completion"
-                className={formErrors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                className={formErrors.name ? 'border-red-500' : ''}
               />
               {formErrors.name && <p className="text-xs text-red-500">{formErrors.name}</p>}
             </div>
-            
-            <div className="border border-slate-200 rounded-lg p-4 space-y-4 bg-slate-50/50 mt-2">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Zap className="w-4 h-4 text-blue-500" />
-                    <Label className="text-sm font-semibold text-blue-900">TRIGGER (WHEN...)</Label>
-                  </div>
-                  <Select value={ruleForm.trigger} onValueChange={(value) => setRuleForm({ ...ruleForm, trigger: value })}>
-                    <SelectTrigger className={formErrors.trigger ? 'border-red-500' : 'bg-white'}>
-                      <SelectValue placeholder="Select a trigger event..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {triggerOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formErrors.trigger && <p className="text-xs text-red-500">{formErrors.trigger}</p>}
-                </div>
-
-                <div className="space-y-2 pt-2 border-t border-slate-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Settings className="w-4 h-4 text-green-600" />
-                    <Label className="text-sm font-semibold text-green-900">ACTION (THEN...)</Label>
-                  </div>
-                  <Select value={ruleForm.action} onValueChange={(value) => setRuleForm({ ...ruleForm, action: value })}>
-                    <SelectTrigger className={formErrors.action ? 'border-red-500' : 'bg-white'}>
-                      <SelectValue placeholder="Select the action to perform..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {actionOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formErrors.action && <p className="text-xs text-red-500">{formErrors.action}</p>}
-                </div>
+            <div className="space-y-2">
+              <Label>IF (Trigger) *</Label>
+              <Select value={ruleForm.trigger} onValueChange={(value) => setRuleForm({ ...ruleForm, trigger: value })}>
+                <SelectTrigger className={formErrors.trigger ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select a trigger condition" />
+                </SelectTrigger>
+                <SelectContent>
+                  {triggerOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formErrors.trigger && <p className="text-xs text-red-500">{formErrors.trigger}</p>}
             </div>
-
+            <div className="space-y-2">
+              <Label>THEN (Action) *</Label>
+              <Select value={ruleForm.action} onValueChange={(value) => setRuleForm({ ...ruleForm, action: value })}>
+                <SelectTrigger className={formErrors.action ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select an action to perform" />
+                </SelectTrigger>
+                <SelectContent>
+                  {actionOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formErrors.action && <p className="text-xs text-red-500">{formErrors.action}</p>}
+            </div>
+            {ruleForm.trigger && ruleForm.action && (
+              <div className="p-4 bg-slate-50 rounded-lg border mt-2">
+                <p className="text-sm font-medium text-slate-900 mb-3">Rule Logic Preview</p>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded">WHEN</span>
+                    <p className="text-sm text-slate-700 mt-0.5">
+                      {getTriggerLabel(ruleForm.trigger)}
+                    </p>
+                  </div>
+                  <div className="pl-3 border-l-2 border-slate-200 ml-4 h-4"></div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded">THEN</span>
+                    <p className="text-sm text-slate-700 mt-0.5">
+                      {getActionLabel(ruleForm.action)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowNewRuleDialog(false); resetRuleForm(); }}>
               Cancel
             </Button>
-            <Button onClick={handleCreateRule}>Create & Enable</Button>
+            <Button onClick={handleCreateRule}>Create Rule & Enable</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -335,7 +346,7 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-rule-name">Rule Name <span className="text-red-500">*</span></Label>
+              <Label htmlFor="edit-rule-name">Rule Name *</Label>
               <Input
                 id="edit-rule-name"
                 value={ruleForm.name}
@@ -345,45 +356,34 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
               />
               {formErrors.name && <p className="text-xs text-red-500">{formErrors.name}</p>}
             </div>
-            
-            <div className="border border-slate-200 rounded-lg p-4 space-y-4 bg-slate-50/50 mt-2">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Zap className="w-4 h-4 text-blue-500" />
-                    <Label className="text-sm font-semibold text-blue-900">TRIGGER (WHEN...)</Label>
-                  </div>
-                  <Select value={ruleForm.trigger} onValueChange={(value) => setRuleForm({ ...ruleForm, trigger: value })}>
-                    <SelectTrigger className={formErrors.trigger ? 'border-red-500' : 'bg-white'}>
-                      <SelectValue placeholder="Select a trigger event..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {triggerOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formErrors.trigger && <p className="text-xs text-red-500">{formErrors.trigger}</p>}
-                </div>
-
-                <div className="space-y-2 pt-2 border-t border-slate-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Settings className="w-4 h-4 text-green-600" />
-                    <Label className="text-sm font-semibold text-green-900">ACTION (THEN...)</Label>
-                  </div>
-                  <Select value={ruleForm.action} onValueChange={(value) => setRuleForm({ ...ruleForm, action: value })}>
-                    <SelectTrigger className={formErrors.action ? 'border-red-500' : 'bg-white'}>
-                      <SelectValue placeholder="Select the action to perform..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {actionOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formErrors.action && <p className="text-xs text-red-500">{formErrors.action}</p>}
-                </div>
+            <div className="space-y-2">
+              <Label>IF (Trigger) *</Label>
+              <Select value={ruleForm.trigger} onValueChange={(value) => setRuleForm({ ...ruleForm, trigger: value })}>
+                <SelectTrigger className={formErrors.trigger ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select a trigger" />
+                </SelectTrigger>
+                <SelectContent>
+                  {triggerOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formErrors.trigger && <p className="text-xs text-red-500">{formErrors.trigger}</p>}
             </div>
-            
+            <div className="space-y-2">
+              <Label>THEN (Action) *</Label>
+              <Select value={ruleForm.action} onValueChange={(value) => setRuleForm({ ...ruleForm, action: value })}>
+                <SelectTrigger className={formErrors.action ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select an action" />
+                </SelectTrigger>
+                <SelectContent>
+                  {actionOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formErrors.action && <p className="text-xs text-red-500">{formErrors.action}</p>}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowEditRuleDialog(false); resetRuleForm(); setSelectedRule(null); }}>
@@ -396,3 +396,6 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
     </div>
   );
 }
+\;
+
+fs.writeFileSync(file, newContent, 'utf8');

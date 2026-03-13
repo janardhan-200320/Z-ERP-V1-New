@@ -1,253 +1,369 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Briefcase, 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  ArrowRight,
-  Sparkles,
-  Shield,
-  Zap,
-  Users
-} from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!email.trim() || !password.trim()) {
       toast({ title: 'Missing fields', description: 'Please enter both email and password.' });
       return;
     }
-
     setIsLoading(true);
-    
-    // Simulate login - replace with actual auth logic
     setTimeout(() => {
       setIsLoading(false);
       toast({ title: 'Welcome back!', description: 'You have successfully logged in.' });
-      // Navigate to dashboard - using wouter or window.location
       window.location.href = '/';
-    }, 1500);
+    }, 1800);
   };
 
-  const features = [
-    { icon: Zap, title: 'Lightning Fast', description: 'Optimized for peak performance' },
-    { icon: Shield, title: 'Enterprise Security', description: 'Bank-grade encryption & compliance' },
-    { icon: Users, title: 'Team Collaboration', description: 'Seamless multi-user workflows' },
-  ];
-
   return (
-    <div className="min-h-screen flex">
-      {/* Left Panel - Branding & Features */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-purple-950 via-purple-900 to-indigo-950 relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-white rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white rounded-full blur-3xl opacity-5" />
+    <>
+      <style>{`
+        @keyframes floatA {
+          0%,100% { transform: translateY(0px) scale(1); }
+          50%      { transform: translateY(-20px) scale(1.05); }
+        }
+        @keyframes floatB {
+          0%,100% { transform: translateY(0px) scale(1); }
+          50%      { transform: translateY(-28px) scale(1.07); }
+        }
+        @keyframes floatC {
+          0%,100% { transform: translateY(0px) scale(1); }
+          50%      { transform: translateY(-14px) scale(1.03); }
+        }
+        @keyframes cardIn {
+          from { opacity:0; transform:translateY(36px) scale(0.97); }
+          to   { opacity:1; transform:translateY(0) scale(1); }
+        }
+        @keyframes formIn {
+          from { opacity:0; transform:translateX(24px); }
+          to   { opacity:1; transform:translateX(0); }
+        }
+        @keyframes illusIn {
+          from { opacity:0; transform:scale(0.94); }
+          to   { opacity:1; transform:scale(1); }
+        }
+        @keyframes blobMorph {
+          0%,100% { border-radius:54% 46% 42% 58% / 48% 44% 56% 52%; }
+          33%      { border-radius:42% 58% 58% 42% / 52% 42% 58% 48%; }
+          66%      { border-radius:58% 42% 44% 56% / 44% 58% 42% 56%; }
+        }
+        @keyframes shimmerBtn {
+          0%   { left:-60%; }
+          100% { left:160%; }
+        }
+        @keyframes dotPop {
+          0%,80%,100% { transform:scale(0); opacity:0.4; }
+          40%          { transform:scale(1); opacity:1; }
+        }
+        @keyframes inputGlow {
+          0%,100% { box-shadow:0 0 0 3px rgba(52,168,100,0.15); }
+          50%      { box-shadow:0 0 0 4px rgba(52,168,100,0.30); }
+        }
+
+        .zb1 { animation:floatA 6.5s ease-in-out infinite; }
+        .zb2 { animation:floatB 8.5s ease-in-out infinite; }
+        .zb3 { animation:floatC 5.5s ease-in-out infinite; }
+        .zb4 { animation:floatA 9s   ease-in-out 1.2s infinite; }
+        .zb5 { animation:floatB 7s   ease-in-out 2s   infinite; }
+        .zb6 { animation:floatC 10s  ease-in-out 0.5s infinite; }
+
+        .z-card  { animation:cardIn 0.65s cubic-bezier(0.16,1,0.3,1) both; }
+        .z-illus { animation:illusIn 0.7s cubic-bezier(0.16,1,0.3,1) 0.1s both; }
+        .z-form  { animation:formIn 0.65s cubic-bezier(0.16,1,0.3,1) 0.2s both; }
+        .z-blob-bg { animation:blobMorph 12s ease-in-out infinite; }
+
+        .z-btn {
+          position:relative; overflow:hidden;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .z-btn::after {
+          content:'';
+          position:absolute; top:0; left:-60%;
+          width:45%; height:100%;
+          background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);
+          animation:shimmerBtn 2.6s ease-in-out infinite;
+          pointer-events:none;
+        }
+        .z-btn:hover:not(:disabled) {
+          transform:translateY(-2px);
+          box-shadow:0 12px 32px rgba(30,90,60,0.45);
+        }
+        .z-btn:active:not(:disabled) { transform:translateY(0); }
+
+        .z-input {
+          width:100%;
+          padding:14px 18px;
+          border-radius:50px;
+          border:none;
+          outline:none;
+          font-size:14px;
+          background:#253d30;
+          color:#d4ece0;
+          transition:background 0.25s, box-shadow 0.25s;
+        }
+        .z-input::placeholder { color:rgba(160,210,180,0.42); }
+        .z-input:focus {
+          background:#2d4a3a;
+          animation:inputGlow 2s ease-in-out infinite;
+        }
+
+        .zd1 { animation:dotPop 1.2s ease-in-out 0s   infinite; }
+        .zd2 { animation:dotPop 1.2s ease-in-out 0.2s infinite; }
+        .zd3 { animation:dotPop 1.2s ease-in-out 0.4s infinite; }
+
+        .z-forgot { transition:color 0.2s; }
+        .z-forgot:hover { color:#a8e6c0 !important; }
+        .z-terms  { transition:color 0.2s; }
+        .z-terms:hover  { color:#a8e6c0 !important; }
+      `}</style>
+
+      {/* PAGE */}
+      <div
+        className="min-h-screen w-full flex flex-col"
+        style={{background:'linear-gradient(140deg,#1a3829 0%,#1e4535 45%,#152e23 100%)'}}
+      >
+        {/* FLOATING BUBBLES */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{zIndex:0}}>
+          <div className="zb1 absolute rounded-full"
+            style={{width:240,height:240,top:'4%',left:'2%',background:'rgba(60,140,90,0.16)'}} />
+          <div className="zb2 absolute rounded-full"
+            style={{width:150,height:150,top:'8%',right:'5%',background:'rgba(60,140,90,0.14)'}} />
+          <div className="zb3 absolute rounded-full"
+            style={{width:90,height:90,bottom:'18%',left:'7%',background:'rgba(100,180,130,0.12)'}} />
+          <div className="zb4 absolute rounded-full"
+            style={{width:65,height:65,bottom:'28%',right:'10%',background:'rgba(60,140,90,0.16)'}} />
+          <div className="zb5 absolute rounded-full"
+            style={{width:180,height:180,bottom:'4%',right:'2%',background:'rgba(60,140,90,0.11)'}} />
+          <div className="zb6 absolute rounded-full"
+            style={{width:48,height:48,top:'46%',left:'46%',background:'rgba(100,180,130,0.10)'}} />
         </div>
 
-        {/* Grid Pattern Overlay */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-        }} />
-
-        <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Briefcase className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Z-ERP</h1>
-              <p className="text-purple-300 text-sm">Enterprise Resource Planning</p>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-sm">
-                <Sparkles className="h-4 w-4" />
-                Trusted by 500+ Organizations
-              </div>
-              <h2 className="text-4xl xl:text-5xl font-bold leading-tight">
-                Streamline Your<br />
-                <span className="text-purple-300">Business Operations</span>
-              </h2>
-              <p className="text-purple-200 text-lg max-w-md">
-                All-in-one platform for HR, Sales, Projects, Finance, and more. 
-                Built for modern enterprises.
-              </p>
-            </div>
-
-            {/* Feature Cards */}
-            <div className="grid gap-4">
-              {features.map((feature, index) => (
-                <div 
-                  key={index}
-                  className="flex items-center gap-4 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 hover:bg-white/15 transition-colors"
+        {/* MAIN CONTENT */}
+        <div className="flex-1 flex items-center justify-center p-4 sm:p-8 relative" style={{zIndex:1}}>
+          {/* CARD */}
+          <div
+            className="z-card flex overflow-hidden w-full"
+            style={{
+              maxWidth:880,
+              minHeight:500,
+              borderRadius:26,
+              background:'#ffffff',
+              boxShadow:'0 32px 80px rgba(0,0,0,0.38), 0 8px 28px rgba(0,0,0,0.22)',
+            }}
+          >
+            {/* ── LEFT: ILLUSTRATION ── */}
+            <div
+              className="z-illus hidden md:flex flex-col justify-between relative overflow-hidden"
+              style={{width:'46%', background:'#ffffff', padding:'30px 26px'}}
+            >
+              {/* Logo */}
+              <div className="flex items-center gap-2.5 relative z-10">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-lg shrink-0"
+                  style={{background:'linear-gradient(135deg,#2a7248,#1a5232)'}}
                 >
-                  <div className="h-12 w-12 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-                    <feature.icon className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">{feature.title}</h3>
-                    <p className="text-purple-300 text-sm">{feature.description}</p>
-                  </div>
+                  Z
                 </div>
-              ))}
+                <div>
+                  <div className="font-black text-sm leading-tight" style={{color:'#1a4530'}}>Z-ERP</div>
+                  <div className="text-xs font-medium" style={{color:'#528a68'}}>Enterprise Platform</div>
+                </div>
+              </div>
+
+              {/* Organic blob background */}
+              <div
+                className="z-blob-bg absolute"
+                style={{
+                  width:320, height:320,
+                  top:'50%', left:'50%',
+                  transform:'translate(-50%,-50%)',
+                  background:'linear-gradient(135deg,#e6f5ec 0%,#d0edda 55%,#c2e6d0 100%)',
+                  zIndex:0,
+                }}
+              />
+
+              {/* Decorative dots on blob */}
+              <div className="absolute rounded-full zb3"
+                style={{width:26,height:26,top:'22%',left:'16%',background:'rgba(100,190,140,0.38)',zIndex:1}} />
+              <div className="absolute rounded-full zb1"
+                style={{width:16,height:16,top:'58%',left:'10%',background:'rgba(100,190,140,0.28)',zIndex:1}} />
+              <div className="absolute rounded-full zb2"
+                style={{width:20,height:20,top:'28%',right:'10%',background:'rgba(100,190,140,0.32)',zIndex:1}} />
+              <div className="absolute rounded-full zb4"
+                style={{width:12,height:12,bottom:'26%',right:'18%',background:'rgba(100,190,140,0.22)',zIndex:1}} />
+
+              {/* SVG ERP Illustration */}
+              <div className="relative z-10 flex items-center justify-center py-4">
+                <svg viewBox="0 0 300 260" width="270" height="230" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <ellipse cx="150" cy="242" rx="108" ry="11" fill="rgba(60,120,80,0.10)" />
+                  <rect x="58" y="58" width="184" height="122" rx="13" fill="#1a3829" />
+                  <rect x="67" y="67" width="166" height="104" rx="8" fill="#253d30" />
+                  <rect x="84"  y="120" width="17" height="42" rx="4" fill="rgba(110,210,150,0.85)" />
+                  <rect x="109" y="100" width="17" height="62" rx="4" fill="rgba(80,185,125,0.9)" />
+                  <rect x="134" y="112" width="17" height="50" rx="4" fill="rgba(110,210,150,0.75)" />
+                  <rect x="159" y="90"  width="17" height="72" rx="4" fill="rgba(60,165,105,0.95)" />
+                  <rect x="184" y="105" width="17" height="57" rx="4" fill="rgba(96,205,145,0.80)" />
+                  <polyline points="84,116 109,97 134,109 159,87 184,101 208,92"
+                    stroke="rgba(170,240,195,0.65)" strokeWidth="2.2"
+                    strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  <circle cx="159" cy="87" r="4.5" fill="#b0f0d0" />
+                  <rect x="134" y="180" width="32" height="17" rx="5" fill="#1a3829" />
+                  <rect x="116" y="195" width="68" height="9" rx="4.5" fill="#122a1e" />
+                  <circle cx="50"  cy="175" r="13" fill="#f5c8a8" />
+                  <rect x="38" y="188" width="24" height="34" rx="9" fill="#2a7248" />
+                  <line x1="38" y1="200" x2="26" y2="215" stroke="#f5c8a8" strokeWidth="5.5" strokeLinecap="round" />
+                  <line x1="62" y1="200" x2="72" y2="212" stroke="#f5c8a8" strokeWidth="5.5" strokeLinecap="round" />
+                  <line x1="42" y1="222" x2="38" y2="242" stroke="#253d30" strokeWidth="5.5" strokeLinecap="round" />
+                  <line x1="58" y1="222" x2="62" y2="242" stroke="#253d30" strokeWidth="5.5" strokeLinecap="round" />
+                  <circle cx="250" cy="175" r="13" fill="#f5c8a8" />
+                  <rect x="238" y="188" width="24" height="34" rx="9" fill="#478c60" />
+                  <line x1="238" y1="200" x2="226" y2="212" stroke="#f5c8a8" strokeWidth="5.5" strokeLinecap="round" />
+                  <line x1="262" y1="200" x2="272" y2="215" stroke="#f5c8a8" strokeWidth="5.5" strokeLinecap="round" />
+                  <line x1="242" y1="222" x2="238" y2="242" stroke="#253d30" strokeWidth="5.5" strokeLinecap="round" />
+                  <line x1="258" y1="222" x2="262" y2="242" stroke="#253d30" strokeWidth="5.5" strokeLinecap="round" />
+                  <rect x="18" y="70" width="62" height="38" rx="9"
+                    fill="white" />
+                  <rect x="26" y="79" width="26" height="7" rx="3.5" fill="#c6e8d4" />
+                  <rect x="26" y="92" width="18" height="5" rx="2.5" fill="#e0f2e8" />
+                  <rect x="48" y="90" width="22" height="9" rx="4.5" fill="#2a7248" />
+                  <rect x="220" y="60" width="68" height="40" rx="9"
+                    fill="white" />
+                  <circle cx="235" cy="77" r="8" fill="#c6e8d4" />
+                  <rect x="248" y="70" width="30" height="6" rx="3" fill="#daeee4" />
+                  <rect x="248" y="80" width="22" height="6" rx="3" fill="#eaf6f0" />
+                </svg>
+              </div>
+
+              <div className="relative z-10 text-center">
+                <p className="text-xs font-semibold" style={{color:'#528a68'}}>Smart Business · 2026</p>
+              </div>
             </div>
-          </div>
 
-          {/* Footer */}
-          <div className="text-purple-300 text-sm">
-            © 2026 Z-ERP. All rights reserved.
-          </div>
-        </div>
-      </div>
+            {/* ── RIGHT: LOGIN FORM ── */}
+            <div
+              className="z-form flex-1 flex flex-col justify-center"
+              style={{padding:'44px 46px', background:'#ffffff'}}
+            >
+              {/* Mobile logo */}
+              <div className="md:hidden flex items-center gap-2.5 mb-8">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white"
+                  style={{background:'linear-gradient(135deg,#2a7248,#1a5232)'}}>Z</div>
+                <span className="font-black text-xl" style={{color:'#1a4530'}}>Z-ERP</span>
+              </div>
 
-      {/* Right Panel - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 bg-slate-50 relative overflow-hidden">
-        {/* Background Lights */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-10 right-10 w-72 h-72 bg-purple-300/30 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 left-10 w-96 h-96 bg-indigo-300/20 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-pink-200/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-20 w-80 h-80 bg-purple-400/25 rounded-full blur-3xl" />
-          <div className="absolute bottom-10 left-1/3 w-72 h-72 bg-violet-300/20 rounded-full blur-3xl" />
-        </div>
+              <h1 className="text-4xl font-black mb-8"
+                style={{color:'#0f2a1c', letterSpacing:'-0.025em'}}>
+                Login
+              </h1>
 
-        <div className="w-full max-w-md relative z-10">
-          {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="h-12 w-12 rounded-xl bg-purple-900 flex items-center justify-center">
-              <Briefcase className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Z-ERP</h1>
-              <p className="text-slate-500 text-sm">Enterprise Resource Planning</p>
-            </div>
-          </div>
-
-          <Card className="border-0 shadow-xl bg-white">
-            <CardHeader className="space-y-1 pb-6">
-              <CardTitle className="text-2xl font-bold text-slate-900">Welcome back</CardTitle>
-              <CardDescription className="text-slate-500">
-                Enter your credentials to access your account
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleLogin} className="space-y-5">
-                {/* Email Field */}
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-700 font-medium">
-                    Email Address
-                  </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="name@company.com"
-                      className="pl-11 h-12 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
+              <form onSubmit={handleLogin} className="space-y-4">
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{color:'#1e3a28'}}>
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    autoComplete="email"
+                    className="z-input"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </div>
 
-                {/* Password Field */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password" className="text-slate-700 font-medium">
-                      Password
-                    </Label>
-                    <a
-                      href="/forgot-password"
-                      className="text-sm text-purple-800 hover:text-purple-900 font-medium"
-                    >
-                      Forgot password?
-                    </a>
-                  </div>
+                {/* Password */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2" style={{color:'#1e3a28'}}>
+                    Password
+                  </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                    <Input
-                      id="password"
+                    <input
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Enter your password"
-                      className="pl-11 pr-11 h-12 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
+                      autoComplete="current-password"
+                      className="z-input"
+                      style={{paddingRight:48}}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity"
+                      style={{color:'#a8d8bc'}}
                     >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      {showPassword
+                        ? <EyeOff style={{width:17,height:17}} />
+                        : <Eye    style={{width:17,height:17}} />}
                     </button>
                   </div>
                 </div>
 
-                {/* Remember Me */}
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="remember"
-                    checked={rememberMe}
-                    onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                    className="border-slate-300 data-[state=checked]:bg-purple-900 data-[state=checked]:border-purple-900"
-                  />
-                  <Label htmlFor="remember" className="text-sm text-slate-600 cursor-pointer">
-                    Remember me
-                  </Label>
+                {/* Forgot */}
+                <div className="text-right">
+                  <a href="/forgot-password" className="z-forgot text-xs font-semibold"
+                    style={{color:'#528a68'}}>
+                    Forgot Password?
+                  </a>
                 </div>
 
-                {/* Submit Button */}
-                <Button
+                {/* Sign In */}
+                <button
                   type="submit"
-                  className="w-full h-12 bg-purple-900 hover:bg-purple-950 text-white font-semibold text-base gap-2"
                   disabled={isLoading}
+                  className="z-btn w-full py-3.5 font-bold text-sm text-white flex items-center justify-center gap-2 disabled:opacity-55 disabled:cursor-not-allowed"
+                  style={{
+                    borderRadius:50,
+                    background:'linear-gradient(135deg,#3a8a5c 0%,#2a7248 55%,#1a5232 100%)',
+                    boxShadow:'0 6px 22px rgba(36,100,65,0.40)',
+                    border:'none',
+                    cursor:'pointer',
+                  }}
                 >
                   {isLoading ? (
                     <>
-                      <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Signing in...
+                      <span className="zd1 inline-block w-1.5 h-1.5 rounded-full bg-green-200" />
+                      <span className="zd2 inline-block w-1.5 h-1.5 rounded-full bg-green-200" />
+                      <span className="zd3 inline-block w-1.5 h-1.5 rounded-full bg-green-200" />
                     </>
-                  ) : (
-                    <>
-                      Sign in
-                      <ArrowRight className="h-5 w-5" />
-                    </>
-                  )}
-                </Button>
-
+                  ) : 'Sign In'}
+                </button>
               </form>
-            </CardContent>
-          </Card>
 
-          {/* Security Badge */}
-          <div className="flex items-center justify-center gap-2 mt-6 text-slate-500 text-sm">
-            <Shield className="h-4 w-4" />
-            <span>Protected by enterprise-grade security</span>
+              <div className="mt-8 text-center">
+                <a href="#" className="z-terms text-xs" style={{color:'#7aaa90'}}>
+                  Terms and Services
+                </a>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* FOOTER */}
+        <div
+          className="relative flex items-center justify-between px-8 py-3 text-xs"
+          style={{zIndex:1, color:'rgba(140,195,165,0.5)', borderTop:'1px solid rgba(60,140,90,0.10)'}}
+        >
+          <span>&#169; 2026 Z-ERP &middot; All rights reserved</span>
+          <span>
+            Need help?{' '}
+            <a href="mailto:support@z-erp.com"
+              style={{color:'rgba(140,195,165,0.6)', textDecoration:'underline'}}>
+              support@z-erp.com
+            </a>
+          </span>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
+

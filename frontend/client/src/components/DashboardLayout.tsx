@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { Link, useLocation } from 'wouter';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import {
@@ -52,6 +52,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 interface Company {
   name: string;
@@ -72,7 +73,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [company, setCompany] = useState<Company | null>(null);
   const [orgLogo, setOrgLogo] = useState<string>('');
   const { selectedWorkspace } = useWorkspace();
-  
+  const { toast } = useToast();
+
   // New state for header actions
   const [searchOpen, setSearchOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -84,14 +86,33 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSearchIndex, setSelectedSearchIndex] = useState(0);
 
-  // Type definitions for navigation
-  interface SubMenuItem {
-    name: string;
-    path: string;
-    hasSubmenu?: boolean;
-    submenuKey?: string;
-    submenu?: SubMenuItem[];
-  }
+  const handleCheckIn = () => {
+    setCheckInDialogOpen(false);
+    toast({
+      title: "Checked In Successful!",
+      description: "Your attendance has been recorded for today.",
+      duration: 3000,
+    });
+  };
+
+  const handleCreateTask = () => {
+    setTaskDialogOpen(false);
+    toast({
+      title: "Task Created!",
+      description: "Your new task has been added successfully.",
+      duration: 3000,
+    });
+  };
+
+  const handleChatSend = () => {
+    if (!chatMessage.trim()) return;
+    setChatMessage('');
+    toast({
+      title: "Message Sent",
+      description: "Your message has been delivered to the team.",
+      duration: 2000,
+    });
+  };
 
   interface NavItem {
     name: string;
@@ -107,13 +128,14 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
     { name: 'Projects', icon: FolderKanban, path: '/projects' },
     { name: 'HRM', icon: UserCheck, path: '/hrm' },
-    { 
-      name: 'CRM', 
-      icon: Users, 
-      path: '/leads',
+    {
+      name: 'CRM',
+      icon: Users,
+      path: '/crm',
       hasSubmenu: true,
-      submenuKey: 'leads',
+      submenuKey: 'crm',
       submenu: [
+        { name: 'Leads', path: '/leads' },
         { name: 'Call Status', path: '/leads/call-status' },
       ]
     },
@@ -145,57 +167,20 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       ]
     },
     { name: 'Recruitment', icon: UserPlus, path: '/recruitment' },
-    { 
-      name: 'Customers', 
-      icon: Users, 
+    {
+      name: 'Customers',
+      icon: Users,
       path: '/customers',
       hasSubmenu: true,
       submenuKey: 'customers',
       submenu: [
         { name: 'Dashboard', path: '/customers' },
-        { name: 'Customers List', path: '/customers/list' },
-        { name: 'Groups', path: '/customers/groups' },
-        { name: 'Communication', path: '/customers/communication' },
+        { name: 'Contracts', path: '/contracts' },
       ]
     },
-    { 
-      name: 'Contracts', 
-      icon: FileSignature, 
-      path: '/contracts',
-      hasSubmenu: true,
-      submenuKey: 'contracts',
-      submenu: [
-        { name: 'Dashboard', path: '/contracts' },
-        { name: 'Active Contracts', path: '/contracts/active' },
-        { name: 'Renewals', path: '/contracts/renewals' },
-        { name: 'Alerts', path: '/contracts/alerts' },
-        { name: 'Types', path: '/contracts/types' },
-      ]
-    },
-    { 
-      name: 'Vendors', 
-      icon: Briefcase, 
-      path: '/vendors',
-      hasSubmenu: true,
-      submenuKey: 'vendors',
-      submenu: [
-        { name: 'Vendor List', path: '/vendors/list' },
-        { name: 'Vendor Payments', path: '/vendors/payments' },
-        { name: 'Documentation', path: '/vendors/documentation' },
-      ]
-    },
+{ name: 'Vendors', icon: Briefcase, path: '/vendors' },
 
-    { 
-      name: 'Team Space', 
-      icon: MessageSquareMore, 
-      path: '/team-space',
-      hasSubmenu: true,
-      submenuKey: 'team-space',
-      submenu: [
-        { name: 'Dashboard', path: '/team-space' },
-        
-      ]
-    },
+    { name: 'Team Space', icon: MessageSquareMore, path: '/team-space' },
 
     { name: 'Profile', icon: Users, path: '/profile' },
     
@@ -214,22 +199,9 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
         
       ]
     },
-    { 
-      name: 'Leads', 
-      icon: Users, 
-      path: '/leads',
-      hasSubmenu: true,
-      submenuKey: 'leads',
-      submenu: [
-        { name: 'Lead Intake', path: '/leads/intake' },
-        { name: 'Assignment', path: '/leads/assignment' },
-        { name: 'Sources', path: '/leads/sources' },
-        { name: 'Status', path: '/leads/status' },
-      ]
-    },
-    { 
-      name: 'Admin', 
-      icon: Settings, 
+    {
+      name: 'Admin',
+      icon: Settings,
       path: '/admin',
       hasSubmenu: true,
       submenuKey: 'admin',
@@ -240,24 +212,12 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
         { name: 'Roles & Permissions', path: '/admin/permissions' },
       ]
     },
-    { 
-      name: 'Settings', 
-      icon: Settings, 
-      path: '/dashboard/settings',
-      hasSubmenu: true,
-      submenuKey: 'settings',
-      submenu: [
-        { name: 'Overview', path: '/dashboard/settings' },
-        { name: 'General', path: '/dashboard/settings/general' },
-        { name: 'Email', path: '/dashboard/settings/email' },
-        { name: 'E-Sign', path: '/dashboard/settings/esign' },
-        { name: 'Leads', path: '/dashboard/settings/leads' },
-      ]
-    },
+    { name: 'Settings', icon: Settings, path: '/dashboard/settings' },
   ], []);
 
   // State for expandable menus
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
+    crm: false,
     sales: false,
     accounts: false,
     banking: false,
@@ -265,10 +225,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     receivables: false,
     payables: false,
     vendors: false,
-    leads: false,
     admin: false,
     setup: false,
-    contracts: false,
     customers: false,
     'team-space': false,
     settings: false,
@@ -837,7 +795,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-2xl">
+            <div className="hidden md:flex items-center gap-2 sm:gap-3 flex-1 max-w-2xl">
               {/* Global Search Bar */}
               <div className="relative flex-1 max-w-xl">
                 <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -848,12 +806,22 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                   readOnly
                 />
                 <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs font-semibold text-slate-500 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-md shadow-sm">
-                  ⌘K
+                  âŒ˜K
                 </kbd>
               </div>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
+              {/* Mobile Search Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden h-10 w-10 rounded-full hover:bg-slate-100 relative"
+                onClick={() => setSearchOpen(true)}
+              >
+                <Search size={18} className="text-slate-600" />
+              </Button>
+
               {/* Team Chat Button */}
               <Button
                 variant="ghost"
@@ -956,9 +924,9 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 <p className="text-sm text-slate-500 mb-2">Start typing to search</p>
                 <div className="flex flex-wrap gap-2 justify-center text-xs text-slate-400">
                   <span>Try: Dashboard</span>
-                  <span>•</span>
+                  <span>â€¢</span>
                   <span>Employees</span>
-                  <span>•</span>
+                  <span>â€¢</span>
                   <span>Invoices</span>
                 </div>
               </div>
@@ -980,7 +948,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'} found
                   </p>
-                  <p className="text-xs text-slate-400">↑↓ Navigate • ↵ Select • ESC Close</p>
+                  <p className="text-xs text-slate-400">â†‘â†“ Navigate â€¢ â†µ Select â€¢ ESC Close</p>
                 </div>
                 <ScrollArea className="max-h-96">
                   <div className="space-y-1">
@@ -1085,7 +1053,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                       <Smile size={16} className="text-gray-500" />
                     </Button>
                   </div>
-                  <Button className="bg-indigo-600 hover:bg-indigo-700">
+                  <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleChatSend}>
                     <Send size={16} />
                   </Button>
                 </div>
@@ -1131,7 +1099,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button className="flex-1 bg-green-600 hover:bg-green-700">
+              <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={handleCheckIn}>
                 <LogIn size={16} className="mr-2" />
                 Check In
               </Button>
@@ -1208,7 +1176,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
               </div>
             </div>
             <div className="flex gap-2 pt-4">
-              <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700">
+              <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700" onClick={handleCreateTask}>
                 <Plus size={16} className="mr-2" />
                 Create Task
               </Button>
@@ -1262,3 +1230,4 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
 };
 
 export default DashboardLayout;
+

@@ -32,16 +32,16 @@ export default function ProjectTimesheetsTab({ projectId }: ProjectTimesheetsTab
   // Mock data
   const summaryCards = [
     { title: 'Total Hours', value: '348', color: 'text-blue-600', bgColor: 'bg-blue-100' },
-    { title: 'Billable Hours', value: '285', color: 'text-green-600', bgColor: 'bg-green-100' },
-    { title: 'Non-Billable', value: '63', color: 'text-slate-600', bgColor: 'bg-slate-100' }
+    { title: 'This Week', value: '85', color: 'text-purple-600', bgColor: 'bg-purple-100' },
+    { title: 'This Month', value: '240', color: 'text-indigo-600', bgColor: 'bg-indigo-100' }
   ];
 
   const timesheets = [
-    { employee: 'Sarah Johnson', date: '2026-01-15', task: 'User Authentication', hours: 8, billable: true, notes: 'Implemented OAuth integration' },
-    { employee: 'Mike Brown', date: '2026-01-15', task: 'Frontend Development', hours: 7.5, billable: true, notes: 'Product catalog UI' },
-    { employee: 'Emily Davis', date: '2026-01-14', task: 'API Development', hours: 8, billable: true, notes: 'REST endpoints for products' },
-    { employee: 'Alex Wilson', date: '2026-01-14', task: 'UI Design', hours: 6, billable: true, notes: 'Homepage wireframes' },
-    { employee: 'John Smith', date: '2026-01-13', task: 'Project Planning', hours: 4, billable: false, notes: 'Sprint planning meeting' }
+    { employee: 'Sarah Johnson', createDate: '2026-01-14', startDate: '2026-01-15 09:00', endDate: '2026-01-15 17:00', task: 'User Authentication', hours: 8, notes: 'Implemented OAuth integration' },
+    { employee: 'Mike Brown', createDate: '2026-01-14', startDate: '2026-01-15 09:30', endDate: '2026-01-15 17:00', task: 'Frontend Development', hours: 7.5, notes: 'Product catalog UI' },
+    { employee: 'Emily Davis', createDate: '2026-01-13', startDate: '2026-01-14 08:00', endDate: '2026-01-14 16:00', task: 'API Development', hours: 8, notes: 'REST endpoints for products' },
+    { employee: 'Alex Wilson', createDate: '2026-01-13', startDate: '2026-01-14 10:00', endDate: '2026-01-14 16:00', task: 'UI Design', hours: 6, notes: 'Homepage wireframes' },
+    { employee: 'John Smith', createDate: '2026-01-12', startDate: '2026-01-13 13:00', endDate: '2026-01-13 17:00', task: 'Project Planning', hours: 4, notes: 'Sprint planning meeting' }
   ];
 
   const validateTimeForm = () => {
@@ -82,14 +82,6 @@ export default function ProjectTimesheetsTab({ projectId }: ProjectTimesheetsTab
 
   return (
     <div className="space-y-6">
-      {/* Log Time Button */}
-      <div className="flex justify-end">
-        <Button size="sm" onClick={() => setShowLogDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Log Time
-        </Button>
-      </div>
-
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         {summaryCards.map((card, index) => (
@@ -129,10 +121,11 @@ export default function ProjectTimesheetsTab({ projectId }: ProjectTimesheetsTab
             <TableHeader>
               <TableRow>
                 <TableHead>Employee</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead>Create Date</TableHead>
+                <TableHead>Start Date</TableHead>
+                <TableHead>End Date</TableHead>
                 <TableHead>Task</TableHead>
                 <TableHead>Hours</TableHead>
-                <TableHead>Billable</TableHead>
                 <TableHead>Notes</TableHead>
               </TableRow>
             </TableHeader>
@@ -140,14 +133,11 @@ export default function ProjectTimesheetsTab({ projectId }: ProjectTimesheetsTab
               {timesheets.map((entry, index) => (
                 <TableRow key={index} className="hover:bg-slate-50">
                   <TableCell className="font-medium">{entry.employee}</TableCell>
-                  <TableCell className="text-slate-600">{entry.date}</TableCell>
+                  <TableCell className="text-slate-500 text-sm">{entry.createDate}</TableCell>
+                  <TableCell className="text-slate-700 font-medium">{entry.startDate}</TableCell>
+                  <TableCell className="text-slate-700 font-medium">{entry.endDate}</TableCell>
                   <TableCell>{entry.task}</TableCell>
                   <TableCell className="font-medium">{entry.hours}h</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={entry.billable ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-100 text-slate-700 border-slate-200'}>
-                      {entry.billable ? 'Yes' : 'No'}
-                    </Badge>
-                  </TableCell>
                   <TableCell className="text-slate-600 text-sm">{entry.notes}</TableCell>
                 </TableRow>
               ))}

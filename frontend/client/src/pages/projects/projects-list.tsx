@@ -12,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -121,7 +123,7 @@ export default function ProjectsList() {
     billingType: 'fixed-rate',
     totalRate: '',
     estimatedHours: '',
-    members: 'Zedunix ERP Admin',
+    members: [] as string[],
     sendEmail: false
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -276,7 +278,7 @@ export default function ProjectsList() {
       billingType: 'fixed-rate',
       totalRate: '',
       estimatedHours: '',
-      members: 'Zedunix ERP Admin',
+      members: [] as string[],
       sendEmail: false
     });
     setFormErrors({});
@@ -308,7 +310,7 @@ export default function ProjectsList() {
       billingType: project.billingType || 'fixed-rate',
       totalRate: project.totalRate || '',
       estimatedHours: project.estimatedHours || '',
-      members: project.members_name || 'Zedunix ERP Admin',
+      members: Array.isArray(project.members) ? project.members : typeof project.members === 'string' ? [project.members] : [],
       sendEmail: project.sendEmail || false
     });
     setShowEditDialog(true);
@@ -442,18 +444,6 @@ export default function ProjectsList() {
                   <div className="flex flex-col">
                     <span className="font-semibold text-slate-700">Create New Project</span>
                     <span className="text-xs text-slate-500">Start a new project</span>
-                  </div>
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => setShowTeamMemberDialog(true)}
-                  className="cursor-pointer gap-2 py-2.5"
-                >
-                  <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                    <UserPlus className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-slate-700">Add Team Member</span>
-                    <span className="text-xs text-slate-500">Invite to project</span>
                   </div>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -800,18 +790,57 @@ export default function ProjectsList() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="members" className="text-xs font-bold text-slate-600 uppercase">Assignee</Label>
-                  <Select 
-                    value={projectForm.members} 
-                    onValueChange={(value) => setProjectForm({ ...projectForm, members: value })}
-                  >
-                    <SelectTrigger id="members" className="h-10 border-slate-200 bg-white shadow-sm font-medium">
-                      <SelectValue placeholder="Select member" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Zedunix ERP Admin">Zedunix ERP Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs font-bold text-slate-600 uppercase">Team Members</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left h-auto min-h-[40px] border-slate-200 bg-white shadow-sm font-medium flex-wrap gap-1 px-3 py-2">
+                        {projectForm.members && projectForm.members.length > 0 ? (
+                          projectForm.members.map(memberId => {
+                            const selectedMem = availableTeamMembers.find(m => m.id === memberId);
+                            return selectedMem ? (
+                              <Badge variant="secondary" key={memberId} className="mr-1 mb-1 bg-slate-100 text-slate-800 hover:bg-slate-200 border-none px-2 py-0.5 rounded-full text-xs">
+                                {selectedMem.name}
+                              </Badge>
+                            ) : null;
+                          })
+                        ) : (
+                          <span className="text-slate-500">Select team members...</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search members..." />
+                        <CommandList>
+                          <CommandEmpty>No members found.</CommandEmpty>
+                          <CommandGroup className="max-h-64 overflow-auto">
+                            {availableTeamMembers.map((member) => {
+                              const isSelected = projectForm.members?.includes(member.id);
+                              return (
+                                <CommandItem
+                                  key={member.id}
+                                  onSelect={() => {
+                                    const newMembers = isSelected 
+                                      ? projectForm.members.filter(id => id !== member.id)
+                                      : [...(projectForm.members || []), member.id];
+                                    setProjectForm({ ...projectForm, members: newMembers });
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2 w-full">
+                                    <Checkbox checked={isSelected} className="h-4 w-4 rounded-sm" />
+                                    <div className="flex flex-col">
+                                      <span className="font-medium text-sm text-slate-700">{member.name}</span>
+                                      <span className="text-xs text-slate-500">{member.role}</span>
+                                    </div>
+                                  </div>
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
@@ -1058,18 +1087,57 @@ export default function ProjectsList() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="edit-members" className="text-xs font-bold text-slate-600 uppercase">Assignee</Label>
-                  <Select 
-                    value={projectForm.members} 
-                    onValueChange={(value) => setProjectForm({ ...projectForm, members: value })}
-                  >
-                    <SelectTrigger id="edit-members" className="h-10 border-slate-200 bg-white shadow-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Zedunix ERP Admin">Zedunix ERP Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs font-bold text-slate-600 uppercase">Team Members</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left h-auto min-h-[40px] border-slate-200 bg-white shadow-sm font-medium flex-wrap gap-1 px-3 py-2">
+                        {projectForm.members && projectForm.members.length > 0 ? (
+                          projectForm.members.map(memberId => {
+                            const selectedMem = availableTeamMembers.find(m => m.id === memberId);
+                            return selectedMem ? (
+                              <Badge variant="secondary" key={memberId} className="mr-1 mb-1 bg-slate-100 text-slate-800 hover:bg-slate-200 border-none px-2 py-0.5 rounded-full text-xs">
+                                {selectedMem.name}
+                              </Badge>
+                            ) : null;
+                          })
+                        ) : (
+                          <span className="text-slate-500">Select team members...</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search members..." />
+                        <CommandList>
+                          <CommandEmpty>No members found.</CommandEmpty>
+                          <CommandGroup className="max-h-64 overflow-auto">
+                            {availableTeamMembers.map((member) => {
+                              const isSelected = projectForm.members?.includes(member.id);
+                              return (
+                                <CommandItem
+                                  key={member.id}
+                                  onSelect={() => {
+                                    const newMembers = isSelected 
+                                      ? projectForm.members.filter(id => id !== member.id)
+                                      : [...(projectForm.members || []), member.id];
+                                    setProjectForm({ ...projectForm, members: newMembers });
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2 w-full">
+                                    <Checkbox checked={isSelected} className="h-4 w-4 rounded-sm" />
+                                    <div className="flex flex-col">
+                                      <span className="font-medium text-sm text-slate-700">{member.name}</span>
+                                      <span className="text-xs text-slate-500">{member.role}</span>
+                                    </div>
+                                  </div>
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 

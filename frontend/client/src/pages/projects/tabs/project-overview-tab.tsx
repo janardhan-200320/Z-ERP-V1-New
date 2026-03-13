@@ -55,19 +55,11 @@ export default function ProjectOverviewTab({ project }: ProjectOverviewTabProps)
   ];
 
   const milestones = [
-    { id: 'MS-001', title: 'Project Kickoff', date: '2026-01-10', status: 'completed', progress: 100 },
-    { id: 'MS-002', title: 'Design Phase Complete', date: '2026-01-25', status: 'completed', progress: 100 },
-    { id: 'MS-003', title: 'Development Sprint 1', date: '2026-02-10', status: 'in-progress', progress: 75 },
-    { id: 'MS-004', title: 'QA Testing Phase', date: '2026-02-28', status: 'pending', progress: 0 },
-    { id: 'MS-005', title: 'Production Deployment', date: '2026-03-15', status: 'pending', progress: 0 }
-  ];
-
-  const resources = [
-    { member: 'John Smith', role: 'Project Manager', allocation: 100, hours: 40 },
-    { member: 'Sarah Johnson', role: 'Lead Developer', allocation: 100, hours: 40 },
-    { member: 'Mike Brown', role: 'Frontend Developer', allocation: 80, hours: 32 },
-    { member: 'Emily Davis', role: 'Backend Developer', allocation: 80, hours: 32 },
-    { member: 'Alex Wilson', role: 'UI/UX Designer', allocation: 60, hours: 24 }
+    { id: 'MS-001', title: 'Project Kickoff', startDate: '2026-01-05', dueDate: '2026-01-10', status: 'completed', progress: 100 },
+    { id: 'MS-002', title: 'Design Phase Complete', startDate: '2026-01-11', dueDate: '2026-01-25', status: 'completed', progress: 100 },
+    { id: 'MS-003', title: 'Development Sprint 1', startDate: '2026-01-26', dueDate: '2026-02-10', status: 'in-progress', progress: 75 },
+    { id: 'MS-004', title: 'QA Testing Phase', startDate: '2026-02-11', dueDate: '2026-02-28', status: 'pending', progress: 0 },
+    { id: 'MS-005', title: 'Production Deployment', startDate: '2026-03-01', dueDate: '2026-03-15', status: 'pending', progress: 0 }
   ];
 
   const files = [
@@ -113,7 +105,8 @@ export default function ProjectOverviewTab({ project }: ProjectOverviewTabProps)
               <TableRow>
                 <TableHead>ID</TableHead>
                 <TableHead>Title</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead>Start Date</TableHead>
+                <TableHead>Due Date</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Progress</TableHead>
               </TableRow>
@@ -123,7 +116,8 @@ export default function ProjectOverviewTab({ project }: ProjectOverviewTabProps)
                 <TableRow key={milestone.id} className="hover:bg-slate-50">
                   <TableCell className="font-medium">{milestone.id}</TableCell>
                   <TableCell>{milestone.title}</TableCell>
-                  <TableCell className="text-slate-600">{milestone.date}</TableCell>
+                  <TableCell className="text-slate-600">{milestone.startDate}</TableCell>
+                  <TableCell className="text-slate-600">{milestone.dueDate}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={statusConfig[milestone.status].class}>
                       {statusConfig[milestone.status].label}
@@ -135,40 +129,6 @@ export default function ProjectOverviewTab({ project }: ProjectOverviewTabProps)
                       <span className="text-sm text-slate-600">{milestone.progress}%</span>
                     </div>
                   </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Resource Allocation */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Resource Allocation</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Member</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Allocation</TableHead>
-                <TableHead>Hours / Week</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {resources.map((resource, index) => (
-                <TableRow key={index} className="hover:bg-slate-50">
-                  <TableCell className="font-medium">{resource.member}</TableCell>
-                  <TableCell className="text-slate-600">{resource.role}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={resource.allocation} className="w-24" />
-                      <span className="text-sm text-slate-600">{resource.allocation}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-slate-600">{resource.hours}h</TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -863,11 +863,11 @@ export default function LeadsModule() {
   // Contact Actions
   const handleCall = (lead: Lead, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    console.log("📞 Initiating call to:", lead.name, lead.phone);
+    console.log("ðŸ“ž Initiating call to:", lead.name, lead.phone);
     
     if (!lead.phone) {
       toast({
-        title: "⚠️ No Phone Number",
+        title: "âš ï¸ No Phone Number",
         description: `${lead.name} doesn't have a phone number on record.`,
         variant: "destructive",
         duration: 3000,
@@ -877,7 +877,7 @@ export default function LeadsModule() {
 
     // In a real app, this would integrate with a phone system (Twilio, etc.)
     toast({
-      title: "📞 Calling " + lead.name,
+      title: "ðŸ“ž Calling " + lead.name,
       description: `Dialing ${lead.phone}...`,
       duration: 4000,
     });
@@ -907,11 +907,11 @@ export default function LeadsModule() {
 
   const handleEmail = (lead: Lead, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    console.log("📧 Composing email to:", lead.name, lead.email);
+    console.log("ðŸ“§ Composing email to:", lead.name, lead.email);
     
     if (!lead.email) {
       toast({
-        title: "⚠️ No Email Address",
+        title: "âš ï¸ No Email Address",
         description: `${lead.name} doesn't have an email address on record.`,
         variant: "destructive",
         duration: 3000,
@@ -920,7 +920,7 @@ export default function LeadsModule() {
     }
 
     toast({
-      title: "✉️ Opening Email",
+      title: "âœ‰ï¸ Opening Email",
       description: `Composing email to ${lead.name}...`,
       duration: 3000,
     });
@@ -954,7 +954,7 @@ export default function LeadsModule() {
     e?.stopPropagation();
     if (!lead.phone) {
       toast({
-        title: "⚠️ No Phone Number",
+        title: "âš ï¸ No Phone Number",
         description: "Cannot open WhatsApp without a phone number.",
         variant: "destructive",
       });
@@ -966,7 +966,7 @@ export default function LeadsModule() {
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
     
     toast({
-      title: "💬 Opening WhatsApp",
+      title: "ðŸ’¬ Opening WhatsApp",
       description: `Messaging ${lead.name}...`,
       duration: 3000,
     });
@@ -983,7 +983,7 @@ export default function LeadsModule() {
       setLeads(prev => prev.filter(l => l.id !== leadId));
       
       toast({
-        title: "🗑️ Lead Deleted",
+        title: "ðŸ—‘ï¸ Lead Deleted",
         description: `${lead.name} has been removed from your leads.`,
         duration: 3000,
       });
@@ -1013,7 +1013,7 @@ export default function LeadsModule() {
     setLeads(prev => [duplicatedLead, ...prev]);
 
     toast({
-      title: "📋 Lead Duplicated",
+      title: "ðŸ“‹ Lead Duplicated",
       description: `Created a copy of ${lead.name}`,
       duration: 3000,
     });
@@ -1032,7 +1032,7 @@ export default function LeadsModule() {
       
       if (file) {
         toast({
-          title: "📥 Importing Leads",
+          title: "ðŸ“¥ Importing Leads",
           description: `Processing ${file.name}...`,
           duration: 3000,
         });
@@ -1041,7 +1041,7 @@ export default function LeadsModule() {
         // For now, just show success
         setTimeout(() => {
           toast({
-            title: "✅ Import Complete",
+            title: "âœ… Import Complete",
             description: "Leads have been imported successfully.",
             duration: 3000,
           });
@@ -1068,7 +1068,7 @@ export default function LeadsModule() {
     window.URL.revokeObjectURL(url);
 
     toast({
-      title: "📥 Export Complete",
+      title: "ðŸ“¥ Export Complete",
       description: `Exported ${filteredLeads.length} leads to CSV`,
       duration: 3000,
     });
@@ -1077,7 +1077,7 @@ export default function LeadsModule() {
   // Bulk Actions
   const handleBulkAssign = (assignTo: string) => {
     toast({
-      title: "👥 Bulk Assignment",
+      title: "ðŸ‘¥ Bulk Assignment",
       description: `This feature will assign selected leads to ${assignTo}`,
       duration: 3000,
     });
@@ -1085,7 +1085,7 @@ export default function LeadsModule() {
 
   const handleBulkStatusChange = (newStatus: string) => {
     toast({
-      title: "🔄 Status Update",
+      title: "ðŸ”„ Status Update",
       description: `This feature will change status of selected leads to ${newStatus}`,
       duration: 3000,
     });
@@ -1093,7 +1093,7 @@ export default function LeadsModule() {
 
   const handleBulkAddTags = () => {
     toast({
-      title: "🏷️ Bulk Tag Addition",
+      title: "ðŸ·ï¸ Bulk Tag Addition",
       description: "This feature will add tags to selected leads",
       duration: 3000,
     });
@@ -1102,7 +1102,7 @@ export default function LeadsModule() {
   const handleBulkDelete = () => {
     if (confirm("Are you sure you want to delete the selected leads?")) {
       toast({
-        title: "🗑️ Bulk Delete",
+        title: "ðŸ—‘ï¸ Bulk Delete",
         description: "Selected leads will be deleted",
         variant: "destructive",
         duration: 3000,
@@ -1156,10 +1156,10 @@ export default function LeadsModule() {
 
   const saveNewLead = async () => {
     const isEditing = !!formData.id;
-    console.log(isEditing ? "✏️ saveNewLead (EDIT MODE)" : "🔥 saveNewLead (CREATE MODE)", { formData, name: formData.name, source: formData.source });
+    console.log(isEditing ? "âœï¸ saveNewLead (EDIT MODE)" : "ðŸ”¥ saveNewLead (CREATE MODE)", { formData, name: formData.name, source: formData.source });
     
     if (!formData.name || !formData.source) {
-      console.log("❌ Validation failed", { name: formData.name, source: formData.source });
+      console.log("âŒ Validation failed", { name: formData.name, source: formData.source });
       
       // Scroll to top to show required fields
       const scrollArea = document.querySelector('[data-radix-scroll-area-viewport]');
@@ -1168,7 +1168,7 @@ export default function LeadsModule() {
       }
       
       toast({
-        title: "⚠️ Missing Required Fields",
+        title: "âš ï¸ Missing Required Fields",
         description: !formData.name && !formData.source 
           ? "Please fill in both Full Name and Lead Source to continue." 
           : !formData.name 
@@ -1180,7 +1180,7 @@ export default function LeadsModule() {
       return;
     }
     
-    console.log("✅ Validation passed, starting to save...");
+    console.log("âœ… Validation passed, starting to save...");
     setIsSaving(true);
     
     try {
@@ -1189,7 +1189,7 @@ export default function LeadsModule() {
       
       if (isEditing) {
         // UPDATE existing lead
-        console.log("📝 Updating existing lead:", formData.id);
+        console.log("ðŸ“ Updating existing lead:", formData.id);
         setLeads(prev => prev.map(l => {
           if (l.id === formData.id) {
             return {
@@ -1201,28 +1201,28 @@ export default function LeadsModule() {
           return l;
         }));
         
-        console.log("🎉 Lead update complete!");
+        console.log("ðŸŽ‰ Lead update complete!");
         toast({
-          title: "✅ Lead Updated Successfully!",
+          title: "âœ… Lead Updated Successfully!",
           description: `${formData.name} has been updated.`,
           duration: 3000,
         });
       } else {
         // CREATE new lead
-        console.log("💾 Creating new lead object...");
+        console.log("ðŸ’¾ Creating new lead object...");
         const newLead = createLeadObject();
-        console.log("📝 New lead created:", newLead);
+        console.log("ðŸ“ New lead created:", newLead);
         
         setLeads(prev => {
-          console.log("📋 Current leads count:", prev.length);
+          console.log("ðŸ“‹ Current leads count:", prev.length);
           const updated = [newLead, ...prev];
-          console.log("📋 Updated leads count:", updated.length);
+          console.log("ðŸ“‹ Updated leads count:", updated.length);
           return updated;
         });
         
-        console.log("🎉 Lead save complete!");
+        console.log("ðŸŽ‰ Lead save complete!");
         toast({
-          title: "✨ Lead Created Successfully!",
+          title: "âœ¨ Lead Created Successfully!",
           description: `${newLead.name} from ${newLead.company || 'Unknown Company'} has been added to your pipeline.`,
           duration: 5000,
         });
@@ -1234,7 +1234,7 @@ export default function LeadsModule() {
       setSelectedLead(null);
       
     } catch (error) {
-      console.error("❌ Error saving lead:", error);
+      console.error("âŒ Error saving lead:", error);
       toast({
         title: "Error",
         description: `Failed to ${isEditing ? 'update' : 'create'} lead. Please try again.`,
@@ -1246,7 +1246,7 @@ export default function LeadsModule() {
   };
 
   const saveAndAddAnother = async () => {
-    console.log("🔄 saveAndAddAnother called", { formData });
+    console.log("ðŸ”„ saveAndAddAnother called", { formData });
     
     if (!formData.name || !formData.source) {
       // Scroll to top to show required fields
@@ -1256,7 +1256,7 @@ export default function LeadsModule() {
       }
       
       toast({
-        title: "⚠️ Missing Required Fields",
+        title: "âš ï¸ Missing Required Fields",
         description: !formData.name && !formData.source 
           ? "Please fill in both Full Name and Lead Source to continue." 
           : !formData.name 
@@ -1273,7 +1273,7 @@ export default function LeadsModule() {
     try {
       // Create lead
       const newLead = createLeadObject();
-      console.log("📝 New lead created:", newLead);
+      console.log("ðŸ“ New lead created:", newLead);
       
       // Small delay for UX
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -1285,7 +1285,7 @@ export default function LeadsModule() {
       
       // Success toast
       toast({
-        title: "✅ Lead Saved!",
+        title: "âœ… Lead Saved!",
         description: `${newLead.name} has been saved. Ready to add another lead.`,
         duration: 3000,
       });
@@ -1296,9 +1296,9 @@ export default function LeadsModule() {
         scrollArea.scrollTop = 0;
       }
       
-      console.log("🎉 Lead saved, ready for next entry");
+      console.log("ðŸŽ‰ Lead saved, ready for next entry");
     } catch (error) {
-      console.error("❌ Error saving lead:", error);
+      console.error("âŒ Error saving lead:", error);
       toast({
         title: "Error",
         description: "Failed to create lead. Please try again.",
@@ -1406,13 +1406,22 @@ export default function LeadsModule() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         {/* Header Section */}
         <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-          <div className="px-6 py-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">CRM</h1>
-                <p className="text-gray-500 mt-1">Leads Management</p>
-              </div>
+          <div className="px-6 py-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
               <div className="flex items-center gap-3">
+                <div className="bg-blue-600/10 p-2.5 rounded-lg border border-blue-600/20">
+                  <Users className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">CRM</h1>
+                    <span className="text-gray-300 font-medium">/</span>
+                    <h2 className="text-xl font-semibold text-gray-700">Leads</h2>
+                  </div>
+                  <p className="text-sm text-gray-500 font-medium mt-0.5">Manage and track your leads efficiently</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={handleImport} className="hover:bg-blue-50 hover:border-blue-500">
                   <Import className="w-4 h-4 mr-2" />
                   <span className="hidden sm:inline">Import</span>
@@ -1457,68 +1466,68 @@ export default function LeadsModule() {
               </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
-              <Card className="shadow-sm">
+            {/* Stats Cards - Horizontally Scrollable */}
+            <div className="flex overflow-x-auto pb-4 pt-1 gap-4 mb-2 scrollbar-hide snap-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <Card className="shadow-sm min-w-[160px] flex-1 snap-start overflow-hidden hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <Users className="w-5 h-5 text-blue-600" />
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-2xl font-bold text-gray-900 truncate">{stats.total}</p>
                   <p className="text-sm text-gray-600">Total Leads</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
+              <Card className="shadow-sm min-w-[160px] flex-1 snap-start overflow-hidden hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <Sparkles className="w-5 h-5 text-blue-500" />
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.new}</p>
+                  <p className="text-2xl font-bold text-gray-900 truncate">{stats.new}</p>
                   <p className="text-sm text-gray-600">New</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
+              <Card className="shadow-sm min-w-[160px] flex-1 snap-start overflow-hidden hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <CheckCircle className="w-5 h-5 text-purple-600" />
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.qualified}</p>
+                  <p className="text-2xl font-bold text-gray-900 truncate">{stats.qualified}</p>
                   <p className="text-sm text-gray-600">Qualified</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
+              <Card className="shadow-sm min-w-[160px] flex-1 snap-start overflow-hidden hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <Award className="w-5 h-5 text-green-600" />
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.won}</p>
+                  <p className="text-2xl font-bold text-gray-900 truncate">{stats.won}</p>
                   <p className="text-sm text-gray-600">Won</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
+              <Card className="shadow-sm min-w-[160px] flex-1 snap-start overflow-hidden hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <Flame className="w-5 h-5 text-red-500" />
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.hotLeads}</p>
+                  <p className="text-2xl font-bold text-gray-900 truncate">{stats.hotLeads}</p>
                   <p className="text-sm text-gray-600">Hot Leads</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
+              <Card className="shadow-sm min-w-[160px] flex-1 snap-start overflow-hidden hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <BarChart3 className="w-5 h-5 text-amber-600" />
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.avgScore}</p>
+                  <p className="text-2xl font-bold text-gray-900 truncate">{stats.avgScore}</p>
                   <p className="text-sm text-gray-600">Avg Score</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
+              <Card className="shadow-sm min-w-[160px] flex-1 snap-start overflow-hidden hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <DollarSign className="w-5 h-5 text-green-600" />
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalValue).replace('$', '$')}</p>
+                  <p className="text-2xl font-bold text-gray-900 truncate">{formatCurrency(stats.totalValue).replace('$', '$')}</p>
                   <p className="text-sm text-gray-600">Total Value</p>
                 </CardContent>
               </Card>
@@ -1712,8 +1721,8 @@ export default function LeadsModule() {
                   className="hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200 bg-white"
                   onClick={() => openDetailModal(lead)}
                 >
-                  <CardContent className="p-5">
-                    <div className="flex items-center gap-6">
+                  <CardContent className="p-4 sm:p-5">
+                      <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
                       {/* Avatar & Name */}
                       <div className="flex items-center gap-4 flex-1 min-w-0">
                         <Avatar className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold flex-shrink-0">
@@ -1741,7 +1750,7 @@ export default function LeadsModule() {
                       </div>
 
                       {/* Tags & Badges */}
-                      <div className="flex items-center gap-2 flex-wrap max-w-xs">
+                      <div className="flex items-center gap-2 flex-wrap md:max-w-xs">
                         <Badge className={`${getStatusColor(lead.status)} text-white font-medium capitalize`}>
                           {lead.status}
                         </Badge>
@@ -1756,7 +1765,7 @@ export default function LeadsModule() {
                       </div>
 
                       {/* Score */}
-                      <div className="flex flex-col items-center justify-center min-w-[80px]">
+                      <div className="flex flex-row md:flex-col items-center justify-center min-w-[80px] gap-2 md:gap-0">
                         <div className={`text-2xl font-bold ${getScoreColor(lead.leadScore || 0)} mb-1`}>
                           {lead.leadScore}
                         </div>
@@ -2137,7 +2146,7 @@ export default function LeadsModule() {
               if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault();
                 if (formData.name && formData.source && !isSaving) {
-                  console.log("⏎ Keyboard shortcut triggered!");
+                  console.log("âŽ Keyboard shortcut triggered!");
                   saveNewLead();
                 }
               }
@@ -2148,11 +2157,11 @@ export default function LeadsModule() {
               <div className="flex items-center justify-between">
                 <div>
                   <DialogTitle className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">
-                    {formData.id ? '✏️ Edit Lead' : '✨ Add New Lead'}
+                    {formData.id ? 'âœï¸ Edit Lead' : 'âœ¨ Add New Lead'}
                   </DialogTitle>
                   <DialogDescription className="mt-2 text-xs sm:text-sm text-gray-700 font-medium">
                     {formData.id ? 'Update lead information and keep your pipeline organized' : 'Create a new lead and start tracking your sales opportunity'}
-                    <span className="hidden sm:inline text-blue-700 ml-2 font-semibold">• Press Ctrl+Enter to save quickly ⚡</span>
+                    <span className="hidden sm:inline text-blue-700 ml-2 font-semibold">â€¢ Press Ctrl+Enter to save quickly âš¡</span>
                   </DialogDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2247,16 +2256,16 @@ export default function LeadsModule() {
                             <SelectValue placeholder="Select where this lead came from *" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Website">🌐 Website</SelectItem>
-                            <SelectItem value="LinkedIn">💼 LinkedIn</SelectItem>
-                            <SelectItem value="Referral">🤝 Referral</SelectItem>
-                            <SelectItem value="Trade Show">🎪 Trade Show</SelectItem>
-                            <SelectItem value="Cold Call">📞 Cold Call</SelectItem>
-                            <SelectItem value="Email Campaign">📧 Email Campaign</SelectItem>
-                            <SelectItem value="Social Media">📱 Social Media</SelectItem>
-                            <SelectItem value="Advertisement">📺 Advertisement</SelectItem>
-                            <SelectItem value="Partner">🔗 Partner</SelectItem>
-                            <SelectItem value="Other">📋 Other</SelectItem>
+                            <SelectItem value="Website">ðŸŒ Website</SelectItem>
+                            <SelectItem value="LinkedIn">ðŸ’¼ LinkedIn</SelectItem>
+                            <SelectItem value="Referral">ðŸ¤ Referral</SelectItem>
+                            <SelectItem value="Trade Show">ðŸŽª Trade Show</SelectItem>
+                            <SelectItem value="Cold Call">ðŸ“ž Cold Call</SelectItem>
+                            <SelectItem value="Email Campaign">ðŸ“§ Email Campaign</SelectItem>
+                            <SelectItem value="Social Media">ðŸ“± Social Media</SelectItem>
+                            <SelectItem value="Advertisement">ðŸ“º Advertisement</SelectItem>
+                            <SelectItem value="Partner">ðŸ”— Partner</SelectItem>
+                            <SelectItem value="Other">ðŸ“‹ Other</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2371,10 +2380,10 @@ export default function LeadsModule() {
                             <SelectValue placeholder="Select method" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="email">📧 Email</SelectItem>
-                            <SelectItem value="phone">📞 Phone Call</SelectItem>
-                            <SelectItem value="linkedin">💼 LinkedIn Message</SelectItem>
-                            <SelectItem value="meeting">🤝 In-Person Meeting</SelectItem>
+                            <SelectItem value="email">ðŸ“§ Email</SelectItem>
+                            <SelectItem value="phone">ðŸ“ž Phone Call</SelectItem>
+                            <SelectItem value="linkedin">ðŸ’¼ LinkedIn Message</SelectItem>
+                            <SelectItem value="meeting">ðŸ¤ In-Person Meeting</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2532,7 +2541,7 @@ export default function LeadsModule() {
                             <SelectItem value="hot">
                               <div className="flex items-center gap-2">
                                 <Flame className="w-4 h-4 text-red-500" />
-                                Hot 🔥
+                                Hot ðŸ”¥
                               </div>
                             </SelectItem>
                             <SelectItem value="warm">
@@ -2653,16 +2662,16 @@ export default function LeadsModule() {
                             <SelectValue placeholder="Select industry" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Technology">💻 Technology</SelectItem>
-                            <SelectItem value="Finance">💰 Finance</SelectItem>
-                            <SelectItem value="Healthcare">🏥 Healthcare</SelectItem>
-                            <SelectItem value="Manufacturing">🏭 Manufacturing</SelectItem>
-                            <SelectItem value="Retail">🛍️ Retail</SelectItem>
-                            <SelectItem value="Education">🎓 Education</SelectItem>
-                            <SelectItem value="Real Estate">🏢 Real Estate</SelectItem>
-                            <SelectItem value="Marketing">📢 Marketing</SelectItem>
-                            <SelectItem value="Consulting">🤝 Consulting</SelectItem>
-                            <SelectItem value="Other">📋 Other</SelectItem>
+                            <SelectItem value="Technology">ðŸ’» Technology</SelectItem>
+                            <SelectItem value="Finance">ðŸ’° Finance</SelectItem>
+                            <SelectItem value="Healthcare">ðŸ¥ Healthcare</SelectItem>
+                            <SelectItem value="Manufacturing">ðŸ­ Manufacturing</SelectItem>
+                            <SelectItem value="Retail">ðŸ›ï¸ Retail</SelectItem>
+                            <SelectItem value="Education">ðŸŽ“ Education</SelectItem>
+                            <SelectItem value="Real Estate">ðŸ¢ Real Estate</SelectItem>
+                            <SelectItem value="Marketing">ðŸ“¢ Marketing</SelectItem>
+                            <SelectItem value="Consulting">ðŸ¤ Consulting</SelectItem>
+                            <SelectItem value="Other">ðŸ“‹ Other</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2673,12 +2682,12 @@ export default function LeadsModule() {
                             <SelectValue placeholder="Select size" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="1-10">👤 1-10 employees</SelectItem>
-                            <SelectItem value="11-50">👥 11-50 employees</SelectItem>
-                            <SelectItem value="51-200">👨‍👩‍👧‍👦 51-200 employees</SelectItem>
-                            <SelectItem value="201-500">🏢 201-500 employees</SelectItem>
-                            <SelectItem value="501-1000">🏭 501-1000 employees</SelectItem>
-                            <SelectItem value="1000+">🌐 1000+ employees</SelectItem>
+                            <SelectItem value="1-10">ðŸ‘¤ 1-10 employees</SelectItem>
+                            <SelectItem value="11-50">ðŸ‘¥ 11-50 employees</SelectItem>
+                            <SelectItem value="51-200">ðŸ‘¨â€ðŸ‘©â€ðŸ‘§â€ðŸ‘¦ 51-200 employees</SelectItem>
+                            <SelectItem value="201-500">ðŸ¢ 201-500 employees</SelectItem>
+                            <SelectItem value="501-1000">ðŸ­ 501-1000 employees</SelectItem>
+                            <SelectItem value="1000+">ðŸŒ 1000+ employees</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2712,12 +2721,12 @@ export default function LeadsModule() {
                             <SelectValue placeholder="When will they decide?" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Immediate">⚡ Immediate (This week)</SelectItem>
-                            <SelectItem value="1-month">📅 Within 1 month</SelectItem>
-                            <SelectItem value="1-3-months">🗓️ 1-3 months</SelectItem>
-                            <SelectItem value="3-6-months">📆 3-6 months</SelectItem>
-                            <SelectItem value="6-12-months">📊 6-12 months</SelectItem>
-                            <SelectItem value="Not sure">❓ Not sure yet</SelectItem>
+                            <SelectItem value="Immediate">âš¡ Immediate (This week)</SelectItem>
+                            <SelectItem value="1-month">ðŸ“… Within 1 month</SelectItem>
+                            <SelectItem value="1-3-months">ðŸ—“ï¸ 1-3 months</SelectItem>
+                            <SelectItem value="3-6-months">ðŸ“† 3-6 months</SelectItem>
+                            <SelectItem value="6-12-months">ðŸ“Š 6-12 months</SelectItem>
+                            <SelectItem value="Not sure">â“ Not sure yet</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2834,7 +2843,7 @@ export default function LeadsModule() {
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      💡 Tip: Use tags like "Enterprise", "Hot Lead", "Follow Up", etc. for better organization
+                      ðŸ’¡ Tip: Use tags like "Enterprise", "Hot Lead", "Follow Up", etc. for better organization
                     </p>
                   </CardContent>
                 </Card>
@@ -2890,12 +2899,12 @@ export default function LeadsModule() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="USA">🇺🇸 United States</SelectItem>
-                            <SelectItem value="Canada">🇨🇦 Canada</SelectItem>
-                            <SelectItem value="UK">🇬🇧 United Kingdom</SelectItem>
-                            <SelectItem value="India">🇮🇳 India</SelectItem>
-                            <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
-                            <SelectItem value="Germany">🇩🇪 Germany</SelectItem>
+                            <SelectItem value="USA">ðŸ‡ºðŸ‡¸ United States</SelectItem>
+                            <SelectItem value="Canada">ðŸ‡¨ðŸ‡¦ Canada</SelectItem>
+                            <SelectItem value="UK">ðŸ‡¬ðŸ‡§ United Kingdom</SelectItem>
+                            <SelectItem value="India">ðŸ‡®ðŸ‡³ India</SelectItem>
+                            <SelectItem value="Australia">ðŸ‡¦ðŸ‡º Australia</SelectItem>
+                            <SelectItem value="Germany">ðŸ‡©ðŸ‡ª Germany</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2957,7 +2966,7 @@ export default function LeadsModule() {
                   ) : (
                     <>
                       <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                      <span className="text-green-700 font-bold text-xs sm:text-sm">✓ Ready to {formData.id ? 'update' : 'create'} lead</span>
+                      <span className="text-green-700 font-bold text-xs sm:text-sm">âœ“ Ready to {formData.id ? 'update' : 'create'} lead</span>
                     </>
                   )}
                 </div>
@@ -2979,7 +2988,7 @@ export default function LeadsModule() {
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
-                      console.log("🖱️ Save & Add Another clicked!", e);
+                      console.log("ðŸ–±ï¸ Save & Add Another clicked!", e);
                       saveAndAddAnother();
                     }}
                     disabled={!formData.name || !formData.source || isSaving}
@@ -3002,7 +3011,7 @@ export default function LeadsModule() {
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
-                      console.log("🖱️ Create Lead Button clicked!", e);
+                      console.log("ðŸ–±ï¸ Create Lead Button clicked!", e);
                       console.log("Form data at click:", formData);
                       saveNewLead();
                     }}
@@ -3184,7 +3193,7 @@ function LeadDetailModal({
       }));
     }
     toast({
-      title: "✅ Status Updated",
+      title: "âœ… Status Updated",
       description: `Lead status changed to ${currentStatus}`,
       duration: 3000,
     });
@@ -3198,7 +3207,7 @@ function LeadDetailModal({
       }));
     }
     toast({
-      title: "✅ Lead Assigned",
+      title: "âœ… Lead Assigned",
       description: `Lead assigned to ${currentAssignee}`,
       duration: 3000,
     });
@@ -3208,7 +3217,7 @@ function LeadDetailModal({
   const handleAddNewAssignee = () => {
     if (!newAssigneeName.trim()) {
       toast({
-        title: "⚠️ Name Required",
+        title: "âš ï¸ Name Required",
         description: "Please enter a name for the new assignee",
         duration: 3000,
       });
@@ -3217,7 +3226,7 @@ function LeadDetailModal({
     
     if (teamMembers.includes(newAssigneeName.trim())) {
       toast({
-        title: "⚠️ Already Exists",
+        title: "âš ï¸ Already Exists",
         description: "This assignee name already exists",
         duration: 3000,
       });
@@ -3227,7 +3236,7 @@ function LeadDetailModal({
     setTeamMembers([...teamMembers, newAssigneeName.trim()]);
     setCurrentAssignee(newAssigneeName.trim());
     toast({
-      title: "✅ Assignee Added",
+      title: "âœ… Assignee Added",
       description: `${newAssigneeName.trim()} has been added to the team`,
       duration: 3000,
     });
@@ -3238,7 +3247,7 @@ function LeadDetailModal({
   const handleAddCustomStatus = () => {
     if (!customStatusText.trim()) {
       toast({
-        title: "⚠️ Status Required",
+        title: "âš ï¸ Status Required",
         description: "Please enter a custom status name",
         duration: 3000,
       });
@@ -3247,7 +3256,7 @@ function LeadDetailModal({
     
     if (customStatuses.includes(customStatusText.trim())) {
       toast({
-        title: "⚠️ Already Exists",
+        title: "âš ï¸ Already Exists",
         description: "This custom status already exists",
         duration: 3000,
       });
@@ -3258,7 +3267,7 @@ function LeadDetailModal({
     setCustomStatuses([...customStatuses, newStatus]);
     setCurrentStatus(newStatus);
     toast({
-      title: "✅ Custom Status Added",
+      title: "âœ… Custom Status Added",
       description: `"${newStatus}" has been added to your statuses`,
       duration: 3000,
     });
@@ -3281,7 +3290,7 @@ function LeadDetailModal({
       }));
     }
     toast({
-      title: "✅ Call Log Saved",
+      title: "âœ… Call Log Saved",
       description: `Call status updated to ${currentCallStatus.replace('_', ' ')}`,
       duration: 3000,
     });
@@ -3318,7 +3327,7 @@ function LeadDetailModal({
     }
 
     toast({
-      title: "✅ Activity Added",
+      title: "âœ… Activity Added",
       description: `${newActivity.title} has been logged`,
       duration: 3000,
     });
@@ -3410,7 +3419,7 @@ function LeadDetailModal({
       }
 
       toast({
-        title: "🔄 Reminder Auto-Rescheduled",
+        title: "ðŸ”„ Reminder Auto-Rescheduled",
         description: `Cancelled and automatically rescheduled to ${new Date(nextDate).toLocaleDateString()} at ${selectedReminderForAction.time}`,
         duration: 4000,
       });
@@ -3423,7 +3432,7 @@ function LeadDetailModal({
       }
 
       toast({
-        title: "🚫 Reminder Cancelled",
+        title: "ðŸš« Reminder Cancelled",
         description: "Reminder has been cancelled. You can reschedule it if needed.",
         duration: 3000,
       });
@@ -3444,7 +3453,7 @@ function LeadDetailModal({
   const confirmReschedule = () => {
     if (!selectedReminderForAction || !rescheduleDate || !rescheduleTime) {
       toast({
-        title: "⚠️ Missing Information",
+        title: "âš ï¸ Missing Information",
         description: "Please select new date and time.",
         variant: "destructive",
       });
@@ -3455,7 +3464,7 @@ function LeadDetailModal({
     const newDateTime = new Date(`${rescheduleDate}T${rescheduleTime}`);
     if (newDateTime < new Date()) {
       toast({
-        title: "⚠️ Invalid Date/Time",
+        title: "âš ï¸ Invalid Date/Time",
         description: "Rescheduled date and time cannot be in the past.",
         variant: "destructive",
       });
@@ -3479,7 +3488,7 @@ function LeadDetailModal({
     }
 
     toast({
-      title: "🔄 Reminder Rescheduled",
+      title: "ðŸ”„ Reminder Rescheduled",
       description: `Reminder rescheduled to ${new Date(`${rescheduleDate}T${rescheduleTime}`).toLocaleString()}`,
     });
 
@@ -3492,7 +3501,7 @@ function LeadDetailModal({
   const handleAddLineItem = () => {
     if (!newLineItem.description || newLineItem.quantity <= 0 || newLineItem.unitPrice <= 0) {
       toast({
-        title: "❌ Invalid Line Item",
+        title: "âŒ Invalid Line Item",
         description: "Please fill in all fields with valid values",
         duration: 3000,
       });
@@ -3525,7 +3534,7 @@ function LeadDetailModal({
   const handleSaveProposal = () => {
     if (!proposalForm.title || proposalForm.lineItems.length === 0) {
       toast({
-        title: "❌ Invalid Proposal",
+        title: "âŒ Invalid Proposal",
         description: "Please add a title and at least one line item",
         duration: 3000,
       });
@@ -3566,7 +3575,7 @@ function LeadDetailModal({
     }
 
     toast({
-      title: "✅ Proposal Saved",
+      title: "âœ… Proposal Saved",
       description: editingProposal ? "Proposal updated successfully" : "New proposal created",
       duration: 3000,
     });
@@ -3609,7 +3618,7 @@ function LeadDetailModal({
       }));
     }
     toast({
-      title: "✅ Proposal Sent",
+      title: "âœ… Proposal Sent",
       description: "Proposal has been sent to the lead",
       duration: 3000,
     });
@@ -3620,7 +3629,7 @@ function LeadDetailModal({
     setViewingProposal(proposal);
     onTabChange('proposals');
     toast({
-      title: "📄 Viewing Proposal",
+      title: "ðŸ“„ Viewing Proposal",
       description: `Opened ${proposal.title}`,
       duration: 2000,
     });
@@ -3671,7 +3680,7 @@ Generated: ${new Date().toLocaleString()}
     URL.revokeObjectURL(url);
 
     toast({
-      title: "⬇️ Download Started",
+      title: "â¬‡ï¸ Download Started",
       description: `Downloading ${proposal.title}`,
       duration: 3000,
     });
@@ -3680,7 +3689,7 @@ Generated: ${new Date().toLocaleString()}
   const handleAddNote = () => {
     if (!noteContent.trim()) {
       toast({
-        title: "❌ Empty Note",
+        title: "âŒ Empty Note",
         description: "Please enter some content for the note",
         duration: 3000,
       });
@@ -3708,7 +3717,7 @@ Generated: ${new Date().toLocaleString()}
     }
 
     toast({
-      title: "✅ Note Added",
+      title: "âœ… Note Added",
       description: "Note saved successfully",
       duration: 3000,
     });
@@ -3787,9 +3796,9 @@ Generated: ${new Date().toLocaleString()}
                         lead.priority === 'medium' ? 'border-yellow-500 text-yellow-700' :
                         'border-gray-500 text-gray-700'
                       }`}>
-                        {lead.priority === 'high' && '🔴'}
-                        {lead.priority === 'medium' && '🟡'}
-                        {lead.priority === 'low' && '⚪'}
+                        {lead.priority === 'high' && 'ðŸ”´'}
+                        {lead.priority === 'medium' && 'ðŸŸ¡'}
+                        {lead.priority === 'low' && 'âšª'}
                         {' '}{lead.priority}
                       </Badge>
                     )}
@@ -3855,9 +3864,9 @@ Generated: ${new Date().toLocaleString()}
                       </div>
                       <Progress value={lead.leadScore} className="h-2.5" />
                       <p className="text-xs text-center mt-2 text-gray-500">
-                        {lead.leadScore >= 80 ? '🎯 Excellent' :
-                         lead.leadScore >= 60 ? '✅ Good' :
-                         lead.leadScore >= 40 ? '⚠️ Fair' : '📉 Needs attention'}
+                        {lead.leadScore >= 80 ? 'ðŸŽ¯ Excellent' :
+                         lead.leadScore >= 60 ? 'âœ… Good' :
+                         lead.leadScore >= 40 ? 'âš ï¸ Fair' : 'ðŸ“‰ Needs attention'}
                       </p>
                     </div>
                   )}
@@ -4172,7 +4181,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              📝 Notes
+                              ðŸ“ Notes
                               {lead.notes && lead.notes.length > 0 && (
                                 <Badge className="bg-slate-600 text-white text-xs px-2 py-0.5">
                                   {lead.notes.length}
@@ -4203,7 +4212,7 @@ Generated: ${new Date().toLocaleString()}
                                   </AvatarFallback>
                                 </Avatar>
                                 <span className="font-semibold text-gray-700">{note.createdBy}</span>
-                                <span className="text-gray-400">•</span>
+                                <span className="text-gray-400">â€¢</span>
                                 <Clock className="w-3 h-3 text-gray-500" />
                                 <span className="text-gray-600">{note.createdAt}</span>
                               </div>
@@ -4232,7 +4241,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              🔔 Follow Up Reminder
+                              ðŸ”” Follow Up Reminder
                               {lead.reminders && lead.reminders.length > 0 && (
                                 <Badge className="bg-orange-600 text-white text-xs px-2 py-0.5">
                                   {lead.reminders.length}
@@ -4265,7 +4274,7 @@ Generated: ${new Date().toLocaleString()}
                                     reminder.priority === 'medium' ? 'bg-yellow-500 text-white' :
                                     'bg-gray-500 text-white'
                                   }`}>
-                                    {reminder.priority === 'high' ? '🔥' : reminder.priority === 'medium' ? '⚡' : '📌'} {reminder.priority.toUpperCase()}
+                                    {reminder.priority === 'high' ? 'ðŸ”¥' : reminder.priority === 'medium' ? 'âš¡' : 'ðŸ“Œ'} {reminder.priority.toUpperCase()}
                                   </Badge>
                                 )}
                               </div>
@@ -4304,7 +4313,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              📨 Communication Actions
+                              ðŸ“¨ Communication Actions
                             </div>
                             <p className="text-xs text-gray-600 font-normal mt-0.5">Quick communication options</p>
                           </div>
@@ -4366,7 +4375,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              🏁 Lead Status
+                              ðŸ Lead Status
                             </div>
                             <p className="text-xs text-gray-600 font-normal mt-0.5">Current status and pipeline stage</p>
                           </div>
@@ -4396,12 +4405,12 @@ Generated: ${new Date().toLocaleString()}
                               lead.status === 'won' ? 'bg-green-500 text-white' :
                               'bg-red-500 text-white'
                             }`}>
-                              {lead.status === 'new' ? '🆕' :
-                               lead.status === 'contacted' ? '📞' :
-                               lead.status === 'qualified' ? '✅' :
-                               lead.status === 'proposal' ? '📄' :
-                               lead.status === 'negotiation' ? '💬' :
-                               lead.status === 'won' ? '🎉' : '❌'} {lead.status.toUpperCase()}
+                              {lead.status === 'new' ? 'ðŸ†•' :
+                               lead.status === 'contacted' ? 'ðŸ“ž' :
+                               lead.status === 'qualified' ? 'âœ…' :
+                               lead.status === 'proposal' ? 'ðŸ“„' :
+                               lead.status === 'negotiation' ? 'ðŸ’¬' :
+                               lead.status === 'won' ? 'ðŸŽ‰' : 'âŒ'} {lead.status.toUpperCase()}
                             </Badge>
                           </div>
                           <div className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
@@ -4414,7 +4423,7 @@ Generated: ${new Date().toLocaleString()}
                               lead.priority === 'medium' ? 'bg-yellow-500 text-white' :
                               'bg-gray-500 text-white'
                             }`}>
-                              {lead.priority === 'high' ? '🔥' : lead.priority === 'medium' ? '⚡' : '📌'} {lead.priority.toUpperCase()}
+                              {lead.priority === 'high' ? 'ðŸ”¥' : lead.priority === 'medium' ? 'âš¡' : 'ðŸ“Œ'} {lead.priority.toUpperCase()}
                             </Badge>
                           </div>
                         </div>
@@ -4432,7 +4441,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              👤 Assign Lead
+                              ðŸ‘¤ Assign Lead
                             </div>
                             <p className="text-xs text-gray-600 font-normal mt-0.5">Manage lead ownership</p>
                           </div>
@@ -4457,7 +4466,7 @@ Generated: ${new Date().toLocaleString()}
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold text-gray-700">Assigned To:</span>
                               <Badge className="bg-indigo-500 text-white font-semibold shadow-sm">
-                                👤 {lead.assignedTo || 'Unassigned'}
+                                ðŸ‘¤ {lead.assignedTo || 'Unassigned'}
                               </Badge>
                             </div>
                             <p className="text-xs text-gray-600 mt-1">Team member responsible for this lead</p>
@@ -4477,7 +4486,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              📞 Call Status
+                              ðŸ“ž Call Status
                             </div>
                             <p className="text-xs text-gray-600 font-normal mt-0.5">Track call activities</p>
                           </div>
@@ -4505,10 +4514,10 @@ Generated: ${new Date().toLocaleString()}
                               lead.callStatus === 'interested' ? 'bg-blue-500 text-white' :
                               'bg-red-500 text-white'
                             }`}>
-                              {lead.callStatus === 'called' ? '✅' :
-                               lead.callStatus === 'not_called' ? '❓' :
-                               lead.callStatus === 'no_answer' ? '⚠️' :
-                               lead.callStatus === 'interested' ? '🔵' : '🔴'} {lead.callStatus?.replace('_', ' ').toUpperCase() || 'NO CALLS'}
+                              {lead.callStatus === 'called' ? 'âœ…' :
+                               lead.callStatus === 'not_called' ? 'â“' :
+                               lead.callStatus === 'no_answer' ? 'âš ï¸' :
+                               lead.callStatus === 'interested' ? 'ðŸ”µ' : 'ðŸ”´'} {lead.callStatus?.replace('_', ' ').toUpperCase() || 'NO CALLS'}
                             </Badge>
                           </div>
                           <div className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
@@ -4533,7 +4542,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              📄 Proposal
+                              ðŸ“„ Proposal
                               {lead.proposals && lead.proposals.length > 0 && (
                                 <Badge className="bg-rose-600 text-white text-xs font-bold shadow-sm">
                                   {lead.proposals.length}
@@ -4560,7 +4569,7 @@ Generated: ${new Date().toLocaleString()}
                               <div className="flex items-start justify-between mb-4">
                                 <div className="flex-1">
                                   <h4 className="font-bold text-base text-gray-900 mb-1.5 flex items-center gap-2">
-                                    📄 {proposal.title}
+                                    ðŸ“„ {proposal.title}
                                   </h4>
                                   <div className="flex flex-wrap items-center gap-2">
                                     <span className="text-xs text-gray-600 bg-white px-2 py-1 rounded-md border border-gray-200">
@@ -4583,10 +4592,10 @@ Generated: ${new Date().toLocaleString()}
                                   proposal.status === 'accepted' ? 'bg-green-500 text-white' :
                                   'bg-red-500 text-white'
                                 }`}>
-                                  {proposal.status === 'draft' ? '📝' :
-                                   proposal.status === 'sent' ? '📤' :
-                                   proposal.status === 'viewed' ? '👁️' :
-                                   proposal.status === 'accepted' ? '✅' : '❌'} {proposal.status.toUpperCase()}
+                                  {proposal.status === 'draft' ? 'ðŸ“' :
+                                   proposal.status === 'sent' ? 'ðŸ“¤' :
+                                   proposal.status === 'viewed' ? 'ðŸ‘ï¸' :
+                                   proposal.status === 'accepted' ? 'âœ…' : 'âŒ'} {proposal.status.toUpperCase()}
                                 </Badge>
                               </div>
 
@@ -4605,7 +4614,7 @@ Generated: ${new Date().toLocaleString()}
                                             {index + 1}. {item.description}
                                           </p>
                                           <p className="text-xs text-gray-500 mt-0.5">
-                                            Qty: {item.quantity} × ${item.unitPrice.toLocaleString()}
+                                            Qty: {item.quantity} Ã— ${item.unitPrice.toLocaleString()}
                                           </p>
                                         </div>
                                         <span className="text-xs font-bold text-gray-900 ml-2 whitespace-nowrap">
@@ -4635,7 +4644,7 @@ Generated: ${new Date().toLocaleString()}
                                 <Separator className="my-2" />
                                 <div className="flex items-center justify-between">
                                   <span className="text-base font-bold text-gray-900 flex items-center gap-2">
-                                    💰 Total Amount:
+                                    ðŸ’° Total Amount:
                                   </span>
                                   <span className="text-xl font-bold text-rose-600">
                                     ${proposal.total.toLocaleString()}
@@ -4986,7 +4995,7 @@ Generated: ${new Date().toLocaleString()}
                                     task.priority === 'medium' ? 'border-yellow-500 text-yellow-700 bg-yellow-50' :
                                     'border-gray-500 text-gray-700 bg-gray-50'
                                   }`}>
-                                    {task.priority === 'high' ? '🔴 ' : task.priority === 'medium' ? '🟡 ' : '⚪ '}
+                                    {task.priority === 'high' ? 'ðŸ”´ ' : task.priority === 'medium' ? 'ðŸŸ¡ ' : 'âšª '}
                                     {task.priority}
                                   </Badge>
                                   <span className="text-xs sm:text-sm text-gray-600 flex items-center gap-1">
@@ -5253,7 +5262,7 @@ Generated: ${new Date().toLocaleString()}
                                 </div>
                                 <div className="flex items-center gap-4 text-sm text-gray-600">
                                   <span>Quantity: <strong className="text-gray-900">{item.quantity}</strong></span>
-                                  <span>×</span>
+                                  <span>Ã—</span>
                                   <span>Unit Price: <strong className="text-gray-900">${item.unitPrice.toLocaleString()}</strong></span>
                                   <span>=</span>
                                   <span className="font-bold text-gray-900">${item.total.toLocaleString()}</span>
@@ -5390,7 +5399,7 @@ Generated: ${new Date().toLocaleString()}
                                     {proposal.title}
                                   </CardTitle>
                                   <CardDescription className="text-sm mt-1">
-                                    Version {proposal.version} • Created by {proposal.createdBy}
+                                    Version {proposal.version} â€¢ Created by {proposal.createdBy}
                                   </CardDescription>
                                 </div>
                                 <Badge className={`${
@@ -5559,7 +5568,7 @@ Generated: ${new Date().toLocaleString()}
                                 </AvatarFallback>
                               </Avatar>
                               <span className="font-medium">{note.createdBy}</span>
-                              <span>•</span>
+                              <span>â€¢</span>
                               <span className="flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
                                 {note.createdAt}
@@ -5603,7 +5612,7 @@ Generated: ${new Date().toLocaleString()}
                     <div className="flex items-center gap-3">
                       <Sparkles className="w-6 h-6" />
                       <div>
-                        <h3 className="font-bold text-lg">✨ Enhanced Follow-up Reminder System</h3>
+                        <h3 className="font-bold text-lg">âœ¨ Enhanced Follow-up Reminder System</h3>
                         <p className="text-sm text-purple-100">Complete reminder management with priority, categories, and smart notifications</p>
                       </div>
                     </div>
@@ -5768,17 +5777,17 @@ Generated: ${new Date().toLocaleString()}
                             </SelectItem>
                             <SelectItem value="daily" className="text-sm">
                               <span className="flex items-center gap-2">
-                                🔄 Daily (Auto-reschedule every day)
+                                ðŸ”„ Daily (Auto-reschedule every day)
                               </span>
                             </SelectItem>
                             <SelectItem value="weekly" className="text-sm">
                               <span className="flex items-center gap-2">
-                                🔄 Weekly (Auto-reschedule every week)
+                                ðŸ”„ Weekly (Auto-reschedule every week)
                               </span>
                             </SelectItem>
                             <SelectItem value="monthly" className="text-sm">
                               <span className="flex items-center gap-2">
-                                🔄 Monthly (Auto-reschedule every month)
+                                ðŸ”„ Monthly (Auto-reschedule every month)
                               </span>
                             </SelectItem>
                           </SelectContent>
@@ -5834,7 +5843,7 @@ Generated: ${new Date().toLocaleString()}
                             // Validation
                             if (!reminderDate || !reminderTime || !reminderMessage.trim()) {
                               toast({
-                                title: "⚠️ Missing Information",
+                                title: "âš ï¸ Missing Information",
                                 description: "Please fill in date, time, and message to set a reminder.",
                                 variant: "destructive",
                                 duration: 3000,
@@ -5846,7 +5855,7 @@ Generated: ${new Date().toLocaleString()}
                             const reminderDateTime = new Date(`${reminderDate}T${reminderTime}`);
                             if (reminderDateTime < new Date()) {
                               toast({
-                                title: "⚠️ Invalid Date/Time",
+                                title: "âš ï¸ Invalid Date/Time",
                                 description: "Reminder date and time cannot be in the past.",
                                 variant: "destructive",
                                 duration: 3000,
@@ -5876,7 +5885,7 @@ Generated: ${new Date().toLocaleString()}
                               }
 
                               toast({
-                                title: "✅ Reminder Updated",
+                                title: "âœ… Reminder Updated",
                                 description: `Reminder updated successfully`,
                                 duration: 3000,
                               });
@@ -5916,7 +5925,7 @@ Generated: ${new Date().toLocaleString()}
 
                               // Success toast
                               toast({
-                                title: "✅ Reminder Set",
+                                title: "âœ… Reminder Set",
                                 description: `Follow-up reminder scheduled for ${new Date(reminderDate).toLocaleDateString()} at ${reminderTime}`,
                                 duration: 3000,
                               });
@@ -6089,7 +6098,7 @@ Generated: ${new Date().toLocaleString()}
                                         <strong>Reason:</strong> {reminder.cancellationReason}
                                         {reminder.rescheduledTo && (
                                           <span className="block mt-1 text-blue-600">
-                                            → Rescheduled automatically
+                                            â†’ Rescheduled automatically
                                           </span>
                                         )}
                                       </div>
@@ -6129,7 +6138,7 @@ Generated: ${new Date().toLocaleString()}
                                       </span>
                                       {reminder.createdAt && (
                                         <>
-                                          <span>•</span>
+                                          <span>â€¢</span>
                                           <span className="text-gray-400">{reminder.createdAt}</span>
                                         </>
                                       )}
@@ -6240,7 +6249,7 @@ Generated: ${new Date().toLocaleString()}
                                                   }
                                                   
                                                   toast({
-                                                    title: "⏰ Reminder Snoozed",
+                                                    title: "â° Reminder Snoozed",
                                                     description: "Reminder postponed until tomorrow",
                                                     duration: 2000,
                                                   });
@@ -6293,7 +6302,7 @@ Generated: ${new Date().toLocaleString()}
                                                   }));
                                                 }
                                                 toast({
-                                                  title: "🗑️ Reminder Deleted",
+                                                  title: "ðŸ—‘ï¸ Reminder Deleted",
                                                   description: "The reminder has been removed.",
                                                   duration: 2000,
                                                 });
@@ -6524,7 +6533,7 @@ Generated: ${new Date().toLocaleString()}
                             <div className="flex flex-wrap gap-2">
                               {customStatuses.map((status) => (
                                 <Badge key={status} variant="outline" className="text-xs">
-                                  🏷️ {status}
+                                  ðŸ·ï¸ {status}
                                 </Badge>
                               ))}
                             </div>
@@ -6579,25 +6588,25 @@ Generated: ${new Date().toLocaleString()}
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="new">🆕 New</SelectItem>
-                              <SelectItem value="contacted">📞 Contacted</SelectItem>
-                              <SelectItem value="qualified">✅ Qualified</SelectItem>
-                              <SelectItem value="proposal">📄 Proposal Sent</SelectItem>
-                              <SelectItem value="negotiation">💬 Negotiation</SelectItem>
-                              <SelectItem value="won">🎉 Won</SelectItem>
-                              <SelectItem value="lost">❌ Lost</SelectItem>
+                              <SelectItem value="new">ðŸ†• New</SelectItem>
+                              <SelectItem value="contacted">ðŸ“ž Contacted</SelectItem>
+                              <SelectItem value="qualified">âœ… Qualified</SelectItem>
+                              <SelectItem value="proposal">ðŸ“„ Proposal Sent</SelectItem>
+                              <SelectItem value="negotiation">ðŸ’¬ Negotiation</SelectItem>
+                              <SelectItem value="won">ðŸŽ‰ Won</SelectItem>
+                              <SelectItem value="lost">âŒ Lost</SelectItem>
                               {customStatuses.length > 0 && (
                                 <>
                                   <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 border-t mt-1 pt-2">Custom Statuses</div>
                                   {customStatuses.map((status) => (
                                     <SelectItem key={status} value={status}>
-                                      🏷️ {status}
+                                      ðŸ·ï¸ {status}
                                     </SelectItem>
                                   ))}
                                 </>
                               )}
                               <SelectItem value="custom" className="text-teal-600 font-medium">
-                                ✏️ Custom
+                                âœï¸ Custom
                               </SelectItem>
                             </SelectContent>
                           </Select>
@@ -6650,9 +6659,9 @@ Generated: ${new Date().toLocaleString()}
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="high">🔥 High Priority</SelectItem>
-                              <SelectItem value="medium">⚡ Medium Priority</SelectItem>
-                              <SelectItem value="low">📌 Low Priority</SelectItem>
+                              <SelectItem value="high">ðŸ”¥ High Priority</SelectItem>
+                              <SelectItem value="medium">âš¡ Medium Priority</SelectItem>
+                              <SelectItem value="low">ðŸ“Œ Low Priority</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -6782,7 +6791,7 @@ Generated: ${new Date().toLocaleString()}
                             </SelectTrigger>
                             <SelectContent>
                               {teamMembers.map((member) => (
-                                <SelectItem key={member} value={member}>👤 {member}</SelectItem>
+                                <SelectItem key={member} value={member}>ðŸ‘¤ {member}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -6899,11 +6908,11 @@ Generated: ${new Date().toLocaleString()}
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="not_called">📵 Not Called</SelectItem>
-                            <SelectItem value="called">✅ Called</SelectItem>
-                            <SelectItem value="no_answer">📞 No Answer</SelectItem>
-                            <SelectItem value="interested">👍 Interested</SelectItem>
-                            <SelectItem value="not_interested">👎 Not Interested</SelectItem>
+                            <SelectItem value="not_called">ðŸ“µ Not Called</SelectItem>
+                            <SelectItem value="called">âœ… Called</SelectItem>
+                            <SelectItem value="no_answer">ðŸ“ž No Answer</SelectItem>
+                            <SelectItem value="interested">ðŸ‘ Interested</SelectItem>
+                            <SelectItem value="not_interested">ðŸ‘Ž Not Interested</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -6918,12 +6927,12 @@ Generated: ${new Date().toLocaleString()}
                             <SelectValue placeholder="Select outcome..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="positive">✅ Positive - Interested</SelectItem>
-                            <SelectItem value="followup">📅 Schedule Follow-up</SelectItem>
-                            <SelectItem value="voicemail">📧 Left Voicemail</SelectItem>
-                            <SelectItem value="callback">🔄 Requested Callback</SelectItem>
-                            <SelectItem value="nointerest">❌ Not Interested</SelectItem>
-                            <SelectItem value="wrongnumber">📵 Wrong Number</SelectItem>
+                            <SelectItem value="positive">âœ… Positive - Interested</SelectItem>
+                            <SelectItem value="followup">ðŸ“… Schedule Follow-up</SelectItem>
+                            <SelectItem value="voicemail">ðŸ“§ Left Voicemail</SelectItem>
+                            <SelectItem value="callback">ðŸ”„ Requested Callback</SelectItem>
+                            <SelectItem value="nointerest">âŒ Not Interested</SelectItem>
+                            <SelectItem value="wrongnumber">ðŸ“µ Wrong Number</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -7033,7 +7042,7 @@ Generated: ${new Date().toLocaleString()}
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            ✨ Add New Activity
+            âœ¨ Add New Activity
           </DialogTitle>
           <DialogDescription>
             Log a new interaction or activity for {lead.name}
@@ -7137,3 +7146,5 @@ Generated: ${new Date().toLocaleString()}
     </>
   );
 }
+
+

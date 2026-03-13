@@ -70,49 +70,6 @@ export default function ProjectClientPortalTab({ projectId }: ProjectClientPorta
         </CardContent>
       </Card>
 
-      {/* Client Communication */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Client Communication</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-96 border rounded-lg p-4 mb-4">
-            <div className="space-y-4">
-              {messages.map((msg, index) => (
-                <div key={index} className={`flex gap-3 ${msg.from === 'You' ? 'justify-end' : ''}`}>
-                  {msg.from === 'Client' && (
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-blue-100 text-blue-700 text-xs">
-                        {msg.avatar}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div className={`max-w-md ${msg.from === 'You' ? 'text-right' : ''}`}>
-                    <div className={`p-3 rounded-lg ${msg.from === 'You' ? 'bg-blue-600 text-white' : 'bg-slate-100'}`}>
-                      <p className="text-sm">{msg.message}</p>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">{msg.name} • {msg.time}</p>
-                  </div>
-                  {msg.from === 'You' && (
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-green-100 text-green-700 text-xs">
-                        {msg.avatar}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-          <div className="flex gap-2">
-            <Textarea placeholder="Type your message..." className="resize-none" rows={2} />
-            <Button>
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Client Documents */}
       <Card>
         <CardHeader>

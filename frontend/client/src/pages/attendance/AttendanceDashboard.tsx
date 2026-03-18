@@ -16,6 +16,26 @@ import {
 } from "@/components/ui/select";
 
 export default function AttendanceDashboard() {
+  type AttendanceRecord = {
+    date: string;
+    checkIn: string;
+    checkOut: string;
+    breakStart: string;
+    breakEnd: string;
+    breakDuration: string;
+    hours: string;
+    status: 'present' | 'late' | 'absent';
+    location: string;
+    workMode: 'office' | 'remote' | 'hybrid' | 'onsite';
+  };
+
+  const formatDuration = (durationInMs: number) => {
+    const normalizedDuration = Math.max(0, durationInMs);
+    const hours = Math.floor(normalizedDuration / (1000 * 60 * 60));
+    const minutes = Math.floor((normalizedDuration % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [isOnBreak, setIsOnBreak] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -26,6 +46,9 @@ export default function AttendanceDashboard() {
   const [breakDuration, setBreakDuration] = useState('0h 0m');
   const [workMode, setWorkMode] = useState<'office' | 'remote' | 'hybrid' | 'onsite'>('office');
   const [checkInTimeDisplay, setCheckInTimeDisplay] = useState<string>('');
+  const [checkOutTimeDisplay, setCheckOutTimeDisplay] = useState<string>('');
+  const [breakStartTimeDisplay, setBreakStartTimeDisplay] = useState<string>('');
+  const [breakEndTimeDisplay, setBreakEndTimeDisplay] = useState<string>('');
 
   // Work mode configuration
   const workModeConfig = {
@@ -48,21 +71,15 @@ export default function AttendanceDashboard() {
           currentBreak = Date.now() - breakStartTime.getTime();
         }
         const effectiveWorkDuration = totalDuration - totalBreakDuration - currentBreak;
-        const hours = Math.floor(effectiveWorkDuration / (1000 * 60 * 60));
-        const minutes = Math.floor((effectiveWorkDuration % (1000 * 60 * 60)) / (1000 * 60));
-        setWorkDuration(`${hours}h ${minutes}m`);
+        setWorkDuration(formatDuration(effectiveWorkDuration));
       }
 
       // Update break duration if on break
       if (isOnBreak && breakStartTime) {
         const currentBreakDuration = Date.now() - breakStartTime.getTime() + totalBreakDuration;
-        const bHours = Math.floor(currentBreakDuration / (1000 * 60 * 60));
-        const bMinutes = Math.floor((currentBreakDuration % (1000 * 60 * 60)) / (1000 * 60));
-        setBreakDuration(`${bHours}h ${bMinutes}m`);
+        setBreakDuration(formatDuration(currentBreakDuration));
       } else if (totalBreakDuration > 0) {
-        const bHours = Math.floor(totalBreakDuration / (1000 * 60 * 60));
-        const bMinutes = Math.floor((totalBreakDuration % (1000 * 60 * 60)) / (1000 * 60));
-        setBreakDuration(`${bHours}h ${bMinutes}m`);
+        setBreakDuration(formatDuration(totalBreakDuration));
       }
     }, 1000);
 
@@ -74,34 +91,53 @@ export default function AttendanceDashboard() {
     const now = new Date();
     setCheckInTime(now);
     setCheckInTimeDisplay(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    setCheckOutTimeDisplay('');
+    setBreakStartTimeDisplay('');
+    setBreakEndTimeDisplay('');
+    setWorkDuration('0h 0m');
     setTotalBreakDuration(0);
     setBreakDuration('0h 0m');
   };
 
   const handleCheckOut = () => {
+    const now = new Date();
+    let currentBreak = 0;
+
     // End any ongoing break before checking out
     if (isOnBreak && breakStartTime) {
-      setTotalBreakDuration(prev => prev + (Date.now() - breakStartTime.getTime()));
+      currentBreak = now.getTime() - breakStartTime.getTime();
+      setBreakEndTimeDisplay(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     }
+
+    const finalBreakDuration = totalBreakDuration + currentBreak;
+    if (checkInTime) {
+      const effectiveWorkDuration = now.getTime() - checkInTime.getTime() - finalBreakDuration;
+      setWorkDuration(formatDuration(effectiveWorkDuration));
+    }
+
+    setTotalBreakDuration(finalBreakDuration);
+    setBreakDuration(formatDuration(finalBreakDuration));
+    setCheckOutTimeDisplay(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     setIsCheckedIn(false);
     setIsOnBreak(false);
     setCheckInTime(null);
     setBreakStartTime(null);
-    setWorkDuration('0h 0m');
-    setBreakDuration('0h 0m');
-    setTotalBreakDuration(0);
-    setCheckInTimeDisplay('');
   };
 
   const handleBreakStart = () => {
+    const now = new Date();
     setIsOnBreak(true);
-    setBreakStartTime(new Date());
+    setBreakStartTime(now);
+    setBreakStartTimeDisplay(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    setBreakEndTimeDisplay('');
   };
 
   const handleBreakEnd = () => {
+    const now = new Date();
     if (breakStartTime) {
-      setTotalBreakDuration(prev => prev + (Date.now() - breakStartTime.getTime()));
+      setTotalBreakDuration(prev => prev + (now.getTime() - breakStartTime.getTime()));
     }
+    setBreakEndTimeDisplay(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     setIsOnBreak(false);
     setBreakStartTime(null);
   };
@@ -114,7 +150,7 @@ export default function AttendanceDashboard() {
     { label: 'Absent Days', value: '2', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50' },
   ];
 
-  const attendanceHistory = [
+  const attendanceHistory: AttendanceRecord[] = [
     { date: '2026-01-15', checkIn: '09:02 AM', checkOut: 'Active', breakStart: '12:30 PM', breakEnd: 'Active', breakDuration: '0h 30m', hours: '4.5h', status: 'present', location: 'Office - New York', workMode: 'office' as const },
     { date: '2026-01-14', checkIn: '08:58 AM', checkOut: '06:15 PM', breakStart: '12:00 PM', breakEnd: '01:00 PM', breakDuration: '1h 0m', hours: '8.5h', status: 'present', location: 'Work from Home', workMode: 'remote' as const },
     { date: '2026-01-13', checkIn: '09:45 AM', checkOut: '05:30 PM', breakStart: '12:30 PM', breakEnd: '01:15 PM', breakDuration: '0h 45m', hours: '7h', status: 'late', location: 'Client Location', workMode: 'onsite' as const },
@@ -122,6 +158,23 @@ export default function AttendanceDashboard() {
     { date: '2026-01-11', checkIn: '08:55 AM', checkOut: '05:45 PM', breakStart: '12:15 PM', breakEnd: '01:00 PM', breakDuration: '0h 45m', hours: '8h', status: 'present', location: 'Office - New York', workMode: 'office' as const },
     { date: '2026-01-10', checkIn: '-', checkOut: '-', breakStart: '-', breakEnd: '-', breakDuration: '-', hours: '-', status: 'absent', location: '-', workMode: 'office' as const },
   ];
+
+  const todayLiveRecord: AttendanceRecord | null = checkInTimeDisplay || checkOutTimeDisplay ? {
+    date: currentTime.toISOString().split('T')[0],
+    checkIn: checkInTimeDisplay || '-',
+    checkOut: isCheckedIn ? 'Active' : (checkOutTimeDisplay || '-'),
+    breakStart: breakStartTimeDisplay || '-',
+    breakEnd: isOnBreak ? 'Active' : (breakEndTimeDisplay || '-'),
+    breakDuration: breakDuration,
+    hours: workDuration,
+    status: 'present',
+    location: workModeConfig[workMode].location,
+    workMode,
+  } : null;
+
+  const displayedAttendanceHistory = todayLiveRecord
+    ? [todayLiveRecord, ...attendanceHistory]
+    : attendanceHistory;
 
   const getWorkModeIcon = (mode: 'office' | 'remote' | 'hybrid' | 'onsite') => {
     const config = workModeConfig[mode];
@@ -399,7 +452,7 @@ export default function AttendanceDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {attendanceHistory.map((record, idx) => (
+                  {displayedAttendanceHistory.map((record, idx) => (
                     <tr 
                       key={idx} 
                       className={`border-b hover:bg-slate-50 transition-colors ${

@@ -22,9 +22,16 @@ import {
   Building2,
   Sparkles,
   Search,
+  Clock3,
+  LogIn,
+  LogOut,
+  Coffee,
+  MapPin,
+  House,
+  Wifi,
+  Check,
   Bell,
   Plus,
-  LogIn,
   Smile,
   Send,
   X,
@@ -66,6 +73,18 @@ interface Company {
 }
 
 const DashboardLayout = ({ children }: { children: ReactNode }) => {
+  const formatDurationClock = (durationMs: number) => {
+    const normalized = Math.max(0, durationMs);
+    const totalSeconds = Math.floor(normalized / 1000);
+    const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+    const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+    const seconds = String(totalSeconds % 60).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
+  type WorkLocation = 'office' | 'wfh' | 'remote' | 'field';
+  type BreakReason = 'lunch' | 'tea' | 'short' | 'meeting' | 'other';
+
   const [location, navigate] = useLocation();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -80,20 +99,135 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
-  const [checkInDialogOpen, setCheckInDialogOpen] = useState(false);
+  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSearchIndex, setSelectedSearchIndex] = useState(0);
+  const [attendanceClock, setAttendanceClock] = useState(new Date());
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [isOnBreak, setIsOnBreak] = useState(false);
+  const [selectedWorkLocation, setSelectedWorkLocation] = useState<WorkLocation>('office');
+  const [checkInNote, setCheckInNote] = useState('');
+  const [checkOutNote, setCheckOutNote] = useState('');
+  const [selectedBreakReason, setSelectedBreakReason] = useState<BreakReason>('lunch');
+  const [otherReasonNote, setOtherReasonNote] = useState('');
+  const [checkInAt, setCheckInAt] = useState<Date | null>(null);
+  const [breakStartedAt, setBreakStartedAt] = useState<Date | null>(null);
+  const [accumulatedBreakMs, setAccumulatedBreakMs] = useState(0);
 
-  const handleCheckIn = () => {
-    setCheckInDialogOpen(false);
+  const workLocationConfig: Record<WorkLocation, { label: string; icon: any; helper: string }> = {
+    office: { label: 'Office', icon: Building2, helper: 'Onsite office' },
+    wfh: { label: 'Work From Home', icon: House, helper: 'Home setup' },
+    remote: { label: 'Remote', icon: Wifi, helper: 'Anywhere' },
+    field: { label: 'Field Work', icon: Briefcase, helper: 'Client/location visit' },
+  };
+
+  const breakReasonConfig: Record<BreakReason, { label: string; helper: string }> = {
+    lunch: { label: 'Lunch Break', helper: '~60min' },
+    tea: { label: 'Tea Break', helper: '~15min' },
+    short: { label: 'Short Break', helper: '~10min' },
+    meeting: { label: 'Meeting Break', helper: '~30min' },
+    other: { label: 'Other', helper: 'Specify reason' },
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAttendanceClock(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const ongoingBreakMs = isOnBreak && breakStartedAt
+    ? attendanceClock.getTime() - breakStartedAt.getTime()
+    : 0;
+  const totalBreakMs = accumulatedBreakMs + ongoingBreakMs;
+  const totalWorkMs = checkInAt
+    ? attendanceClock.getTime() - checkInAt.getTime() - totalBreakMs
+    : 0;
+  const isOtherReasonMissing = selectedBreakReason === 'other' && !otherReasonNote.trim();
+
+  const handleAttendanceCheckIn = () => {
+    const now = new Date();
+    setIsCheckedIn(true);
+    setIsOnBreak(false);
+    setCheckInAt(now);
+    setBreakStartedAt(null);
+    setAccumulatedBreakMs(0);
+    setSelectedBreakReason('lunch');
+    setOtherReasonNote('');
+    setCheckOutNote('');
+
     toast({
-      title: "Checked In Successful!",
-      description: "Your attendance has been recorded for today.",
-      duration: 3000,
+      title: 'Checked In',
+      description: `You are checked in from ${workLocationConfig[selectedWorkLocation].label}.`,
+      duration: 2500,
     });
+  };
+
+  const handleBreakToggle = () => {
+    const now = new Date();
+
+    if (!isOnBreak) {
+      if (selectedBreakReason === 'other' && !otherReasonNote.trim()) {
+        toast({
+          title: 'Reason required',
+          description: 'Please add a note when selecting Other break reason.',
+          duration: 3000,
+        });
+        return;
+      }
+
+      setIsOnBreak(true);
+      setBreakStartedAt(now);
+      toast({
+        title: 'Break started',
+        description: `Reason: ${breakReasonConfig[selectedBreakReason].label}`,
+        duration: 2000,
+      });
+      return;
+    }
+
+    if (breakStartedAt) {
+      setAccumulatedBreakMs(prev => prev + (now.getTime() - breakStartedAt.getTime()));
+    }
+    setIsOnBreak(false);
+    setBreakStartedAt(null);
+    toast({
+      title: 'Break ended',
+      description: 'Back to work.',
+      duration: 2000,
+    });
+  };
+
+  const handleAttendanceCheckOut = () => {
+    if (!checkInAt) {
+      return;
+    }
+
+    const now = new Date();
+    const finalizedBreakMs = accumulatedBreakMs + (isOnBreak && breakStartedAt ? now.getTime() - breakStartedAt.getTime() : 0);
+    const finalizedWorkMs = now.getTime() - checkInAt.getTime() - finalizedBreakMs;
+
+    setIsCheckedIn(false);
+    setIsOnBreak(false);
+    setCheckInAt(null);
+    setBreakStartedAt(null);
+    setAccumulatedBreakMs(0);
+    setSelectedBreakReason('lunch');
+    setOtherReasonNote('');
+    setCheckInNote('');
+    setCheckOutNote('');
+
+    toast({
+      title: 'Checked Out',
+      description: `Work time ${formatDurationClock(finalizedWorkMs)} • Break ${formatDurationClock(finalizedBreakMs)}`,
+      duration: 3500,
+    });
+
+    setAttendanceDialogOpen(false);
   };
 
   const handleCreateTask = () => {
@@ -902,14 +1036,16 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 <span className="absolute top-1 right-1 h-2 w-2 bg-green-500 rounded-full"></span>
               </Button>
 
-              {/* Check-in Button */}
+              {/* Attendance Tracker Button */}
               <Button
                 variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-full hover:bg-slate-100"
-                onClick={() => setCheckInDialogOpen(true)}
+                className="h-10 rounded-full hover:bg-slate-100 gap-2 px-3"
+                onClick={() => setAttendanceDialogOpen(true)}
               >
-                <LogIn size={18} className="text-slate-600" />
+                <Clock3 size={18} className="text-slate-600" />
+                <span className="hidden lg:inline text-sm font-medium text-slate-700">
+                  {isCheckedIn ? 'Working' : 'Check In'}
+                </span>
               </Button>
 
               {/* Notifications Button */}
@@ -1132,50 +1268,188 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
         </DialogContent>
       </Dialog>
 
-      {/* Check-in Dialog */}
-      <Dialog open={checkInDialogOpen} onOpenChange={setCheckInDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Check In</DialogTitle>
-            <DialogDescription>Record your attendance for today</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="text-center p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg">
-              <div className="text-4xl font-bold text-indigo-600">
-                {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </div>
-              <p className="text-sm text-gray-600 mt-2">
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+      {/* Attendance Tracker Dialog */}
+      <Dialog open={attendanceDialogOpen} onOpenChange={setAttendanceDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-[560px] p-0 overflow-hidden rounded-2xl border border-slate-200 max-h-[90vh]">
+          <div className="overflow-y-auto max-h-[90vh] p-4 sm:p-6 space-y-5">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-slate-800">
+                <Clock3 size={22} className="text-blue-600" />
+                Attendance Tracker
+              </DialogTitle>
+              <DialogDescription className="text-sm sm:text-base text-slate-500">
+                {isCheckedIn ? "You're currently working" : 'Start your workday'}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 text-center">
+              <p className="text-3xl sm:text-4xl font-bold text-blue-600 tracking-tight">
+                {attendanceClock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </p>
+              <p className="mt-2 text-slate-600 text-sm sm:text-base">
+                {attendanceClock.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
               </p>
             </div>
-            <div className="space-y-3">
-              <div>
-                <Label>Check-in Type</Label>
-                <Select defaultValue="office">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="office">Office</SelectItem>
-                    <SelectItem value="remote">Remote</SelectItem>
-                    <SelectItem value="field">Field</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Note (Optional)</Label>
-                <Textarea placeholder="Add a note..." />
-              </div>
+
+            <div className="flex justify-center">
+              <Badge className={`${isCheckedIn ? 'bg-green-600' : 'bg-slate-600'} text-white text-sm sm:text-base px-4 py-1.5 rounded-lg`}>
+                {isCheckedIn ? '✓ Working' : 'Not Checked In'}
+              </Badge>
             </div>
-            <div className="flex gap-2">
-              <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={handleCheckIn}>
-                <LogIn size={16} className="mr-2" />
-                Check In
-              </Button>
-              <Button variant="outline" className="flex-1" onClick={() => setCheckInDialogOpen(false)}>
-                Cancel
-              </Button>
-            </div>
+
+            {!isCheckedIn ? (
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-semibold text-slate-700">Select Work Location</Label>
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(Object.keys(workLocationConfig) as WorkLocation[]).map((loc) => {
+                      const item = workLocationConfig[loc];
+                      const Icon = item.icon;
+                      const isActive = selectedWorkLocation === loc;
+
+                      return (
+                        <button
+                          type="button"
+                          key={loc}
+                          onClick={() => setSelectedWorkLocation(loc)}
+                          className={`rounded-xl border p-4 text-left transition-all ${
+                            isActive
+                              ? 'border-blue-500 bg-blue-50 shadow-sm'
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <Icon size={20} className={`${isActive ? 'text-blue-600' : 'text-slate-500'}`} />
+                          <p className={`mt-2 text-base font-semibold ${isActive ? 'text-blue-600' : 'text-slate-700'}`}>
+                            {item.label}
+                          </p>
+                          <p className="text-xs text-slate-500">{item.helper}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="attendance-checkin-note" className="text-sm font-semibold text-slate-700">Note (Optional)</Label>
+                  <Textarea
+                    id="attendance-checkin-note"
+                    value={checkInNote}
+                    onChange={(e) => setCheckInNote(e.target.value)}
+                    placeholder="Add a note about today's plan..."
+                    className="mt-2 min-h-[100px] text-sm"
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  className="w-full h-12 text-base font-semibold bg-green-600 hover:bg-green-700"
+                  onClick={handleAttendanceCheckIn}
+                >
+                  <LogIn size={20} className="mr-2" />
+                  Check In Now
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <p className="text-emerald-800 text-sm font-semibold">Working Time</p>
+                    <p className="mt-2 font-mono text-2xl sm:text-3xl font-bold text-green-600">{formatDurationClock(totalWorkMs)}</p>
+                  </div>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-amber-800 text-sm font-semibold">Break Time</p>
+                    <p className="mt-2 font-mono text-2xl sm:text-3xl font-bold text-orange-600">{formatDurationClock(totalBreakMs)}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-slate-700">
+                  <div className="flex items-center gap-2 text-base">
+                    <MapPin size={18} className="text-slate-500" />
+                    <span>Working from:</span>
+                    <Badge variant="outline" className="text-sm border-slate-300">
+                      {workLocationConfig[selectedWorkLocation].label}
+                    </Badge>
+                  </div>
+                  <span className="text-sm sm:text-base text-slate-500 font-medium">
+                    In: {checkInAt?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold text-slate-700">Start Break</Label>
+                  <Select
+                    value={selectedBreakReason}
+                    onValueChange={(value: BreakReason) => setSelectedBreakReason(value)}
+                    disabled={isOnBreak}
+                  >
+                    <SelectTrigger className="h-11 text-base">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(breakReasonConfig) as BreakReason[]).map((reason) => (
+                        <SelectItem key={reason} value={reason}>
+                          <div className="flex items-center gap-2">
+                            {reason === selectedBreakReason ? <Check size={15} className="text-blue-600" /> : <span className="w-[15px]" />}
+                            <span>{breakReasonConfig[reason].label}</span>
+                            <span className="text-slate-400">{breakReasonConfig[reason].helper}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {selectedBreakReason === 'other' && (
+                    <div>
+                      <Label htmlFor="break-other-note" className="text-sm text-slate-600">
+                        Reason note for Other (required)
+                      </Label>
+                      <Textarea
+                        id="break-other-note"
+                        value={otherReasonNote}
+                        onChange={(e) => setOtherReasonNote(e.target.value)}
+                        placeholder="Mention your break reason..."
+                        className={`mt-2 min-h-[80px] text-sm ${isOtherReasonMissing ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
+                        disabled={isOnBreak}
+                      />
+                      {isOtherReasonMissing && !isOnBreak && (
+                        <p className="mt-1 text-xs text-red-600">Please enter a reason before starting break.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={`w-full h-12 text-base font-semibold transition-colors ${isOnBreak ? 'border-orange-300 text-orange-700 hover:bg-orange-50' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}`}
+                  onClick={handleBreakToggle}
+                  disabled={!isOnBreak && isOtherReasonMissing}
+                >
+                  <Coffee size={18} className="mr-2" />
+                  {isOnBreak ? 'End Break' : 'Start Break'}
+                </Button>
+
+                <div>
+                  <Label htmlFor="attendance-checkout-note" className="text-sm font-semibold text-slate-700">Check Out Note (Optional)</Label>
+                  <Textarea
+                    id="attendance-checkout-note"
+                    value={checkOutNote}
+                    onChange={(e) => setCheckOutNote(e.target.value)}
+                    placeholder="Summary of today's work..."
+                    className="mt-2 min-h-[100px] text-sm"
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  className="w-full h-12 text-base font-semibold bg-red-600 hover:bg-red-700"
+                  onClick={handleAttendanceCheckOut}
+                >
+                  <LogOut size={20} className="mr-2" />
+                  Check Out
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

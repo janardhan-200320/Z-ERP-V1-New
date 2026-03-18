@@ -3,13 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Plus, Activity, UserPlus } from 'lucide-react';
 
@@ -23,20 +21,19 @@ export default function ProjectTeamTab({ projectId }: ProjectTeamTabProps) {
   const [memberForm, setMemberForm] = useState({
     name: '',
     email: '',
-    role: '',
-    allocation: 100
+    role: ''
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   // Mock data
   const teamMembers = [
-    { name: 'John Smith', role: 'Project Manager', joinDate: '2026-01-10', allocation: 100, avatar: 'JS' },
-    { name: 'Sarah Johnson', role: 'Lead Developer', joinDate: '2026-01-10', allocation: 100, avatar: 'SJ' },
-    { name: 'Mike Brown', role: 'Frontend Developer', joinDate: '2026-01-11', allocation: 80, avatar: 'MB' },
-    { name: 'Emily Davis', role: 'Backend Developer', joinDate: '2026-01-11', allocation: 80, avatar: 'ED' },
-    { name: 'Alex Wilson', role: 'UI/UX Designer', joinDate: '2026-01-12', allocation: 60, avatar: 'AW' },
-    { name: 'Chris Taylor', role: 'QA Engineer', joinDate: '2026-01-13', allocation: 100, avatar: 'CT' },
-    { name: 'Lisa Anderson', role: 'DevOps Engineer', joinDate: '2026-01-14', allocation: 50, avatar: 'LA' },
-    { name: 'Tom White', role: 'Business Analyst', joinDate: '2026-01-15', allocation: 60, avatar: 'TW' }
+    { name: 'John Smith', role: 'Project Manager', joinDate: '2026-01-10', avatar: 'JS' },
+    { name: 'Sarah Johnson', role: 'Lead Developer', joinDate: '2026-01-10', avatar: 'SJ' },
+    { name: 'Mike Brown', role: 'Frontend Developer', joinDate: '2026-01-11', avatar: 'MB' },
+    { name: 'Emily Davis', role: 'Backend Developer', joinDate: '2026-01-11', avatar: 'ED' },
+    { name: 'Alex Wilson', role: 'UI/UX Designer', joinDate: '2026-01-12', avatar: 'AW' },
+    { name: 'Chris Taylor', role: 'QA Engineer', joinDate: '2026-01-13', avatar: 'CT' },
+    { name: 'Lisa Anderson', role: 'DevOps Engineer', joinDate: '2026-01-14', avatar: 'LA' },
+    { name: 'Tom White', role: 'Business Analyst', joinDate: '2026-01-15', avatar: 'TW' }
   ];
 
   const activities = [
@@ -64,8 +61,7 @@ export default function ProjectTeamTab({ projectId }: ProjectTeamTabProps) {
     setMemberForm({
       name: '',
       email: '',
-      role: '',
-      allocation: 100
+      role: ''
     });
     setFormErrors({});
   };
@@ -110,13 +106,6 @@ export default function ProjectTeamTab({ projectId }: ProjectTeamTabProps) {
                   <h4 className="font-semibold text-slate-900 truncate">{member.name}</h4>
                   <p className="text-sm text-slate-600">{member.role}</p>
                   <p className="text-xs text-slate-500 mt-1">Joined: {member.joinDate}</p>
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
-                      <span>Allocation</span>
-                      <span className="font-medium">{member.allocation}%</span>
-                    </div>
-                    <Progress value={member.allocation} className="h-2" />
-                  </div>
                 </div>
               </div>
             </CardContent>
@@ -210,21 +199,6 @@ export default function ProjectTeamTab({ projectId }: ProjectTeamTabProps) {
                 </SelectContent>
               </Select>
               {formErrors.role && <p className="text-xs text-red-500">{formErrors.role}</p>}
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Allocation</Label>
-                <span className="text-sm font-medium text-slate-900">{memberForm.allocation}%</span>
-              </div>
-              <Slider
-                value={[memberForm.allocation]}
-                onValueChange={(value) => setMemberForm({ ...memberForm, allocation: value[0] })}
-                max={100}
-                min={10}
-                step={10}
-                className="mt-2"
-              />
-              <p className="text-xs text-slate-500">Percentage of time allocated to this project</p>
             </div>
           </div>
           <DialogFooter>

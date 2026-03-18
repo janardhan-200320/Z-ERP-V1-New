@@ -60,6 +60,8 @@ export default function HRLetters() {
     designation: '',
     joiningDate: '',
     exitDate: '',
+    leaveStartDate: '',
+    leaveEndDate: '',
     reason: '',
     customNotes: ''
   });
@@ -114,6 +116,14 @@ export default function HRLetters() {
       category: 'General',
       icon: '📋',
       color: 'bg-cyan-100 text-cyan-700'
+    },
+    {
+      id: 'TEMP007',
+      name: 'Leave Request Letter',
+      description: 'Formal leave application for planned absence',
+      category: 'Attendance',
+      icon: '🗓️',
+      color: 'bg-emerald-100 text-emerald-700'
     }
   ];
 
@@ -175,6 +185,10 @@ export default function HRLetters() {
       toast({ title: "Validation Error", description: "Exit date is required for exit-related letters.", variant: "destructive" });
       return;
     }
+    if (selectedTemp?.id === 'TEMP007' && (!generationForm.leaveStartDate || !generationForm.leaveEndDate || !generationForm.reason)) {
+      toast({ title: "Validation Error", description: "Leave dates and reason are required for leave request letters.", variant: "destructive" });
+      return;
+    }
     
     toast({ title: "Generating Letter", description: `Creating ${selectedTemp?.name} for ${selectedEmp?.name}...` });
     
@@ -202,6 +216,8 @@ export default function HRLetters() {
         designation: '',
         joiningDate: '',
         exitDate: '',
+        leaveStartDate: '',
+        leaveEndDate: '',
         reason: '',
         customNotes: ''
       });
@@ -304,7 +320,7 @@ export default function HRLetters() {
                     New Letter
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
+                <DialogContent className="max-w-2xl max-h-[90vh] rounded-[2rem] p-0 overflow-y-auto border-none shadow-2xl">
                   <div className="bg-cyan-600 p-8 text-white">
                     <DialogTitle className="text-2xl font-black">Generate HR Letter</DialogTitle>
                     <DialogDescription className="text-cyan-50 font-medium">Select template and employee to generate correspondence</DialogDescription>
@@ -427,6 +443,40 @@ export default function HRLetters() {
                           value={generationForm.reason}
                           onChange={(e) => setGenerationForm(curr => ({...curr, reason: e.target.value}))}
                         />
+                      </div>
+                    )}
+
+                    {generationForm.template === 'TEMP007' && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Leave Start Date</Label>
+                            <Input
+                              type="date"
+                              className="rounded-xl border-slate-200 bg-slate-50 h-12 font-bold"
+                              value={generationForm.leaveStartDate}
+                              onChange={(e) => setGenerationForm(curr => ({ ...curr, leaveStartDate: e.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Leave End Date</Label>
+                            <Input
+                              type="date"
+                              className="rounded-xl border-slate-200 bg-slate-50 h-12 font-bold"
+                              value={generationForm.leaveEndDate}
+                              onChange={(e) => setGenerationForm(curr => ({ ...curr, leaveEndDate: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Leave Reason</Label>
+                          <Textarea
+                            placeholder="State the reason for leave request..."
+                            className="rounded-xl border-slate-200 bg-slate-50 font-medium min-h-[80px]"
+                            value={generationForm.reason}
+                            onChange={(e) => setGenerationForm(curr => ({ ...curr, reason: e.target.value }))}
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -704,6 +754,7 @@ export default function HRLetters() {
                               <SelectItem value="Relieving Letter">Relieving Letter</SelectItem>
                               <SelectItem value="Salary Certificate">Salary Certificate</SelectItem>
                               <SelectItem value="NOC Letter">NOC Letter</SelectItem>
+                              <SelectItem value="Leave Request Letter">Leave Request Letter</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>

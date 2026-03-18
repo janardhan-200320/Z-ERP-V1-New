@@ -115,6 +115,14 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  interface SubMenuItem {
+    name: string;
+    path: string;
+    hasSubmenu?: boolean;
+    submenuKey?: string;
+    submenu?: SubMenuItem[];
+  }
+
   interface NavItem {
     name: string;
     icon: any;
@@ -176,7 +184,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       submenuKey: 'customers',
       submenu: [
         { name: 'Dashboard', path: '/customers' },
-        { name: 'Contracts', path: '/contracts' },
       ]
     },
 { name: 'Vendors', icon: Briefcase, path: '/vendors' },
@@ -415,6 +422,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     { name: 'Employees', path: '/hrm/employees', category: 'HR', keywords: 'staff team members' },
     { name: 'Attendance', path: '/hrm/attendance', category: 'HR', keywords: 'check-in timesheet' },
     { name: 'Payroll', path: '/hrm/payroll', category: 'HR', keywords: 'salary wages compensation' },
+    { name: 'Announcements', path: '/hrm/announcements', category: 'HR', keywords: 'notice bulletin updates communication' },
     { name: 'Sales Dashboard', path: '/sales', category: 'Sales', keywords: 'revenue deals' },
     { name: 'Proposals', path: '/sales/proposals', category: 'Sales', keywords: 'quotes estimates' },
     { name: 'Invoices', path: '/sales/invoices', category: 'Sales', keywords: 'billing payments' },

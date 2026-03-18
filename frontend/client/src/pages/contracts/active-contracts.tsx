@@ -27,6 +27,8 @@ type Contract = {
 
 export default function ActiveContractsModule() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [paymentTerm, setPaymentTerm] = useState("");
+  const [customDurationMonths, setCustomDurationMonths] = useState("");
 
   const contracts: Contract[] = [
     {
@@ -210,17 +212,28 @@ export default function ActiveContractsModule() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="paymentTerms">Payment Terms *</Label>
-                        <Select>
+                        <Select value={paymentTerm} onValueChange={setPaymentTerm}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select terms" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="net15">Net 15</SelectItem>
-                            <SelectItem value="net30">Net 30</SelectItem>
-                            <SelectItem value="net45">Net 45</SelectItem>
-                            <SelectItem value="net60">Net 60</SelectItem>
+                            <SelectItem value="monthly">Monthly</SelectItem>
+                            <SelectItem value="quarterly">Quarterly</SelectItem>
+                            <SelectItem value="yearly">Yearly</SelectItem>
+                            <SelectItem value="custom">Custom</SelectItem>
                           </SelectContent>
                         </Select>
+                        {paymentTerm === "custom" && (
+                          <Input
+                            id="customPaymentMonths"
+                            type="number"
+                            min="1"
+                            step="1"
+                            placeholder="Enter duration in months"
+                            value={customDurationMonths}
+                            onChange={(e) => setCustomDurationMonths(e.target.value)}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>

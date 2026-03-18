@@ -45,7 +45,6 @@ import {
   Undo2,
   Redo2,
   Image as ImageIcon,
-  Link as LinkIcon,
   ChevronDown,
   Type,
   AlignCenter,
@@ -78,7 +77,6 @@ const RichTextEditor = ({ value, onChange }: { value: string; onChange: (val: st
         </div>
         <div className="ml-auto flex items-center gap-1.5">
           <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded shadow-sm"><ImageIcon className="h-3.5 w-3.5" /></Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded shadow-sm"><LinkIcon className="h-3.5 w-3.5" /></Button>
         </div>
       </div>
       <textarea
@@ -877,19 +875,6 @@ export default function ProjectsList() {
               </div>
 
               {/* Tags Section */}
-              <div className="space-y-1.5">
-                <Label htmlFor="tags" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1.5">
-                  <Tag className="h-3 w-3 text-blue-500" /> Tags
-                </Label>
-                <Input
-                  id="tags"
-                  value={projectForm.tags}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Comma separated tags..."
-                  className="border-dashed border border-slate-300 h-10 bg-slate-50 font-medium"
-                />
-              </div>
-
               {/* Description Section */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-slate-600 uppercase">Description</Label>

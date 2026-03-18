@@ -77,6 +77,9 @@ export default function HRMEmployees() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isPastExitsModalOpen, setIsPastExitsModalOpen] = useState(false);
+  const [showCustomDepartmentInput, setShowCustomDepartmentInput] = useState(false);
+  const [showCustomEmployeeTypeInput, setShowCustomEmployeeTypeInput] = useState(false);
+  const [showCustomEditDepartmentInput, setShowCustomEditDepartmentInput] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
@@ -89,6 +92,10 @@ export default function HRMEmployees() {
     lastWorkingDay: '',
     assignedHR: 'emily_davis'
   });
+  const [showCustomExitReasonInput, setShowCustomExitReasonInput] = useState(false);
+  const [customExitReason, setCustomExitReason] = useState('');
+  const [isEditingExitWorkflow, setIsEditingExitWorkflow] = useState(false);
+  const [editingExitEmployeeId, setEditingExitEmployeeId] = useState<string | null>(null);
   const [interviewFormData, setInterviewFormData] = useState({
     date: '',
     time: '',
@@ -101,6 +108,10 @@ export default function HRMEmployees() {
     designation: '',
     department: '',
     location: '',
+    gender: '',
+    employeeType: '',
+    customEmployeeType: '',
+    personalEmail: '',
     email: '',
     phone: '',
     alternatePhone: '',
@@ -119,6 +130,44 @@ export default function HRMEmployees() {
   });
   
   const { toast } = useToast();
+
+  const exitReasonPresets = [
+    'Career Growth Opportunity',
+    'Better Compensation Package',
+    'Relocation',
+    'Family Reasons',
+    'Work-Life Balance',
+    'Retirement',
+    'Health Issues',
+    'Company Restructuring',
+  ];
+
+  const resetExitDialogState = () => {
+    setIsEditingExitWorkflow(false);
+    setEditingExitEmployeeId(null);
+    setShowCustomExitReasonInput(false);
+    setCustomExitReason('');
+    setExitFormData({
+      employeeId: '',
+      reason: '',
+      type: '',
+      priority: '',
+      lastWorkingDay: '',
+      assignedHR: 'emily_davis'
+    });
+  };
+
+  const departmentOptions = [
+    'Engineering',
+    'Product',
+    'Design',
+    'Marketing',
+    'Sales',
+    'Human Resources',
+    'Finance',
+    'Operations',
+    'Customer Support',
+  ];
 
   // Generate PDF Report
   const generatePDFReport = (employee: any, type: 'clearance' | 'report' = 'report') => {
@@ -200,7 +249,34 @@ export default function HRMEmployees() {
       
       switch (action) {
         case 'initiate_exit':
+          resetExitDialogState();
           setIsExitDialogOpen(true);
+          break;
+
+        case 'edit_exit':
+          if (employeeId) {
+            const employee = employees.find(emp => emp.id === employeeId);
+            if (employee?.exitWorkflow) {
+              const existingReason = employee.exitWorkflow.reason || '';
+              const useCustomReason = existingReason !== '' && !exitReasonPresets.includes(existingReason);
+              setIsEditingExitWorkflow(true);
+              setEditingExitEmployeeId(employee.id);
+              setShowCustomExitReasonInput(useCustomReason);
+              setCustomExitReason(useCustomReason ? existingReason : '');
+              setExitFormData({
+                employeeId: employee.id,
+                reason: useCustomReason ? '' : existingReason,
+                type: employee.exitWorkflow.type || '',
+                priority: employee.exitWorkflow.priority || '',
+                lastWorkingDay: employee.exitWorkflow.expectedLastDay
+                  ? employee.exitWorkflow.expectedLastDay.split('T')[0]
+                  : '',
+                assignedHR:
+                  employee.exitWorkflow.assignedHR === 'Emily Davis' ? 'emily_davis' : 'hr_team',
+              });
+              setIsExitDialogOpen(true);
+            }
+          }
           break;
           
         case 'schedule_interview':
@@ -378,6 +454,8 @@ export default function HRMEmployees() {
 
   // Edit employee handler
   const handleEditEmployee = (employee: any) => {
+    const isCustomDepartment = !!employee.department && !departmentOptions.includes(employee.department);
+    setShowCustomEditDepartmentInput(isCustomDepartment);
     setEditingEmployee({
       ...employee,
       joining: employee.joining.split('T')[0] // Ensure date format
@@ -437,13 +515,44 @@ export default function HRMEmployees() {
     });
   };
 
-  // Create exit workflow
+  // Create or update exit workflow
   const createExitWorkflow = () => {
-    if (!exitFormData.employeeId || !exitFormData.reason || !exitFormData.lastWorkingDay) {
+    const finalReason = showCustomExitReasonInput ? customExitReason.trim() : exitFormData.reason;
+
+    if (!exitFormData.employeeId || !finalReason || !exitFormData.lastWorkingDay) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
         variant: "destructive"
+      });
+      return;
+    }
+
+    if (isEditingExitWorkflow && editingExitEmployeeId) {
+      const updatedEmployees = employees.map(emp => {
+        if (emp.id === editingExitEmployeeId && emp.exitWorkflow) {
+          return {
+            ...emp,
+            exitWorkflow: {
+              ...emp.exitWorkflow,
+              reason: finalReason,
+              type: exitFormData.type || emp.exitWorkflow.type,
+              priority: exitFormData.priority || emp.exitWorkflow.priority,
+              expectedLastDay: new Date(exitFormData.lastWorkingDay).toISOString(),
+              assignedHR: exitFormData.assignedHR === 'emily_davis' ? 'Emily Davis' : 'HR Team',
+            }
+          };
+        }
+        return emp;
+      });
+
+      setEmployees(updatedEmployees);
+      setIsExitDialogOpen(false);
+      resetExitDialogState();
+
+      toast({
+        title: "Exit Workflow Updated",
+        description: "Employee exit details were updated successfully.",
       });
       return;
     }
@@ -455,7 +564,7 @@ export default function HRMEmployees() {
             status: 'exit',
             exitWorkflow: {
               id: `EXIT${String(Date.now()).slice(-3)}`,
-              reason: exitFormData.reason,
+              reason: finalReason,
               type: exitFormData.type,
               priority: exitFormData.priority,
               initiatedAt: new Date().toISOString(),
@@ -540,14 +649,7 @@ export default function HRMEmployees() {
     
     setEmployees(updatedEmployees);
     setIsExitDialogOpen(false);
-    setExitFormData({
-      employeeId: '',
-      reason: '',
-      type: '',
-      priority: '',
-      lastWorkingDay: '',
-      assignedHR: 'emily_davis'
-    });
+    resetExitDialogState();
     
     toast({
       title: "Exit Workflow Created",
@@ -977,6 +1079,9 @@ export default function HRMEmployees() {
     
     const employeeToAdd = {
       ...newEmployee,
+      employeeType: showCustomEmployeeTypeInput
+        ? newEmployee.customEmployeeType.trim()
+        : newEmployee.employeeType,
       id,
       avatar,
       status: 'onboarding',
@@ -992,11 +1097,17 @@ export default function HRMEmployees() {
 
     setEmployees([employeeToAdd, ...employees]);
     setIsAddDialogOpen(false);
+    setShowCustomDepartmentInput(false);
+    setShowCustomEmployeeTypeInput(false);
     setNewEmployee({
       name: '',
       designation: '',
       department: '',
       location: '',
+      gender: '',
+      employeeType: '',
+      customEmployeeType: '',
+      personalEmail: '',
       email: '',
       phone: '',
       alternatePhone: '',
@@ -1172,16 +1283,15 @@ export default function HRMEmployees() {
                             <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Department *</Label>
                             <Select 
                               onValueChange={(v) => {
-                                if (v === 'Custom') {
-                                  const customName = window.prompt("Enter new custom department name:");
-                                  if (customName && customName.trim()) {
-                                    setNewEmployee({...newEmployee, department: customName.trim()});
-                                  }
+                                if (v === '__custom_department__') {
+                                  setShowCustomDepartmentInput(true);
+                                  setNewEmployee({ ...newEmployee, department: '' });
                                 } else {
-                                  setNewEmployee({...newEmployee, department: v});
+                                  setShowCustomDepartmentInput(false);
+                                  setNewEmployee({ ...newEmployee, department: v });
                                 }
                               }} 
-                              value={newEmployee.department !== '' && ['Engineering', 'Product', 'Design', 'Sales', 'Marketing', 'Human Resources', 'Custom'].indexOf(newEmployee.department) === -1 ? newEmployee.department : newEmployee.department}
+                              value={(showCustomDepartmentInput || (!!newEmployee.department && !departmentOptions.includes(newEmployee.department))) ? '__custom_department__' : newEmployee.department}
                             >
                               <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
                                 <SelectValue placeholder="Select Department" />
@@ -1193,23 +1303,27 @@ export default function HRMEmployees() {
                                 <SelectItem value="Sales">Sales</SelectItem>
                                 <SelectItem value="Marketing">Marketing</SelectItem>
                                 <SelectItem value="Human Resources">Human Resources</SelectItem>
+                                <SelectItem value="Finance">Finance</SelectItem>
+                                <SelectItem value="Operations">Operations</SelectItem>
+                                <SelectItem value="Customer Support">Customer Support</SelectItem>
 
-                                {/* Keep selected custom value alive to prevent Select visual bugs */}
-                                {newEmployee.department && 
-                                 !['Engineering', 'Product', 'Design', 'Sales', 'Marketing', 'Human Resources', 'Custom', ''].includes(newEmployee.department) && (
-                                  <SelectItem value={newEmployee.department}>{newEmployee.department}</SelectItem>
-                                )}
-
-                                <div className="px-1 py-1 mt-1 border-t border-slate-100">
-                                  <SelectItem value="Custom" className="text-blue-600 font-medium justify-center py-2 cursor-pointer focus:bg-blue-50 focus:text-blue-700">
-                                    <div className="flex items-center justify-center w-full">
-                                      <Plus className="h-4 w-4 mr-2" />
-                                      Add Custom
-                                    </div>
-                                  </SelectItem>
-                                </div>
+                                <SelectItem value="__custom_department__" className="text-blue-600 font-medium">
+                                  <div className="flex items-center">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Custom Department
+                                  </div>
+                                </SelectItem>
                               </SelectContent>
                             </Select>
+
+                            {(showCustomDepartmentInput || (!!newEmployee.department && !departmentOptions.includes(newEmployee.department))) && (
+                              <Input
+                                placeholder="Type custom department"
+                                value={newEmployee.department}
+                                onChange={(e) => setNewEmployee({ ...newEmployee, department: e.target.value })}
+                                className="rounded-xl border-slate-200 h-11 bg-slate-50/50 mt-2"
+                              />
+                            )}
                           </div>
                           <div className="space-y-2">
                             <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Blood Group</Label>
@@ -1229,6 +1343,53 @@ export default function HRMEmployees() {
                               </SelectContent>
                             </Select>
                           </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Gender</Label>
+                            <Select onValueChange={(v) => setNewEmployee({ ...newEmployee, gender: v })} value={newEmployee.gender}>
+                              <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
+                                <SelectValue placeholder="Select Gender" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl">
+                                <SelectItem value="Male">Male</SelectItem>
+                                <SelectItem value="Female">Female</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Employee Type</Label>
+                            <Select
+                              onValueChange={(v) => {
+                                if (v === '__custom_employee_type__') {
+                                  setShowCustomEmployeeTypeInput(true);
+                                  setNewEmployee({ ...newEmployee, employeeType: '', customEmployeeType: '' });
+                                } else {
+                                  setShowCustomEmployeeTypeInput(false);
+                                  setNewEmployee({ ...newEmployee, employeeType: v, customEmployeeType: '' });
+                                }
+                              }}
+                              value={showCustomEmployeeTypeInput ? '__custom_employee_type__' : newEmployee.employeeType}
+                            >
+                              <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
+                                <SelectValue placeholder="Select Employee Type" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl">
+                                <SelectItem value="Half Day">Half Day</SelectItem>
+                                <SelectItem value="Full Day">Full Day</SelectItem>
+                                <SelectItem value="Contract">Contract</SelectItem>
+                                <SelectItem value="Daily">Daily</SelectItem>
+                                <SelectItem value="__custom_employee_type__">Custom</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {showCustomEmployeeTypeInput && (
+                              <Input
+                                placeholder="Type custom employee type"
+                                value={newEmployee.customEmployeeType}
+                                onChange={(e) => setNewEmployee({ ...newEmployee, customEmployeeType: e.target.value })}
+                                className="rounded-xl border-slate-200 h-11 bg-slate-50/50 mt-2"
+                              />
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -1247,6 +1408,16 @@ export default function HRMEmployees() {
                               value={newEmployee.email}
                               onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
                               className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Personal Email</Label>
+                            <Input
+                              placeholder="robert.personal@gmail.com"
+                              type="email"
+                              value={newEmployee.personalEmail}
+                              onChange={(e) => setNewEmployee({...newEmployee, personalEmail: e.target.value})}
+                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
                             />
                           </div>
                           <div className="space-y-2">
@@ -2045,6 +2216,20 @@ export default function HRMEmployees() {
                                       <span className="hidden sm:inline">Schedule Interview</span>
                                       <span className="sm:hidden">Interview</span>
                                     </Button>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => handleButtonAction('edit_exit', employee.id)}
+                                      disabled={loadingStates[`edit_exit_${employee.id}`]}
+                                      className="flex-1 rounded-xl h-11 font-bold border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400 transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:transform-none"
+                                    >
+                                      {loadingStates[`edit_exit_${employee.id}`] ? (
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-700 mr-2" />
+                                      ) : (
+                                        <Edit className="h-4 w-4 mr-2" />
+                                      )}
+                                      <span className="hidden sm:inline">Edit Exit</span>
+                                      <span className="sm:hidden">Edit</span>
+                                    </Button>
                                     <Button 
                                       variant="outline" 
                                       onClick={() => handleButtonAction('export_clearance', employee.id)}
@@ -2192,22 +2377,36 @@ export default function HRMEmployees() {
       </div>
 
       {/* Enhanced Exit Initiation Dialog */}
-      <Dialog open={isExitDialogOpen} onOpenChange={setIsExitDialogOpen}>
+      <Dialog
+        open={isExitDialogOpen}
+        onOpenChange={(open) => {
+          setIsExitDialogOpen(open);
+          if (!open) {
+            resetExitDialogState();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
               <UserMinus className="h-5 w-5 text-rose-600" />
-              Initiate Employee Exit Process
+              {isEditingExitWorkflow ? 'Edit Employee Exit Process' : 'Initiate Employee Exit Process'}
             </DialogTitle>
             <DialogDescription className="text-slate-600">
-              Start a new exit workflow for an employee. This will create a comprehensive clearance process.
+              {isEditingExitWorkflow
+                ? 'Update exit workflow details for this employee.'
+                : 'Start a new exit workflow for an employee. This will create a comprehensive clearance process.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="exit_employee" className="text-sm font-medium text-slate-700">Employee *</Label>
-                <Select onValueChange={(value) => setExitFormData({...exitFormData, employeeId: value})}>
+                <Select
+                  value={exitFormData.employeeId}
+                  onValueChange={(value) => setExitFormData({...exitFormData, employeeId: value})}
+                  disabled={isEditingExitWorkflow}
+                >
                   <SelectTrigger className="rounded-lg mt-1">
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
@@ -2220,7 +2419,19 @@ export default function HRMEmployees() {
               </div>
               <div>
                 <Label htmlFor="exit_reason" className="text-sm font-medium text-slate-700">Exit Reason *</Label>
-                <Select onValueChange={(value) => setExitFormData({...exitFormData, reason: value})}>
+                <Select
+                  value={showCustomExitReasonInput ? '__custom_exit_reason__' : exitFormData.reason}
+                  onValueChange={(value) => {
+                    if (value === '__custom_exit_reason__') {
+                      setShowCustomExitReasonInput(true);
+                      setExitFormData({ ...exitFormData, reason: '' });
+                    } else {
+                      setShowCustomExitReasonInput(false);
+                      setCustomExitReason('');
+                      setExitFormData({ ...exitFormData, reason: value });
+                    }
+                  }}
+                >
                   <SelectTrigger className="rounded-lg mt-1">
                     <SelectValue placeholder="Select reason" />
                   </SelectTrigger>
@@ -2233,15 +2444,23 @@ export default function HRMEmployees() {
                     <SelectItem value="Retirement">Retirement</SelectItem>
                     <SelectItem value="Health Issues">Health Issues</SelectItem>
                     <SelectItem value="Company Restructuring">Restructuring</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    <SelectItem value="__custom_exit_reason__">Custom Reason</SelectItem>
                   </SelectContent>
                 </Select>
+                {showCustomExitReasonInput && (
+                  <Input
+                    className="rounded-lg mt-2"
+                    placeholder="Type custom exit reason"
+                    value={customExitReason}
+                    onChange={(e) => setCustomExitReason(e.target.value)}
+                  />
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="exit_type" className="text-sm font-medium text-slate-700">Exit Type *</Label>
-                <Select onValueChange={(value) => setExitFormData({...exitFormData, type: value})}>
+                <Select value={exitFormData.type} onValueChange={(value) => setExitFormData({...exitFormData, type: value})}>
                   <SelectTrigger className="rounded-lg mt-1">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
@@ -2253,7 +2472,7 @@ export default function HRMEmployees() {
               </div>
               <div>
                 <Label htmlFor="priority" className="text-sm font-medium text-slate-700">Priority *</Label>
-                <Select onValueChange={(value) => setExitFormData({...exitFormData, priority: value})}>
+                <Select value={exitFormData.priority} onValueChange={(value) => setExitFormData({...exitFormData, priority: value})}>
                   <SelectTrigger className="rounded-lg mt-1">
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
@@ -2292,7 +2511,10 @@ export default function HRMEmployees() {
           <DialogFooter className="gap-2">
             <Button 
               variant="outline" 
-              onClick={() => setIsExitDialogOpen(false)}
+              onClick={() => {
+                setIsExitDialogOpen(false);
+                resetExitDialogState();
+              }}
               className="rounded-lg"
             >
               Cancel
@@ -2305,7 +2527,7 @@ export default function HRMEmployees() {
               {loadingStates['create_exit'] ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
               ) : null}
-              Create Exit Workflow
+              {isEditingExitWorkflow ? 'Update Exit Workflow' : 'Create Exit Workflow'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2718,15 +2940,14 @@ export default function HRMEmployees() {
                       Department <span className="text-red-500">*</span>
                     </Label>
                     <Select
-                      value={editingEmployee.department !== '' && ['Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'Human Resources', 'Finance', 'Operations', 'Customer Support', 'Custom'].indexOf(editingEmployee.department) === -1 ? editingEmployee.department : editingEmployee.department}
+                      value={(showCustomEditDepartmentInput || (!!editingEmployee.department && !departmentOptions.includes(editingEmployee.department))) ? '__custom_department__' : editingEmployee.department}
                       onValueChange={(value) => {
-                        if (value === 'Custom') {
-                          const customName = window.prompt("Enter new custom department name:");
-                          if (customName && customName.trim()) {
-                            setEditingEmployee({...editingEmployee, department: customName.trim()});
-                          }
+                        if (value === '__custom_department__') {
+                          setShowCustomEditDepartmentInput(true);
+                          setEditingEmployee({ ...editingEmployee, department: '' });
                         } else {
-                          setEditingEmployee({...editingEmployee, department: value});
+                          setShowCustomEditDepartmentInput(false);
+                          setEditingEmployee({ ...editingEmployee, department: value });
                         }
                       }}
                     >
@@ -2743,23 +2964,22 @@ export default function HRMEmployees() {
                         <SelectItem value="Finance">💰 Finance</SelectItem>
                         <SelectItem value="Operations">⚙️ Operations</SelectItem>
                         <SelectItem value="Customer Support">🎧 Customer Support</SelectItem>
-                        
-                        {/* Custom Value Render Wrapper */}
-                        {editingEmployee.department && 
-                         !['Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'Human Resources', 'Finance', 'Operations', 'Customer Support', 'Custom', ''].includes(editingEmployee.department) && (
-                          <SelectItem value={editingEmployee.department}>{editingEmployee.department}</SelectItem>
-                        )}
-
-                        <div className="px-1 py-1 mt-1 border-t border-slate-100">
-                          <SelectItem value="Custom" className="text-blue-600 font-medium justify-center py-2 cursor-pointer focus:bg-blue-50 focus:text-blue-700">
-                            <div className="flex items-center justify-center w-full">
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Custom
-                            </div>
-                          </SelectItem>
-                        </div>
+                        <SelectItem value="__custom_department__" className="text-blue-600 font-medium">
+                          <div className="flex items-center">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Custom Department
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
+                    {(showCustomEditDepartmentInput || (!!editingEmployee.department && !departmentOptions.includes(editingEmployee.department))) && (
+                      <Input
+                        placeholder="Type custom department"
+                        value={editingEmployee.department}
+                        onChange={(e) => setEditingEmployee({ ...editingEmployee, department: e.target.value })}
+                        className="rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500 h-11 mt-2"
+                      />
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="edit-location" className="text-sm font-semibold text-slate-700 flex items-center gap-1">

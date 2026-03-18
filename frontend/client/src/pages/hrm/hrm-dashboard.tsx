@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   ChevronRight,
   GitBranch,
-  Package
+  Package,
+  Megaphone
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -128,6 +129,15 @@ export default function HRMDashboard() {
       color: 'text-indigo-600',
       bgColor: 'bg-indigo-50',
       accent: 'border-indigo-200'
+    },
+    {
+      icon: Megaphone,
+      title: 'Announcements',
+      description: 'Create and publish HR announcements to the main dashboard',
+      route: '/hrm/announcements',
+      color: 'text-rose-600',
+      bgColor: 'bg-rose-50',
+      accent: 'border-rose-200'
     }
   ];
 

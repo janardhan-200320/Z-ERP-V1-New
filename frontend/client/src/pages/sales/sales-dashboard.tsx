@@ -13,13 +13,11 @@ import {
   TrendingUp,
   TrendingDown,
   Calendar,
-  Filter,
   Download,
   ArrowUpRight,
   ArrowDownRight,
   Wallet,
   Receipt,
-  Search,
   MoreVertical,
   ChevronDown,
   FileCheck,
@@ -349,28 +347,16 @@ export default function SalesDashboard() {
         {/* Tabbed Performance Context */}
         <div className="bg-slate-50/50 rounded-[2rem] p-5 border border-slate-100 shadow-inner">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 px-2">
-              <TabsList className="bg-white/80 backdrop-blur-sm border border-slate-200 p-1.5 h-14 shadow-sm rounded-2xl overflow-x-auto w-full justify-start">
-                <TabsTrigger value="proposals" className="px-8 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Proposals</TabsTrigger>
-                <TabsTrigger value="estimates" className="px-8 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Estimates</TabsTrigger>
-                <TabsTrigger value="invoices" className="px-8 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Invoices</TabsTrigger>
-                <TabsTrigger value="payments" className="px-8 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Payments</TabsTrigger>
-                <TabsTrigger value="credit-notes" className="px-8 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Credit Notes</TabsTrigger>
-                <TabsTrigger value="batch-payments" className="px-8 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Batch Payments</TabsTrigger>
+            <div className="flex flex-col gap-4 mb-8 px-2">
+              <TabsList className="bg-white/80 backdrop-blur-sm border border-slate-200 p-1.5 h-auto shadow-sm rounded-2xl w-full justify-start flex-wrap gap-1 overflow-visible">
+                <TabsTrigger value="proposals" className="px-4 py-2 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Proposals</TabsTrigger>
+                <TabsTrigger value="estimates" className="px-4 py-2 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Estimates</TabsTrigger>
+                <TabsTrigger value="invoices" className="px-4 py-2 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Invoices</TabsTrigger>
+                <TabsTrigger value="payments" className="px-4 py-2 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Payments</TabsTrigger>
+                <TabsTrigger value="credit-notes" className="px-4 py-2 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Credit Notes</TabsTrigger>
+                <TabsTrigger value="batch-payments" className="px-4 py-2 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Batch Payments</TabsTrigger>
               </TabsList>
               
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-80 group">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                  <input 
-                    placeholder="Search documents, clients..." 
-                    className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all font-medium shadow-sm"
-                  />
-                </div>
-                <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl shrink-0 bg-white border-slate-200 hover:border-indigo-500 transition-colors">
-                  <Filter className="h-5 w-5 text-slate-600" />
-                </Button>
-              </div>
             </div>
 
             <AnimatePresence mode="wait">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,13 +37,33 @@ import {
   LineChart,
   PieChart,
   Settings,
-  Plus
+  Plus,
+  Megaphone
 } from 'lucide-react';
 import { BarChart, Bar, LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Area, AreaChart, Tooltip } from 'recharts';
+import { useLocation } from 'wouter';
+import { ANNOUNCEMENT_UPDATED_EVENT, Announcement, getActiveAnnouncements } from '@/lib/announcements';
 
 export default function DashboardOverview() {
+  const [, setLocation] = useLocation();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+
+  useEffect(() => {
+    const refreshAnnouncements = () => {
+      setAnnouncements(getActiveAnnouncements(3));
+    };
+
+    refreshAnnouncements();
+    window.addEventListener('storage', refreshAnnouncements);
+    window.addEventListener(ANNOUNCEMENT_UPDATED_EVENT, refreshAnnouncements as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', refreshAnnouncements);
+      window.removeEventListener(ANNOUNCEMENT_UPDATED_EVENT, refreshAnnouncements as EventListener);
+    };
+  }, []);
   
   // Widget visibility state
   const [widgets, setWidgets] = useState({
@@ -534,6 +554,42 @@ export default function DashboardOverview() {
 
       <div className="flex flex-col h-full bg-slate-50/30">
         <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-0 pb-6 pt-2">
+          <Card className="border-blue-100 bg-gradient-to-r from-blue-50 via-indigo-50 to-white">
+            <CardHeader className="pb-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-slate-900">
+                  <Megaphone className="h-5 w-5 text-blue-600" />
+                  Announcements
+                </CardTitle>
+                <Button size="sm" variant="outline" onClick={() => setLocation('/hrm/announcements')}>
+                  Manage
+                </Button>
+              </div>
+              <CardDescription>Company-wide updates from HR and operations.</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {announcements.length === 0 ? (
+                <div className="rounded-md border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-500">
+                  No active announcements right now.
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-3">
+                  {announcements.map((announcement) => (
+                    <div key={announcement.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-semibold text-slate-900 line-clamp-1">{announcement.title}</h3>
+                        <Badge variant="outline" className="uppercase text-[10px]">
+                          {announcement.priority}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-slate-600 line-clamp-2">{announcement.message}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* KPI SUMMARY CARDS - Responsive Grid */}
           {widgets.quickStatistics && (
           <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">

@@ -20,7 +20,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { 
-  Download, Edit, Calendar as CalendarIcon, Clock, CheckCircle, XCircle, 
+  Download, Calendar as CalendarIcon, Clock, CheckCircle, XCircle, 
   FileText, Shield, Briefcase, Activity, CheckSquare, Save, Home, 
   Building2, Laptop, Users, Loader2, RefreshCw 
 } from 'lucide-react';
@@ -761,10 +761,6 @@ export default function EmployeeProfile() {
                   </div>
                 </div>
               </div>
-              <Button onClick={() => setShowEditModal(true)}>
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Profile
-              </Button>
             </div>
           </CardContent>
         </Card>

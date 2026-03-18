@@ -1403,9 +1403,9 @@ export default function LeadsModule() {
   // ==================== RENDER ====================
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="h-[calc(100vh-5rem)] bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col overflow-hidden">
         {/* Header Section */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="bg-white border-b border-gray-200 shrink-0">
           <div className="px-6 py-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
               <div className="flex items-center gap-3">
@@ -1711,7 +1711,7 @@ export default function LeadsModule() {
         </div>
 
         {/* Main Content */}
-        <div className="p-6">
+        <div className="flex-1 overflow-y-auto p-6">
           {/* TABLE VIEW */}
           {viewMode === "table" && (
             <div className="space-y-3">

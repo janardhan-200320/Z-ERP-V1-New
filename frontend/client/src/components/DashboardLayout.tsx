@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, ReactNode, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import {
@@ -116,6 +116,14 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [checkInAt, setCheckInAt] = useState<Date | null>(null);
   const [breakStartedAt, setBreakStartedAt] = useState<Date | null>(null);
   const [accumulatedBreakMs, setAccumulatedBreakMs] = useState(0);
+  const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
+  const lastSidebarScrollTop = useRef(0);
+
+  const captureSidebarScroll = useCallback(() => {
+    if (sidebarScrollRef.current) {
+      lastSidebarScrollTop.current = sidebarScrollRef.current.scrollTop;
+    }
+  }, []);
 
   const workLocationConfig: Record<WorkLocation, { label: string; icon: any; helper: string }> = {
     office: { label: 'Office', icon: Building2, helper: 'Onsite office' },
@@ -133,12 +141,17 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    // Only keep the clock ticking when attendance UI is relevant.
+    if (!attendanceDialogOpen && !isCheckedIn && !isOnBreak) {
+      return;
+    }
+
     const interval = setInterval(() => {
       setAttendanceClock(new Date());
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [attendanceDialogOpen, isCheckedIn, isOnBreak]);
 
   const ongoingBreakMs = isOnBreak && breakStartedAt
     ? attendanceClock.getTime() - breakStartedAt.getTime()
@@ -380,6 +393,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   });
 
   const toggleMenu = (menuKey: string) => {
+    captureSidebarScroll();
     setExpandedMenus(prev => {
       const isOpening = !prev[menuKey];
       if (!isOpening) return { ...prev, [menuKey]: false };
@@ -403,6 +417,11 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  useLayoutEffect(() => {
+    if (!sidebarScrollRef.current) return;
+    sidebarScrollRef.current.scrollTop = lastSidebarScrollTop.current;
+  }, [expandedMenus, location]);
+
   const resolveModuleForPath = useCallback((path: string): string | null => {
     for (const item of navigation) {
       if (item.path === path) return item.name;
@@ -424,7 +443,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!location) return;
 
-    // Helper to check if a path matches or is a child of a menu item
     const isPathActive = (item: any): boolean => {
       if (location === item.path) return true;
       if (item.submenu) {
@@ -433,24 +451,38 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       return false;
     };
 
-    navigation.forEach(item => {
-      if (item.hasSubmenu && item.submenu && item.submenuKey) {
-        if (isPathActive(item)) {
-          // Expand the menu if it's not already expanded
-          setExpandedMenus(prev => (prev[item.submenuKey!] ? prev : { ...prev, [item.submenuKey!]: true }));
-        }
+    const keysToExpand = new Set<string>();
 
-        // Also check nested submenus (one level deeper for now as supported by UI)
-        item.submenu.forEach(subItem => {
-          if (subItem.hasSubmenu && subItem.submenu && subItem.submenuKey) {
-            if (isPathActive(subItem)) {
-              setExpandedMenus(prev => (prev[subItem.submenuKey!] ? prev : { ...prev, [subItem.submenuKey!]: true }));
-            }
-          }
-        });
+    navigation.forEach(item => {
+      if (!item.hasSubmenu || !item.submenu || !item.submenuKey) return;
+
+      if (isPathActive(item)) {
+        keysToExpand.add(item.submenuKey);
       }
+
+      item.submenu.forEach(subItem => {
+        if (subItem.hasSubmenu && subItem.submenu && subItem.submenuKey && isPathActive(subItem)) {
+          keysToExpand.add(subItem.submenuKey);
+        }
+      });
     });
-  }, [location, navigation]); // Removed expandedMenus from dependencies to prevent unintended overrides during interaction
+
+    if (keysToExpand.size === 0) return;
+
+    setExpandedMenus(prev => {
+      let changed = false;
+      const next = { ...prev };
+
+      keysToExpand.forEach((key) => {
+        if (!next[key]) {
+          next[key] = true;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [location, navigation]);
 
   useEffect(() => {
     const loadSession = () => {
@@ -837,7 +869,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     </LayoutGroup>
   );
 
-  const SidebarShell = ({ expanded }: { expanded: boolean }) => (
+  const renderSidebarShell = (expanded: boolean) => (
     <motion.aside
       initial={false}
       animate={{ width: expanded ? 280 : 96 }}
@@ -872,7 +904,11 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       </div>
 
       {/* Scrollable Navigation Area */}
-      <div className="flex-1 overflow-y-auto px-4 pb-6">
+      <div
+        ref={sidebarScrollRef}
+        onScroll={captureSidebarScroll}
+        className="flex-1 overflow-y-auto px-4 pb-6"
+      >
         <div className="space-y-1">
           {renderNavItems(expanded)}
         </div>
@@ -880,7 +916,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     </motion.aside>
   );
 
-  const MobileSidebar = () => (
+  const renderMobileSidebar = () => (
     <AnimatePresence>
       {mobileSidebarOpen && (
         <motion.div
@@ -963,8 +999,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
 
       {/* <TopProgressBar /> */}
 
-      <SidebarShell expanded={sidebarExpanded} />
-      <MobileSidebar />
+      {renderSidebarShell(sidebarExpanded)}
+      {renderMobileSidebar()}
 
       <div className="relative flex flex-1 flex-col overflow-hidden">
         <header className="relative z-20 border-b border-slate-200 bg-white/90 px-4 py-4 shadow-sm backdrop-blur-xl sm:px-6">

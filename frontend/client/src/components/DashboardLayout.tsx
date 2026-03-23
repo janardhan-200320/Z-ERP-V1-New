@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, ReactNode, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { Link, useLocation } from 'wouter';
-import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -145,7 +145,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     if (!attendanceDialogOpen && !isCheckedIn && !isOnBreak) {
       return;
     }
-
+    // Update attendance clock only while the tracker dialog is open.
+    setAttendanceClock(new Date());
     const interval = setInterval(() => {
       setAttendanceClock(new Date());
     }, 1000);
@@ -649,7 +650,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   }), [location, filteredNavigation]);
 
   const renderNavItems = (expanded: boolean) => (
-    <LayoutGroup>
+    <>
       {filteredNavigation.map((item) => {
         if (item.hasSubmenu && item.submenu) {
           // Render menu item with submenu
@@ -670,11 +671,9 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                     toggleMenu(item.submenuKey);
                   }
                 }}
-                whileHover={{ scale: expanded ? 1.01 : 1.05 }}
-                whileTap={{ scale: 0.98 }}
                 className={`relative w-full flex items-center ${
                   expanded ? 'gap-3 px-4 py-3' : 'justify-center px-2 py-3'
-                } text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 rounded-xl ${
+                } text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 rounded-xl ${
                   hasActiveSubmenu ? 'bg-slate-700' : 'hover:bg-slate-700/50'
                 }`}
               >
@@ -725,9 +724,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                                 e.preventDefault();
                                 subItem.submenuKey && toggleMenu(subItem.submenuKey);
                               }}
-                              whileHover={{ scale: 1.01 }}
-                              whileTap={{ scale: 0.98 }}
-                              className={`relative w-full flex items-center gap-3 pl-12 pr-4 py-2.5 text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 rounded-xl ${
+                              className={`relative w-full flex items-center gap-3 pl-12 pr-4 py-2.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 rounded-xl ${
                                 hasActiveSubSubmenu ? 'bg-slate-700/40' : 'hover:bg-slate-700/30'
                               }`}
                             >
@@ -761,22 +758,22 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                                       <Link 
                                         key={subSubItem.path} 
                                         href={subSubItem.path}
-                                      >
-                                        <a className={`relative flex items-center gap-3 pl-20 pr-4 py-2 text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 rounded-xl cursor-pointer ${
+                                        className={`relative flex items-center gap-3 pl-20 pr-4 py-2 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 rounded-xl cursor-pointer ${
                                           subSubActive ? '' : 'hover:bg-slate-700/30'
+                                        }`}
+                                        onClick={() => setMobileSidebarOpen(false)}
+                                      >
+                                        <span className={`relative z-10 font-medium ${
+                                          subSubActive ? 'text-white' : 'text-slate-300'
                                         }`}>
-                                          <span className={`relative z-10 font-medium ${
-                                            subSubActive ? 'text-white' : 'text-slate-300'
-                                          }`}>
-                                            {subSubItem.name}
-                                          </span>
+                                          {subSubItem.name}
+                                        </span>
 
-                                          {subSubActive && (
-                                            <span
-                                              className="absolute inset-0 rounded-xl bg-slate-700/60 shadow-lg"
-                                            />
-                                          )}
-                                        </a>
+                                        {subSubActive && (
+                                          <span
+                                            className="absolute inset-0 rounded-xl bg-slate-700/60 shadow-lg"
+                                          />
+                                        )}
                                       </Link>
                                     );
                                   })}
@@ -792,22 +789,22 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                         <Link 
                           key={subItem.path} 
                           href={subItem.path}
-                        >
-                          <a className={`relative flex items-center gap-3 pl-12 pr-4 py-2.5 text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 rounded-xl cursor-pointer ${
+                          className={`relative flex items-center gap-3 pl-12 pr-4 py-2.5 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 rounded-xl cursor-pointer ${
                             subActive ? '' : 'hover:bg-slate-700/40'
+                          }`}
+                          onClick={() => setMobileSidebarOpen(false)}
+                        >
+                          <span className={`relative z-10 font-medium ${
+                            subActive ? 'text-white' : 'text-slate-300'
                           }`}>
-                            <span className={`relative z-10 font-medium ${
-                              subActive ? 'text-white' : 'text-slate-300'
-                            }`}>
-                              {subItem.name}
-                            </span>
+                            {subItem.name}
+                          </span>
 
-                            {subActive && (
-                              <span
-                                className="absolute inset-0 rounded-xl bg-slate-700/60 shadow-lg"
-                              />
-                            )}
-                          </a>
+                          {subActive && (
+                            <span
+                              className="absolute inset-0 rounded-xl bg-slate-700/60 shadow-lg"
+                            />
+                          )}
                         </Link>
                       );
                     })}
@@ -827,9 +824,10 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
             href={item.path}
             onMouseEnter={() => !expanded && setHoveredNav(item.path)}
             onMouseLeave={() => setHoveredNav(prev => (prev === item.path ? null : prev))}
+            onClick={() => setMobileSidebarOpen(false)}
             className={`relative flex items-center ${
               expanded ? 'gap-3 px-4 py-3' : 'justify-center px-2 py-3'
-            } text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 rounded-xl overflow-visible cursor-pointer ${
+            } text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 rounded-xl overflow-visible cursor-pointer ${
               active ? '' : 'hover:bg-slate-700/50'
             }`}
           >
@@ -866,7 +864,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
           </Link>
         );
       })}
-    </LayoutGroup>
+    </>
   );
 
   const renderSidebarShell = (expanded: boolean) => (

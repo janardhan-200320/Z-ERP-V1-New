@@ -1403,11 +1403,11 @@ export default function LeadsModule() {
   // ==================== RENDER ====================
   return (
     <DashboardLayout>
-      <div className="h-[calc(100vh-5rem)] bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col overflow-hidden">
+      <div className="min-h-full bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
         {/* Header Section */}
         <div className="bg-white border-b border-gray-200 shrink-0">
-          <div className="px-6 py-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+          <div className="px-4 py-4 sm:px-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4 items-start">
               <div className="flex items-center gap-3">
                 <div className="bg-blue-600/10 p-2.5 rounded-lg border border-blue-600/20">
                   <Users className="w-6 h-6 text-blue-600" />
@@ -1421,7 +1421,7 @@ export default function LeadsModule() {
                   <p className="text-sm text-gray-500 font-medium mt-0.5">Manage and track your leads efficiently</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex w-full md:w-auto items-center justify-start md:justify-end gap-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={handleImport} className="hover:bg-blue-50 hover:border-blue-500">
                   <Import className="w-4 h-4 mr-2" />
                   <span className="hidden sm:inline">Import</span>
@@ -1534,7 +1534,7 @@ export default function LeadsModule() {
             </div>
 
             {/* Search and Filters */}
-            <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex flex-col md:flex-row md:items-center gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
@@ -1557,7 +1557,7 @@ export default function LeadsModule() {
                   </Badge>
                 )}
               </Button>
-              <div className="flex items-center gap-2 border border-gray-300 rounded-lg p-1 bg-gray-50">
+              <div className="flex items-center gap-2 border border-gray-300 rounded-lg p-1 bg-gray-50 self-start md:self-auto">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1711,7 +1711,7 @@ export default function LeadsModule() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 p-4 sm:p-6">
           {/* TABLE VIEW */}
           {viewMode === "table" && (
             <div className="space-y-3">
@@ -1721,7 +1721,7 @@ export default function LeadsModule() {
                   className="hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200 bg-white"
                   onClick={() => openDetailModal(lead)}
                 >
-                  <CardContent className="p-4 sm:p-5">
+                    <CardContent className="p-4 sm:p-5">
                       <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
                       {/* Avatar & Name */}
                       <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -1736,7 +1736,7 @@ export default function LeadsModule() {
                             {lead.temperature && getTemperatureIcon(lead.temperature)}
                           </div>
                           <p className="text-sm text-gray-600 truncate mb-1">{lead.company}</p>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
                             <span className="flex items-center gap-1 truncate">
                               <Mail className="w-3 h-3 flex-shrink-0" />
                               <span className="truncate">{lead.email}</span>
@@ -1765,7 +1765,7 @@ export default function LeadsModule() {
                       </div>
 
                       {/* Score */}
-                      <div className="flex flex-row md:flex-col items-center justify-center min-w-[80px] gap-2 md:gap-0">
+                      <div className="flex flex-row md:flex-col items-start md:items-center justify-center min-w-[80px] gap-2 md:gap-0">
                         <div className={`text-2xl font-bold ${getScoreColor(lead.leadScore || 0)} mb-1`}>
                           {lead.leadScore}
                         </div>
@@ -1774,7 +1774,7 @@ export default function LeadsModule() {
                       </div>
 
                       {/* Value */}
-                      <div className="flex flex-col items-end justify-center min-w-[120px]">
+                      <div className="flex flex-col items-start md:items-end justify-center min-w-[120px]">
                         <p className="text-lg font-bold text-green-600 mb-1">
                           {formatCurrency(lead.leadValue || 0)}
                         </p>
@@ -1782,7 +1782,7 @@ export default function LeadsModule() {
                       </div>
 
                       {/* Assigned */}
-                      <div className="flex flex-col items-center justify-center min-w-[100px]">
+                      <div className="flex flex-col items-start md:items-center justify-center min-w-[100px]">
                         <Avatar className="w-8 h-8 mb-1">
                           <AvatarFallback className="bg-gray-200 text-gray-700 text-xs">
                             {getInitials(lead.assignedTo)}

@@ -45,6 +45,11 @@ import TopProgressBar from './TopProgressBar';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { safeGetItem } from '@/lib/storage';
 import {
+  finishAttendanceRecord,
+  startAttendanceRecord,
+  type AttendanceWorkLocation,
+} from '@/lib/attendance-reporting';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -82,7 +87,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     return `${hours}:${minutes}:${seconds}`;
   };
 
-  type WorkLocation = 'office' | 'wfh' | 'remote' | 'field';
+  type WorkLocation = AttendanceWorkLocation;
   type BreakReason = 'lunch' | 'tea' | 'short' | 'meeting' | 'other';
 
   const [location, navigate] = useLocation();
@@ -165,6 +170,12 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
 
   const handleAttendanceCheckIn = () => {
     const now = new Date();
+    startAttendanceRecord({
+      workMode: selectedWorkLocation,
+      checkInAt: now.toISOString(),
+      checkInNote: checkInNote.trim() || undefined,
+    });
+
     setIsCheckedIn(true);
     setIsOnBreak(false);
     setCheckInAt(now);
@@ -224,6 +235,13 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     const now = new Date();
     const finalizedBreakMs = accumulatedBreakMs + (isOnBreak && breakStartedAt ? now.getTime() - breakStartedAt.getTime() : 0);
     const finalizedWorkMs = now.getTime() - checkInAt.getTime() - finalizedBreakMs;
+
+    finishAttendanceRecord({
+      checkOutAt: now.toISOString(),
+      checkOutNote: checkOutNote.trim() || undefined,
+      breakDurationMs: finalizedBreakMs,
+      workDurationMs: finalizedWorkMs,
+    });
 
     setIsCheckedIn(false);
     setIsOnBreak(false);

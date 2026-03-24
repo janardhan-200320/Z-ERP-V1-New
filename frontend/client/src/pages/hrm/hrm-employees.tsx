@@ -79,6 +79,7 @@ export default function HRMEmployees() {
   const [isPastExitsModalOpen, setIsPastExitsModalOpen] = useState(false);
   const [showCustomDepartmentInput, setShowCustomDepartmentInput] = useState(false);
   const [showCustomEmployeeTypeInput, setShowCustomEmployeeTypeInput] = useState(false);
+  const [showCustomProbationInput, setShowCustomProbationInput] = useState(false);
   const [showCustomEditDepartmentInput, setShowCustomEditDepartmentInput] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
@@ -111,6 +112,8 @@ export default function HRMEmployees() {
     gender: '',
     employeeType: '',
     customEmployeeType: '',
+    probationPeriod: '90',
+    customProbationDays: '',
     personalEmail: '',
     email: '',
     phone: '',
@@ -168,6 +171,8 @@ export default function HRMEmployees() {
     'Operations',
     'Customer Support',
   ];
+
+  const probationPeriodOptions = ['30', '60', '90'];
 
   // Generate PDF Report
   const generatePDFReport = (employee: any, type: 'clearance' | 'report' = 'report') => {
@@ -1071,6 +1076,19 @@ export default function HRMEmployees() {
       return;
     }
 
+    const resolvedProbationDays = showCustomProbationInput
+      ? Number.parseInt(newEmployee.customProbationDays, 10)
+      : Number.parseInt(newEmployee.probationPeriod, 10);
+
+    if (!Number.isFinite(resolvedProbationDays) || resolvedProbationDays <= 0) {
+      toast({
+        title: "Invalid Probation Period",
+        description: "Please choose a valid probation period in days.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const id = `EMP${String(employees.length + 1).padStart(3, '0')}`;
     const avatar = newEmployee.name.split(' ').map(n => n[0]).join('').toUpperCase();
     
@@ -1082,6 +1100,8 @@ export default function HRMEmployees() {
       employeeType: showCustomEmployeeTypeInput
         ? newEmployee.customEmployeeType.trim()
         : newEmployee.employeeType,
+      probationPeriodDays: resolvedProbationDays,
+      probationPeriodLabel: `${resolvedProbationDays} Days`,
       id,
       avatar,
       status: 'onboarding',
@@ -1099,6 +1119,7 @@ export default function HRMEmployees() {
     setIsAddDialogOpen(false);
     setShowCustomDepartmentInput(false);
     setShowCustomEmployeeTypeInput(false);
+    setShowCustomProbationInput(false);
     setNewEmployee({
       name: '',
       designation: '',
@@ -1107,6 +1128,8 @@ export default function HRMEmployees() {
       gender: '',
       employeeType: '',
       customEmployeeType: '',
+      probationPeriod: '90',
+      customProbationDays: '',
       personalEmail: '',
       email: '',
       phone: '',
@@ -1386,6 +1409,45 @@ export default function HRMEmployees() {
                                 placeholder="Type custom employee type"
                                 value={newEmployee.customEmployeeType}
                                 onChange={(e) => setNewEmployee({ ...newEmployee, customEmployeeType: e.target.value })}
+                                className="rounded-xl border-slate-200 h-11 bg-slate-50/50 mt-2"
+                              />
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Probation Period</Label>
+                            <Select
+                              onValueChange={(v) => {
+                                if (v === '__custom_probation__') {
+                                  setShowCustomProbationInput(true);
+                                  setNewEmployee({ ...newEmployee, probationPeriod: '', customProbationDays: '' });
+                                } else {
+                                  setShowCustomProbationInput(false);
+                                  setNewEmployee({ ...newEmployee, probationPeriod: v, customProbationDays: '' });
+                                }
+                              }}
+                              value={showCustomProbationInput ? '__custom_probation__' : newEmployee.probationPeriod}
+                            >
+                              <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
+                                <SelectValue placeholder="Select Probation Period" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl">
+                                {probationPeriodOptions.map((days) => (
+                                  <SelectItem key={days} value={days}>{days} Days</SelectItem>
+                                ))}
+                                <SelectItem value="__custom_probation__">Custom</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {showCustomProbationInput && (
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                placeholder="Enter custom days"
+                                value={newEmployee.customProbationDays}
+                                onChange={(e) => setNewEmployee({
+                                  ...newEmployee,
+                                  customProbationDays: e.target.value.replace(/\D/g, '')
+                                })}
                                 className="rounded-xl border-slate-200 h-11 bg-slate-50/50 mt-2"
                               />
                             )}
@@ -2749,6 +2811,10 @@ export default function HRMEmployees() {
                 <div className="p-3 bg-slate-50 rounded-lg">
                   <p className="text-xs font-bold text-slate-500 uppercase mb-1">Joining Date</p>
                   <p className="text-sm font-bold text-slate-800">{new Date(selectedEmployee.joining).toLocaleDateString()}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <p className="text-xs font-bold text-slate-500 uppercase mb-1">Probation Period</p>
+                  <p className="text-sm font-bold text-slate-800">{selectedEmployee.probationPeriodLabel || '90 Days'}</p>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-lg">
                   <p className="text-xs font-bold text-slate-500 uppercase mb-1">Email</p>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -60,10 +60,32 @@ import { cn } from "@/lib/utils";
 import { exportToExcel } from '@/lib/exportUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+  formatHoursFromMs,
+  readAttendanceFeed,
+  type AttendanceFeedRecord,
+} from '@/lib/attendance-reporting';
 
 // Rebuild trigger: Attendance Leave module logic updated.
 // Consolidated React imports and fixed missing Lucide icons (Plus).
 export default function HRMAttendance() {
+  type TodayAttendanceRow = {
+    id: string;
+    name: string;
+    department: string;
+    checkIn: string;
+    checkOut: string;
+    status: 'present' | 'late' | 'leave' | 'absent' | 'halfday';
+    hours: string;
+    avatar: string;
+    workMode: string;
+    workLocation: string;
+    workStyle: string;
+    workDate: string;
+    checkInNote?: string;
+    checkOutNote?: string;
+  };
+
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('today');
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,15 +94,16 @@ export default function HRMAttendance() {
   const [isTimesheetModalOpen, setIsTimesheetModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const [trackerFeed, setTrackerFeed] = useState<AttendanceFeedRecord[]>([]);
   const { toast } = useToast();
 
-  const attendance = [
-    { id: 'EMP001', name: 'John Smith', department: 'Engineering', checkIn: '09:02 AM', checkOut: '-', status: 'present', hours: '4.5h', avatar: 'JS' },
-    { id: 'EMP002', name: 'Sarah Johnson', department: 'Product', checkIn: '08:58 AM', checkOut: '06:15 PM', status: 'present', hours: '9.5h', avatar: 'SJ' },
-    { id: 'EMP003', name: 'Mike Brown', department: 'Design', checkIn: '09:45 AM', checkOut: '-', status: 'late', hours: '3.5h', avatar: 'MB' },
-    { id: 'EMP004', name: 'Emily Davis', department: 'HR Management', checkIn: '-', checkOut: '-', status: 'leave', hours: '0h', avatar: 'ED' },
-    { id: 'EMP005', name: 'Alex Wilson', department: 'Sales', checkIn: '-', checkOut: '-', status: 'absent', hours: '0h', avatar: 'AW' },
-    { id: 'EMP006', name: 'Lisa Anderson', department: 'Marketing', checkIn: '09:05 AM', checkOut: '05:30 PM', status: 'present', hours: '8.2h', avatar: 'LA' }
+  const attendance: TodayAttendanceRow[] = [
+    { id: 'EMP001', name: 'John Smith', department: 'Engineering', checkIn: '09:02 AM', checkOut: '-', status: 'present', hours: '4.5h', avatar: 'JS', workMode: 'Office', workLocation: 'Office - Building A', workStyle: 'Onsite', workDate: new Date().toLocaleDateString('en-CA') },
+    { id: 'EMP002', name: 'Sarah Johnson', department: 'Product', checkIn: '08:58 AM', checkOut: '06:15 PM', status: 'present', hours: '9.5h', avatar: 'SJ', workMode: 'Work From Home', workLocation: 'Home Setup', workStyle: 'Remote', workDate: new Date().toLocaleDateString('en-CA') },
+    { id: 'EMP003', name: 'Mike Brown', department: 'Design', checkIn: '09:45 AM', checkOut: '-', status: 'late', hours: '3.5h', avatar: 'MB', workMode: 'Field Work', workLocation: 'Client Site - North Zone', workStyle: 'On-ground', workDate: new Date().toLocaleDateString('en-CA') },
+    { id: 'EMP004', name: 'Emily Davis', department: 'HR Management', checkIn: '-', checkOut: '-', status: 'leave', hours: '0h', avatar: 'ED', workMode: 'Work From Home', workLocation: 'Planned Leave', workStyle: 'Leave', workDate: new Date().toLocaleDateString('en-CA') },
+    { id: 'EMP005', name: 'Alex Wilson', department: 'Sales', checkIn: '-', checkOut: '-', status: 'absent', hours: '0h', avatar: 'AW', workMode: 'Remote', workLocation: 'No Check-In', workStyle: 'Absent', workDate: new Date().toLocaleDateString('en-CA') },
+    { id: 'EMP006', name: 'Lisa Anderson', department: 'Marketing', checkIn: '09:05 AM', checkOut: '05:30 PM', status: 'present', hours: '8.2h', avatar: 'LA', workMode: 'Remote', workLocation: 'Anywhere', workStyle: 'Flexible', workDate: new Date().toLocaleDateString('en-CA') }
   ];
 
   const [leaveRequests, setLeaveRequests] = useState([
@@ -470,12 +493,97 @@ export default function HRMAttendance() {
     rejected: { label: 'Rejected', class: 'bg-rose-100 text-rose-700 border-rose-200' }
   };
 
+  useEffect(() => {
+    const syncFeed = () => {
+      setTrackerFeed(readAttendanceFeed());
+    };
+
+    syncFeed();
+    window.addEventListener('storage', syncFeed);
+    window.addEventListener('focus', syncFeed);
+
+    return () => {
+      window.removeEventListener('storage', syncFeed);
+      window.removeEventListener('focus', syncFeed);
+    };
+  }, []);
+
+  const trackerAttendanceRows = useMemo<TodayAttendanceRow[]>(() => {
+    const todayKey = new Date().toLocaleDateString('en-CA');
+
+    return trackerFeed
+      .filter((record) => record.date === todayKey)
+      .map((record) => {
+        const checkInAt = new Date(record.checkInAt);
+        const checkOutAt = record.checkOutAt ? new Date(record.checkOutAt) : null;
+        const checkInLabel = checkInAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const checkOutLabel = checkOutAt
+          ? checkOutAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : '-';
+        const avatarParts = record.employeeName.split(' ').filter(Boolean);
+        const avatar = avatarParts.length > 1
+          ? `${avatarParts[0][0]}${avatarParts[1][0]}`
+          : (avatarParts[0]?.slice(0, 2) || 'CU').toUpperCase();
+
+        return {
+          id: record.employeeId,
+          name: record.employeeName,
+          department: record.department || 'General',
+          checkIn: checkInLabel,
+          checkOut: checkOutLabel,
+          status: 'present',
+          hours: formatHoursFromMs(record.workDurationMs),
+          avatar,
+          workMode: record.workModeLabel,
+          workLocation: record.workLocationLabel,
+          workStyle: record.workStyleLabel,
+          workDate: record.date,
+          checkInNote: record.checkInNote,
+          checkOutNote: record.checkOutNote,
+        };
+      });
+  }, [trackerFeed]);
+
+  const combinedAttendance = useMemo<TodayAttendanceRow[]>(() => {
+    const merged = [...trackerAttendanceRows];
+    const takenIds = new Set(trackerAttendanceRows.map((row) => row.id));
+
+    attendance.forEach((row) => {
+      if (!takenIds.has(row.id)) {
+        merged.push(row);
+      }
+    });
+
+    return merged;
+  }, [attendance, trackerAttendanceRows]);
+
   const filteredAttendance = useMemo(() => {
-    return attendance.filter(item => 
+    return combinedAttendance.filter(item => 
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.department.toLowerCase().includes(searchQuery.toLowerCase())
+      item.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.workMode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.workLocation.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery, attendance]);
+  }, [searchQuery, combinedAttendance]);
+
+  const todayStats = useMemo(() => {
+    const present = combinedAttendance.filter((row) => row.status === 'present').length;
+    const late = combinedAttendance.filter((row) => row.status === 'late').length;
+    const leave = combinedAttendance.filter((row) => row.status === 'leave').length;
+    const absent = combinedAttendance.filter((row) => row.status === 'absent').length;
+
+    return { present, late, leave, absent, total: combinedAttendance.length };
+  }, [combinedAttendance]);
+
+  const workModeBreakdown = useMemo(() => {
+    const source = filteredAttendance;
+    return {
+      office: source.filter((row) => row.workMode === 'Office').length,
+      wfh: source.filter((row) => row.workMode === 'Work From Home').length,
+      remote: source.filter((row) => row.workMode === 'Remote').length,
+      field: source.filter((row) => row.workMode === 'Field Work').length,
+    };
+  }, [filteredAttendance]);
 
   const handleExport = (type: 'excel' | 'pdf') => {
     setIsExporting(true);
@@ -483,7 +591,23 @@ export default function HRMAttendance() {
 
     setTimeout(() => {
       if (type === 'excel') {
-        const data = activeTab === 'today' ? attendance : leaveRequests;
+        const data = activeTab === 'today'
+          ? combinedAttendance.map((row) => ({
+              employee_id: row.id,
+              employee_name: row.name,
+              department: row.department,
+              work_date: row.workDate,
+              check_in: row.checkIn,
+              check_out: row.checkOut,
+              hours: row.hours,
+              work_mode: row.workMode,
+              work_location: row.workLocation,
+              work_style: row.workStyle,
+              status: row.status,
+              check_in_note: row.checkInNote || '-',
+              check_out_note: row.checkOutNote || '-',
+            }))
+          : leaveRequests;
         exportToExcel(data, `HRM_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
       } else {
         const doc = new jsPDF();
@@ -491,8 +615,20 @@ export default function HRMAttendance() {
         if (activeTab === 'today') {
           autoTable(doc, {
             startY: 25,
-            head: [['ID', 'Employee', 'Department', 'Check In', 'Check Out', 'Hours', 'Status']],
-            body: attendance.map(a => [a.id, a.name, a.department, a.checkIn, a.checkOut, a.hours, a.status]),
+            head: [['ID', 'Employee', 'Department', 'Date', 'Check In', 'Check Out', 'Hours', 'Work Mode', 'Where', 'How', 'Status']],
+            body: combinedAttendance.map((a) => [
+              a.id,
+              a.name,
+              a.department,
+              a.workDate,
+              a.checkIn,
+              a.checkOut,
+              a.hours,
+              a.workMode,
+              a.workLocation,
+              a.workStyle,
+              a.status,
+            ]),
           });
         } else {
           autoTable(doc, {
@@ -636,10 +772,36 @@ export default function HRMAttendance() {
         </div>
 
         <div className="grid gap-5 md:grid-cols-4">
-          <StatCard title="Present Today" value="235" icon={<UserCheck />} color="emerald" sub="94% attendance rate" />
-          <StatCard title="Absent" value="3" icon={<XCircle />} color="rose" sub="12% from last week" trend="down" />
-          <StatCard title="On Leave" value="12" icon={<Coffee />} color="blue" sub="Planned absences today" />
-          <StatCard title="Late Arrivals" value="8" icon={<Clock />} color="amber" sub="Above average" trend="up" />
+          <StatCard
+            title="Present Today"
+            value={todayStats.present.toString()}
+            icon={<UserCheck />}
+            color="emerald"
+            sub={`${todayStats.total ? Math.round((todayStats.present / todayStats.total) * 100) : 0}% attendance rate`}
+          />
+          <StatCard
+            title="Absent"
+            value={todayStats.absent.toString()}
+            icon={<XCircle />}
+            color="rose"
+            sub="Missing check-ins"
+            trend={todayStats.absent > 0 ? 'up' : 'none'}
+          />
+          <StatCard
+            title="On Leave"
+            value={todayStats.leave.toString()}
+            icon={<Coffee />}
+            color="blue"
+            sub="Approved leave status"
+          />
+          <StatCard
+            title="Late Arrivals"
+            value={todayStats.late.toString()}
+            icon={<Clock />}
+            color="amber"
+            sub="Post shift-start logins"
+            trend={todayStats.late > 0 ? 'up' : 'none'}
+          />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -697,6 +859,37 @@ export default function HRMAttendance() {
           </div>
 
           <TabsContent value="today" className="mt-6 space-y-4">
+            <div className="grid gap-3 md:grid-cols-4">
+              <Card className="rounded-2xl border-blue-100 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-sm">
+                <CardContent className="p-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-blue-600">Office</p>
+                  <p className="mt-2 text-3xl font-black text-slate-900">{workModeBreakdown.office}</p>
+                  <p className="text-[11px] text-slate-500">Onsite workforce</p>
+                </CardContent>
+              </Card>
+              <Card className="rounded-2xl border-emerald-100 bg-gradient-to-br from-emerald-50 to-lime-50 shadow-sm">
+                <CardContent className="p-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">WFH</p>
+                  <p className="mt-2 text-3xl font-black text-slate-900">{workModeBreakdown.wfh}</p>
+                  <p className="text-[11px] text-slate-500">Home setup users</p>
+                </CardContent>
+              </Card>
+              <Card className="rounded-2xl border-violet-100 bg-gradient-to-br from-violet-50 to-fuchsia-50 shadow-sm">
+                <CardContent className="p-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-violet-600">Remote</p>
+                  <p className="mt-2 text-3xl font-black text-slate-900">{workModeBreakdown.remote}</p>
+                  <p className="text-[11px] text-slate-500">Flexible locations</p>
+                </CardContent>
+              </Card>
+              <Card className="rounded-2xl border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50 shadow-sm">
+                <CardContent className="p-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-amber-600">Field Work</p>
+                  <p className="mt-2 text-3xl font-black text-slate-900">{workModeBreakdown.field}</p>
+                  <p className="text-[11px] text-slate-500">Client/site visits</p>
+                </CardContent>
+              </Card>
+            </div>
+
             <Card className="rounded-[1.5rem] border-slate-200/60 shadow-sm overflow-hidden">
               <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div>
@@ -708,11 +901,15 @@ export default function HRMAttendance() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/30 hover:bg-slate-50/30">
-                    <TableHead className="w-[300px] font-bold text-slate-700">Team Member</TableHead>
+                    <TableHead className="w-[280px] font-bold text-slate-700">Team Member</TableHead>
                     <TableHead className="font-bold text-slate-700">Department</TableHead>
+                    <TableHead className="font-bold text-slate-700">Date</TableHead>
                     <TableHead className="font-bold text-slate-700">Check In</TableHead>
                     <TableHead className="font-bold text-slate-700">Check Out</TableHead>
                     <TableHead className="font-bold text-slate-700">Duration</TableHead>
+                    <TableHead className="font-bold text-slate-700">Work Mode</TableHead>
+                    <TableHead className="font-bold text-slate-700">Where</TableHead>
+                    <TableHead className="font-bold text-slate-700">How</TableHead>
                     <TableHead className="font-bold text-slate-700">Status</TableHead>
                     <TableHead className="text-right"></TableHead>
                   </TableRow>
@@ -734,6 +931,11 @@ export default function HRMAttendance() {
                       </TableCell>
                       <TableCell className="font-medium text-slate-600">{row.department}</TableCell>
                       <TableCell>
+                        <span className="text-xs font-semibold text-slate-600">
+                          {new Date(row.workDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-1.5 font-bold text-slate-700">
                           <Clock className="h-3.5 w-3.5 text-blue-500" />
                           {row.checkIn}
@@ -743,6 +945,19 @@ export default function HRMAttendance() {
                       <TableCell>
                         <Badge variant="secondary" className="bg-slate-100 hover:bg-slate-100 text-slate-600 border-none font-bold">
                           {row.hours}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="rounded-lg bg-blue-50 text-blue-700 border-blue-200 font-semibold">
+                          {row.workMode}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-xs font-medium text-slate-600 max-w-[170px]">{row.workLocation}</p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="bg-violet-100 text-violet-700 border-none font-bold">
+                          {row.workStyle}
                         </Badge>
                       </TableCell>
                       <TableCell>

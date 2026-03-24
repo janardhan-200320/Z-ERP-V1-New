@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,6 @@ import {
   Phone,
   MessageSquare,
   FolderOpen,
-  Calendar,
   Clock,
   UserPlus,
   Mail,
@@ -36,6 +35,8 @@ import {
   Building2,
   Smartphone,
   User,
+  Search,
+  X,
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import MeetingsModule from "./meetings";
@@ -66,6 +67,22 @@ interface TeamMemberForm {
   phone: string;
   status: TeamMemberStatus;
   notes: string;
+}
+
+interface TeamGroup {
+  id: string;
+  name: string;
+  department: string;
+  description: string;
+  memberIds: string[];
+  createdAt: string;
+}
+
+interface TeamGroupForm {
+  name: string;
+  department: string;
+  description: string;
+  memberIds: string[];
 }
 
 const defaultMembers: TeamMember[] = [
@@ -147,6 +164,32 @@ const initialFormState: TeamMemberForm = {
   notes: "",
 };
 
+const initialGroupFormState: TeamGroupForm = {
+  name: "",
+  department: "",
+  description: "",
+  memberIds: [],
+};
+
+const defaultGroups: TeamGroup[] = [
+  {
+    id: "group-1",
+    name: "Revenue Sprint Pod",
+    department: "Sales + Product",
+    description: "Handles high-priority enterprise opportunities and demo follow-ups.",
+    memberIds: ["team-1", "team-5", "team-3"],
+    createdAt: "2026-03-10T09:30:00.000Z",
+  },
+  {
+    id: "group-2",
+    name: "Launch Ops Crew",
+    department: "Operations",
+    description: "Coordinates release readiness, support coverage, and rollout checks.",
+    memberIds: ["team-2", "team-4", "team-6"],
+    createdAt: "2026-03-14T11:15:00.000Z",
+  },
+];
+
 function getInitials(value: string) {
   const parts = value
     .trim()
@@ -160,9 +203,57 @@ function getInitials(value: string) {
 export default function TeamSpaceDashboard() {
   const [activeTab, setActiveTab] = useState("meetings");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(defaultMembers);
+  const [teamGroups, setTeamGroups] = useState<TeamGroup[]>(defaultGroups);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [newMemberForm, setNewMemberForm] = useState<TeamMemberForm>(initialFormState);
+  const [newGroupForm, setNewGroupForm] = useState<TeamGroupForm>(initialGroupFormState);
+  const [groupMemberQuery, setGroupMemberQuery] = useState("");
   const { toast } = useToast();
+
+  const teamMemberMap = useMemo(
+    () => new Map(teamMembers.map((member) => [member.id, member])),
+    [teamMembers],
+  );
+
+  const selectedGroupMembers = useMemo(
+    () => newGroupForm.memberIds
+      .map((memberId) => teamMemberMap.get(memberId))
+      .filter((member): member is TeamMember => Boolean(member)),
+    [newGroupForm.memberIds, teamMemberMap],
+  );
+
+  const filteredGroupMembers = useMemo(() => {
+    const query = groupMemberQuery.trim().toLowerCase();
+
+    const statusRank: Record<TeamMemberStatus, number> = {
+      online: 0,
+      busy: 1,
+      away: 2,
+      offline: 3,
+    };
+
+    return teamMembers
+      .filter((member) => {
+        if (!query) {
+          return true;
+        }
+
+        return (
+          member.name.toLowerCase().includes(query) ||
+          member.role.toLowerCase().includes(query) ||
+          member.department.toLowerCase().includes(query) ||
+          member.email.toLowerCase().includes(query)
+        );
+      })
+      .sort((first, second) => {
+        const statusDelta = statusRank[first.status] - statusRank[second.status];
+        if (statusDelta !== 0) {
+          return statusDelta;
+        }
+        return first.name.localeCompare(second.name);
+      });
+  }, [teamMembers, groupMemberQuery]);
 
   const kpiData = [
     {
@@ -303,6 +394,71 @@ export default function TeamSpaceDashboard() {
     });
   };
 
+  const handleToggleGroupMember = (memberId: string) => {
+    setNewGroupForm((prev) => {
+      const alreadySelected = prev.memberIds.includes(memberId);
+      return {
+        ...prev,
+        memberIds: alreadySelected
+          ? prev.memberIds.filter((id) => id !== memberId)
+          : [...prev.memberIds, memberId],
+      };
+    });
+  };
+
+  const handleCreateGroup = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!newGroupForm.name.trim()) {
+      toast({
+        title: "Group name is required",
+        description: "Please provide a clear group name before creating it.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newGroupForm.memberIds.length === 0) {
+      toast({
+        title: "Add group members",
+        description: "Please select at least one member for this group.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const normalizedName = newGroupForm.name.trim().toLowerCase();
+    const duplicateName = teamGroups.some((group) => group.name.trim().toLowerCase() === normalizedName);
+
+    if (duplicateName) {
+      toast({
+        title: "Group already exists",
+        description: "Please use a unique group name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const createdGroup: TeamGroup = {
+      id: `group-${Date.now()}`,
+      name: newGroupForm.name.trim(),
+      department: newGroupForm.department.trim() || "Cross-functional",
+      description: newGroupForm.description.trim() || "Collaboration group",
+      memberIds: newGroupForm.memberIds,
+      createdAt: new Date().toISOString(),
+    };
+
+    setTeamGroups((prev) => [createdGroup, ...prev]);
+    setNewGroupForm(initialGroupFormState);
+    setGroupMemberQuery("");
+    setIsCreateGroupOpen(false);
+
+    toast({
+      title: "Group created",
+      description: `${createdGroup.name} is ready with ${createdGroup.memberIds.length} member(s).`,
+    });
+  };
+
   return (
     <DashboardLayout>
       {/* Page Header */}
@@ -317,21 +473,209 @@ export default function TeamSpaceDashboard() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setActiveTab("meetings")}
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            My Schedule
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setActiveTab("meetings")}
-          >
-            <Video className="h-4 w-4 mr-2" />
-            Quick Meeting
-          </Button>
+          <Dialog open={isCreateGroupOpen} onOpenChange={setIsCreateGroupOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Users className="h-4 w-4 mr-2" />
+                Create Group
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-indigo-600" />
+                  Create Team Group
+                </DialogTitle>
+                <DialogDescription>
+                  Build a focused collaboration group by selecting members from Team Space.
+                </DialogDescription>
+              </DialogHeader>
+
+              <form onSubmit={handleCreateGroup} className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="group-name">Group Name</Label>
+                    <Input
+                      id="group-name"
+                      value={newGroupForm.name}
+                      onChange={(event) =>
+                        setNewGroupForm((prev) => ({ ...prev, name: event.target.value }))
+                      }
+                      placeholder="e.g. Enterprise Closure Squad"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="group-department">Department / Function</Label>
+                    <Input
+                      id="group-department"
+                      value={newGroupForm.department}
+                      onChange={(event) =>
+                        setNewGroupForm((prev) => ({ ...prev, department: event.target.value }))
+                      }
+                      placeholder="e.g. Sales + Product"
+                    />
+                  </div>
+
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="group-description">Group Description</Label>
+                    <Textarea
+                      id="group-description"
+                      value={newGroupForm.description}
+                      onChange={(event) =>
+                        setNewGroupForm((prev) => ({ ...prev, description: event.target.value }))
+                      }
+                      placeholder="Describe what this group handles and why it exists"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label>Select Members</Label>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-xs"
+                        onClick={() => {
+                          const allVisibleIds = filteredGroupMembers.map((member) => member.id);
+                          setNewGroupForm((prev) => ({ ...prev, memberIds: allVisibleIds }));
+                        }}
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-xs"
+                        onClick={() => setNewGroupForm((prev) => ({ ...prev, memberIds: [] }))}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      value={groupMemberQuery}
+                      onChange={(event) => setGroupMemberQuery(event.target.value)}
+                      placeholder="Search by name, role, department, or email"
+                      className="pl-9"
+                    />
+                  </div>
+
+                  {selectedGroupMembers.length > 0 ? (
+                    <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 p-3">
+                      <p className="mb-2 text-xs font-semibold text-indigo-700">
+                        Selected Members ({selectedGroupMembers.length})
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedGroupMembers.map((member) => (
+                          <button
+                            type="button"
+                            key={member.id}
+                            onClick={() => handleToggleGroupMember(member.id)}
+                            className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-indigo-50"
+                          >
+                            {member.name}
+                            <X className="h-3 w-3 text-slate-400" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto rounded-xl border border-slate-200 p-2 sm:grid-cols-2">
+                    {filteredGroupMembers.map((member) => {
+                      const isSelected = newGroupForm.memberIds.includes(member.id);
+
+                      return (
+                        <button
+                          type="button"
+                          key={member.id}
+                          onClick={() => handleToggleGroupMember(member.id)}
+                          className={`rounded-lg border p-3 text-left transition-colors ${
+                            isSelected
+                              ? "border-indigo-300 bg-indigo-50 shadow-sm"
+                              : "border-slate-200 bg-white hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2 min-w-0">
+                              <div className="relative mt-0.5">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
+                                  {member.avatar}
+                                </div>
+                                <span
+                                  className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-white ${statusColors[member.status]}`}
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-slate-900">{member.name}</p>
+                                <p className="truncate text-xs text-slate-500">{member.role}</p>
+                                <p className="truncate text-xs text-slate-500">{member.department}</p>
+                                <p className="truncate text-[11px] text-slate-400">{member.email}</p>
+                              </div>
+                            </div>
+                            <Badge variant={isSelected ? "default" : "outline"} className="text-[10px] capitalize">
+                              {isSelected ? "Selected" : member.status}
+                            </Badge>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {filteredGroupMembers.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
+                      No members found for "{groupMemberQuery}".
+                    </div>
+                  ) : null}
+
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-xs text-slate-600">
+                      Newly added team members show here automatically.
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setIsCreateGroupOpen(false);
+                        setIsAddMemberOpen(true);
+                      }}
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Add New Member
+                    </Button>
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsCreateGroupOpen(false);
+                      setNewGroupForm(initialGroupFormState);
+                      setGroupMemberQuery("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+                    <Users className="h-4 w-4 mr-2" />
+                    Create Group
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
@@ -614,6 +958,75 @@ export default function TeamSpaceDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Team Groups */}
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="h-5 w-5 text-indigo-600" />
+              Team Groups
+            </CardTitle>
+            <Badge variant="secondary">{teamGroups.length} groups</Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {teamGroups.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center">
+              <p className="text-sm text-slate-600">No groups created yet. Use Create Group to organize members.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {teamGroups.map((group) => {
+                const groupMembers = group.memberIds
+                  .map((memberId) => teamMemberMap.get(memberId))
+                  .filter((member): member is TeamMember => Boolean(member));
+                const onlineCount = groupMembers.filter((member) => member.status === "online").length;
+
+                return (
+                  <div
+                    key={group.id}
+                    className="rounded-xl border border-slate-200 bg-slate-50/40 p-4"
+                  >
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-base font-semibold text-slate-900">{group.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {group.department} · Created {new Date(group.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">
+                        {onlineCount}/{groupMembers.length} online
+                      </Badge>
+                    </div>
+
+                    <p className="mb-3 text-sm text-slate-600">{group.description}</p>
+
+                    <div className="flex flex-wrap gap-2">
+                      {groupMembers.map((member) => (
+                        <div
+                          key={member.id}
+                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1"
+                        >
+                          <div className="relative">
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-semibold text-indigo-700">
+                              {member.avatar}
+                            </div>
+                            <span
+                              className={`absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border border-white ${statusColors[member.status]}`}
+                            />
+                          </div>
+                          <span className="text-xs font-medium text-slate-700">{member.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Main Tabbed Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>

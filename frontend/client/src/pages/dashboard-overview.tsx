@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,12 +43,18 @@ import {
 import { BarChart, Bar, LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Area, AreaChart, Tooltip } from 'recharts';
 import { useLocation } from 'wouter';
 import { ANNOUNCEMENT_UPDATED_EVENT, Announcement, getActiveAnnouncements } from '@/lib/announcements';
+import {
+  PUBLIC_HOLIDAY_UPDATED_EVENT,
+  PublicHoliday,
+  getUpcomingPublicHolidays,
+} from '@/lib/public-holidays';
 
 export default function DashboardOverview() {
   const [, setLocation] = useLocation();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [publicHolidays, setPublicHolidays] = useState<PublicHoliday[]>([]);
 
   useEffect(() => {
     const refreshAnnouncements = () => {
@@ -62,6 +68,21 @@ export default function DashboardOverview() {
     return () => {
       window.removeEventListener('storage', refreshAnnouncements);
       window.removeEventListener(ANNOUNCEMENT_UPDATED_EVENT, refreshAnnouncements as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshPublicHolidays = () => {
+      setPublicHolidays(getUpcomingPublicHolidays(12));
+    };
+
+    refreshPublicHolidays();
+    window.addEventListener('storage', refreshPublicHolidays);
+    window.addEventListener(PUBLIC_HOLIDAY_UPDATED_EVENT, refreshPublicHolidays as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', refreshPublicHolidays);
+      window.removeEventListener(PUBLIC_HOLIDAY_UPDATED_EVENT, refreshPublicHolidays as EventListener);
     };
   }, []);
   
@@ -345,15 +366,26 @@ export default function DashboardOverview() {
     low: { label: 'Low', class: 'bg-slate-100 text-slate-700 border-slate-200' }
   };
 
-  const calendarEvents = [
+  const baseCalendarEvents = [
     { date: new Date(2026, 2, 12), type: 'event', title: 'Team Meeting', time: '10:00 AM', description: 'Q1 Strategy Review' },
-    { date: new Date(2026, 2, 15), type: 'holiday', title: 'Company Holiday', time: 'All Day', description: 'Office Closed' },
     { date: new Date(2026, 2, 18), type: 'meeting', title: 'Client Call', time: '2:00 PM', description: 'Project Discussion with ABC Corp' },
     { date: new Date(2026, 2, 20), type: 'event', title: 'Project Review', time: '11:30 AM', description: 'Sprint Demo & Retrospective' },
     { date: new Date(2026, 2, 22), type: 'meeting', title: 'Stakeholder Meeting', time: '3:00 PM', description: 'Quarterly Business Review' },
     { date: new Date(2026, 2, 25), type: 'event', title: 'Training Session', time: '9:00 AM', description: 'New Platform Features' },
     { date: new Date(2026, 2, 28), type: 'meeting', title: 'Monthly Review', time: '4:00 PM', description: 'Team Performance & Goals' }
   ];
+
+  const calendarEvents = useMemo(() => {
+    const holidayEvents = publicHolidays.map((holiday) => ({
+      date: new Date(`${holiday.date}T00:00:00`),
+      type: 'holiday',
+      title: holiday.name,
+      time: 'All Day',
+      description: holiday.description || 'Office Closed',
+    }));
+
+    return [...baseCalendarEvents, ...holidayEvents].sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [publicHolidays]);
 
   // Get upcoming events (future dates only)
   const upcomingEvents = calendarEvents
@@ -583,6 +615,57 @@ export default function DashboardOverview() {
                         </Badge>
                       </div>
                       <p className="text-xs text-slate-600 line-clamp-2">{announcement.message}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card
+            className="border-emerald-100 bg-gradient-to-r from-emerald-50 via-green-50 to-white cursor-pointer hover:shadow-md transition-all"
+            onClick={() => setLocation('/hrm/public-holidays')}
+          >
+            <CardHeader className="pb-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-slate-900">
+                  <CalendarIcon className="h-5 w-5 text-emerald-600" />
+                  Public Holidays
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setLocation('/hrm/public-holidays');
+                  }}
+                >
+                  Manage
+                </Button>
+              </div>
+              <CardDescription>Official office holidays configured by HR.</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {publicHolidays.length === 0 ? (
+                <div className="rounded-md border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-500">
+                  No public holidays published.
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-3">
+                  {publicHolidays.slice(0, 3).map((holiday) => (
+                    <div key={holiday.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-semibold text-slate-900 line-clamp-1">{holiday.name}</h3>
+                        <Badge variant="outline" className="uppercase text-[10px]">
+                          Holiday
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-slate-600 line-clamp-1">
+                        {new Date(`${holiday.date}T00:00:00`).toLocaleDateString()}
+                      </p>
+                      {holiday.description && (
+                        <p className="mt-1 text-xs text-slate-500 line-clamp-2">{holiday.description}</p>
+                      )}
                     </div>
                   ))}
                 </div>

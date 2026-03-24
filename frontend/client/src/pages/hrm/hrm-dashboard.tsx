@@ -138,6 +138,15 @@ export default function HRMDashboard() {
       color: 'text-rose-600',
       bgColor: 'bg-rose-50',
       accent: 'border-rose-200'
+    },
+    {
+      icon: CalendarDays,
+      title: 'Public Holidays',
+      description: 'Design office holiday calendar and publish to dashboard',
+      route: '/hrm/public-holidays',
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-50',
+      accent: 'border-emerald-200'
     }
   ];
 

@@ -116,6 +116,7 @@ export default function HRMEmployees() {
     customProbationDays: '',
     personalEmail: '',
     email: '',
+    officialPhone: '',
     phone: '',
     alternatePhone: '',
     bloodGroup: '',
@@ -1100,6 +1101,7 @@ export default function HRMEmployees() {
       employeeType: showCustomEmployeeTypeInput
         ? newEmployee.customEmployeeType.trim()
         : newEmployee.employeeType,
+      phone: newEmployee.officialPhone || newEmployee.phone,
       probationPeriodDays: resolvedProbationDays,
       probationPeriodLabel: `${resolvedProbationDays} Days`,
       id,
@@ -1132,6 +1134,7 @@ export default function HRMEmployees() {
       customProbationDays: '',
       personalEmail: '',
       email: '',
+      officialPhone: '',
       phone: '',
       alternatePhone: '',
       bloodGroup: '',
@@ -1479,6 +1482,16 @@ export default function HRMEmployees() {
                               type="email"
                               value={newEmployee.personalEmail}
                               onChange={(e) => setNewEmployee({...newEmployee, personalEmail: e.target.value})}
+                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Official Phone Number</Label>
+                            <Input
+                              placeholder="+1 (555) 111-1111"
+                              type="tel"
+                              value={newEmployee.officialPhone}
+                              onChange={(e) => setNewEmployee({...newEmployee, officialPhone: e.target.value})}
                               className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
                             />
                           </div>

@@ -2539,17 +2539,17 @@ export default function LeadsModule() {
                             <SelectValue placeholder="Select where this lead came from *" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Website">🌐 Website</SelectItem>
-                            <SelectItem value="LinkedIn">💼 LinkedIn</SelectItem>
-                            <SelectItem value="Referral">🤝 Referral</SelectItem>
-                            <SelectItem value="Trade Show">🎪 Trade Show</SelectItem>
-                            <SelectItem value="Cold Call">📞 Cold Call</SelectItem>
-                            <SelectItem value="Email Campaign">📧 Email Campaign</SelectItem>
-                            <SelectItem value="Social Media">📱 Social Media</SelectItem>
-                            <SelectItem value="Advertisement">📺 Advertisement</SelectItem>
-                            <SelectItem value="Partner">🔗 Partner</SelectItem>
-                            <SelectItem value="Other">📋 Other</SelectItem>
-                            <SelectItem value={customLeadSourceValue}>✍️ Custom</SelectItem>
+                            <SelectItem value="Website">Website</SelectItem>
+                            <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                            <SelectItem value="Referral">Referral</SelectItem>
+                            <SelectItem value="Trade Show">Trade Show</SelectItem>
+                            <SelectItem value="Cold Call">Cold Call</SelectItem>
+                            <SelectItem value="Email Campaign">Email Campaign</SelectItem>
+                            <SelectItem value="Social Media">Social Media</SelectItem>
+                            <SelectItem value="Advertisement">Advertisement</SelectItem>
+                            <SelectItem value="Partner">Partner</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                            <SelectItem value={customLeadSourceValue}>Custom</SelectItem>
                           </SelectContent>
                         </Select>
                         {isCustomLeadSource && (
@@ -2673,10 +2673,10 @@ export default function LeadsModule() {
                             <SelectValue placeholder="Select method" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="email">📧 Email</SelectItem>
-                            <SelectItem value="phone">📞 Phone Call</SelectItem>
-                            <SelectItem value="linkedin">💼 LinkedIn Message</SelectItem>
-                            <SelectItem value="meeting">🤝 In-Person Meeting</SelectItem>
+                            <SelectItem value="email">Email</SelectItem>
+                            <SelectItem value="phone">Phone Call</SelectItem>
+                            <SelectItem value="linkedin">LinkedIn Message</SelectItem>
+                            <SelectItem value="meeting">In-Person Meeting</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2916,16 +2916,16 @@ export default function LeadsModule() {
                             <SelectValue placeholder="Select industry" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Technology">💻 Technology</SelectItem>
-                            <SelectItem value="Finance">💰 Finance</SelectItem>
-                            <SelectItem value="Healthcare">🏥 Healthcare</SelectItem>
-                            <SelectItem value="Manufacturing">🏭 Manufacturing</SelectItem>
-                            <SelectItem value="Retail">🛍️ Retail</SelectItem>
-                            <SelectItem value="Education">🎓 Education</SelectItem>
-                            <SelectItem value="Real Estate">🏢 Real Estate</SelectItem>
-                            <SelectItem value="Marketing">📢 Marketing</SelectItem>
-                            <SelectItem value="Consulting">🤝 Consulting</SelectItem>
-                            <SelectItem value="Other">📋 Other</SelectItem>
+                            <SelectItem value="Technology">Technology</SelectItem>
+                            <SelectItem value="Finance">Finance</SelectItem>
+                            <SelectItem value="Healthcare">Healthcare</SelectItem>
+                            <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                            <SelectItem value="Retail">Retail</SelectItem>
+                            <SelectItem value="Education">Education</SelectItem>
+                            <SelectItem value="Real Estate">Real Estate</SelectItem>
+                            <SelectItem value="Marketing">Marketing</SelectItem>
+                            <SelectItem value="Consulting">Consulting</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2936,12 +2936,12 @@ export default function LeadsModule() {
                             <SelectValue placeholder="Select size" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="1-10">👤 1-10 employees</SelectItem>
-                            <SelectItem value="11-50">👥 11-50 employees</SelectItem>
-                            <SelectItem value="51-200">👨‍👩‍👧‍👦 51-200 employees</SelectItem>
-                            <SelectItem value="201-500">🏢 201-500 employees</SelectItem>
-                            <SelectItem value="501-1000">🏭 501-1000 employees</SelectItem>
-                            <SelectItem value="1000+">🌐 1000+ employees</SelectItem>
+                            <SelectItem value="1-10">1-10 employees</SelectItem>
+                            <SelectItem value="11-50">11-50 employees</SelectItem>
+                            <SelectItem value="51-200">51-200 employees</SelectItem>
+                            <SelectItem value="201-500">201-500 employees</SelectItem>
+                            <SelectItem value="501-1000">501-1000 employees</SelectItem>
+                            <SelectItem value="1000+">1000+ employees</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2975,12 +2975,12 @@ export default function LeadsModule() {
                             <SelectValue placeholder="When will they decide?" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Immediate">⚡ Immediate (This week)</SelectItem>
-                            <SelectItem value="1-month">📅 Within 1 month</SelectItem>
-                            <SelectItem value="1-3-months">🗓️ 1-3 months</SelectItem>
-                            <SelectItem value="3-6-months">📆 3-6 months</SelectItem>
-                            <SelectItem value="6-12-months">📊 6-12 months</SelectItem>
-                            <SelectItem value="Not sure">❓ Not sure yet</SelectItem>
+                            <SelectItem value="Immediate">Immediate (This week)</SelectItem>
+                            <SelectItem value="1-month">Within 1 month</SelectItem>
+                            <SelectItem value="1-3-months">1-3 months</SelectItem>
+                            <SelectItem value="3-6-months">3-6 months</SelectItem>
+                            <SelectItem value="6-12-months">6-12 months</SelectItem>
+                            <SelectItem value="Not sure">Not sure yet</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -3108,12 +3108,12 @@ export default function LeadsModule() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="USA">🇺🇸 United States</SelectItem>
-                            <SelectItem value="Canada">🇨🇦 Canada</SelectItem>
-                            <SelectItem value="UK">🇬🇧 United Kingdom</SelectItem>
-                            <SelectItem value="India">🇮🇳 India</SelectItem>
-                            <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
-                            <SelectItem value="Germany">🇩🇪 Germany</SelectItem>
+                            <SelectItem value="USA">United States</SelectItem>
+                            <SelectItem value="Canada">Canada</SelectItem>
+                            <SelectItem value="UK">United Kingdom</SelectItem>
+                            <SelectItem value="India">India</SelectItem>
+                            <SelectItem value="Australia">Australia</SelectItem>
+                            <SelectItem value="Germany">Germany</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -5670,7 +5670,7 @@ Generated: ${new Date().toLocaleString()}
                                 </div>
                                 <div className="flex items-center gap-4 text-sm text-gray-600">
                                   <span>Quantity: <strong className="text-gray-900">{item.quantity}</strong></span>
-                                  <span>×</span>
+                                  <span>x</span>
                                   <span>Unit Price: <strong className="text-gray-900">${item.unitPrice.toLocaleString()}</strong></span>
                                   <span>=</span>
                                   <span className="font-bold text-gray-900">${item.total.toLocaleString()}</span>
@@ -5807,7 +5807,7 @@ Generated: ${new Date().toLocaleString()}
                                     {proposal.title}
                                   </CardTitle>
                                   <CardDescription className="text-sm mt-1">
-                                    Version {proposal.version} • Created by {proposal.createdBy}
+                                    Version {proposal.version} - Created by {proposal.createdBy}
                                   </CardDescription>
                                 </div>
                                 <Badge className={`${
@@ -7268,25 +7268,25 @@ Generated: ${new Date().toLocaleString()}
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="new">🆕 New</SelectItem>
-                              <SelectItem value="contacted">📞 Contacted</SelectItem>
-                              <SelectItem value="qualified">✅ Qualified</SelectItem>
-                              <SelectItem value="proposal">📄 Proposal Sent</SelectItem>
-                              <SelectItem value="negotiation">💬 Negotiation</SelectItem>
-                              <SelectItem value="won">🎉 Won</SelectItem>
-                              <SelectItem value="lost">❌ Lost</SelectItem>
+                              <SelectItem value="new">New</SelectItem>
+                              <SelectItem value="contacted">Contacted</SelectItem>
+                              <SelectItem value="qualified">Qualified</SelectItem>
+                              <SelectItem value="proposal">Proposal Sent</SelectItem>
+                              <SelectItem value="negotiation">Negotiation</SelectItem>
+                              <SelectItem value="won">Won</SelectItem>
+                              <SelectItem value="lost">Lost</SelectItem>
                               {customStatuses.length > 0 && (
                                 <>
                                   <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 border-t mt-1 pt-2">Custom Statuses</div>
                                   {customStatuses.map((status) => (
                                     <SelectItem key={status} value={status}>
-                                      🏷️ {status}
+                                      {status}
                                     </SelectItem>
                                   ))}
                                 </>
                               )}
                               <SelectItem value="custom" className="text-teal-600 font-medium">
-                                ✏️ Custom
+                                Custom
                               </SelectItem>
                             </SelectContent>
                           </Select>
@@ -7339,9 +7339,9 @@ Generated: ${new Date().toLocaleString()}
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="high">🔥 High Priority</SelectItem>
-                              <SelectItem value="medium">⚡ Medium Priority</SelectItem>
-                              <SelectItem value="low">📌 Low Priority</SelectItem>
+                              <SelectItem value="high">High Priority</SelectItem>
+                              <SelectItem value="medium">Medium Priority</SelectItem>
+                              <SelectItem value="low">Low Priority</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -7470,7 +7470,7 @@ Generated: ${new Date().toLocaleString()}
                           </SelectTrigger>
                           <SelectContent>
                             {teamMembers.map((member) => (
-                              <SelectItem key={member} value={member}>👤 {member}</SelectItem>
+                              <SelectItem key={member} value={member}>{member}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -7577,11 +7577,11 @@ Generated: ${new Date().toLocaleString()}
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="not_called">📵 Not Called</SelectItem>
-                            <SelectItem value="called">✅ Called</SelectItem>
-                            <SelectItem value="no_answer">📞 No Answer</SelectItem>
-                            <SelectItem value="interested">👍 Interested</SelectItem>
-                            <SelectItem value="not_interested">👎 Not Interested</SelectItem>
+                            <SelectItem value="not_called">Not Called</SelectItem>
+                            <SelectItem value="called">Called</SelectItem>
+                            <SelectItem value="no_answer">No Answer</SelectItem>
+                            <SelectItem value="interested">Interested</SelectItem>
+                            <SelectItem value="not_interested">Not Interested</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -7596,12 +7596,12 @@ Generated: ${new Date().toLocaleString()}
                             <SelectValue placeholder="Select outcome..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="positive">✅ Positive - Interested</SelectItem>
-                            <SelectItem value="followup">📅 Schedule Follow-up</SelectItem>
-                            <SelectItem value="voicemail">📧 Left Voicemail</SelectItem>
-                            <SelectItem value="callback">🔄 Requested Callback</SelectItem>
-                            <SelectItem value="nointerest">❌ Not Interested</SelectItem>
-                            <SelectItem value="wrongnumber">📵 Wrong Number</SelectItem>
+                            <SelectItem value="positive">Positive - Interested</SelectItem>
+                            <SelectItem value="followup">Schedule Follow-up</SelectItem>
+                            <SelectItem value="voicemail">Left Voicemail</SelectItem>
+                            <SelectItem value="callback">Requested Callback</SelectItem>
+                            <SelectItem value="nointerest">Not Interested</SelectItem>
+                            <SelectItem value="wrongnumber">Wrong Number</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

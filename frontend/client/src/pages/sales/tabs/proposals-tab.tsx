@@ -50,6 +50,58 @@ import ProposalTemplateEnhanced from '@/components/ProposalTemplateEnhanced';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { exportProposalToPDF } from '@/lib/proposal-pdf-generator';
 
+type ProposalLineItem = {
+  id: number;
+  description: string;
+  longDescription: string;
+  qty: number;
+  rate: number;
+  tax: string;
+  amount: number;
+};
+
+type TaxBreakdown = {
+  cgstPercent: number;
+  sgstPercent: number;
+  otherPercent: number;
+};
+
+type CatalogItem = {
+  id: string;
+  type: 'product' | 'service';
+  description: string;
+  longDescription: string;
+  defaultRate: number;
+  defaultTax: string;
+};
+
+const TAX_RATES: Record<string, TaxBreakdown> = {
+  'No Tax': { cgstPercent: 0, sgstPercent: 0, otherPercent: 0 },
+  'GST 5%': { cgstPercent: 2.5, sgstPercent: 2.5, otherPercent: 0 },
+  'GST 12%': { cgstPercent: 6, sgstPercent: 6, otherPercent: 0 },
+  'GST 18%': { cgstPercent: 9, sgstPercent: 9, otherPercent: 0 },
+  'IGST 18%': { cgstPercent: 0, sgstPercent: 0, otherPercent: 18 },
+  'VAT 10%': { cgstPercent: 0, sgstPercent: 0, otherPercent: 10 },
+  'Sales Tax 8%': { cgstPercent: 0, sgstPercent: 0, otherPercent: 8 },
+};
+
+const getTaxRates = (taxLabel: string): TaxBreakdown => TAX_RATES[taxLabel] ?? TAX_RATES['No Tax'];
+
+const calculateItemAmountWithTax = (item: ProposalLineItem): number => {
+  const taxableValue = item.qty * item.rate;
+  const rates = getTaxRates(item.tax);
+  const cgst = taxableValue * rates.cgstPercent / 100;
+  const sgst = taxableValue * rates.sgstPercent / 100;
+  const otherTax = taxableValue * rates.otherPercent / 100;
+  return taxableValue + cgst + sgst + otherTax;
+};
+
+const inferCatalogType = (description: string): 'product' | 'service' => {
+  const normalized = description.toLowerCase();
+  const serviceKeywords = ['service', 'development', 'design', 'integration', 'migration', 'training', 'support', 'consulting', 'seo', 'campaign', 'testing'];
+  return serviceKeywords.some((keyword) => normalized.includes(keyword)) ? 'service' : 'product';
+};
+
 export default function ProposalsTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -215,9 +267,10 @@ export default function ProposalsTab() {
   const [editExpiryDate, setEditExpiryDate] = useState('');
   const [editClientNote, setEditClientNote] = useState('');
   const [editTerms, setEditTerms] = useState('');
-  const [editItems, setEditItems] = useState([
+  const [editItems, setEditItems] = useState<ProposalLineItem[]>([
     { id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: 'No Tax', amount: 0 }
   ]);
+  const [selectedEditCatalogItem, setSelectedEditCatalogItem] = useState<string>('');
   const [editDiscount, setEditDiscount] = useState(0);
   const [editAdjustment, setEditAdjustment] = useState(0);
   const [showQtyAs, setShowQtyAs] = useState<'qty' | 'hours' | 'both'>('qty');
@@ -309,9 +362,22 @@ export default function ProposalsTab() {
   // Calculate edit form totals
   const calculateEditTotals = () => {
     const subTotal = editItems.reduce((sum, item) => sum + (item.qty * item.rate), 0);
+    const cgstAmount = editItems.reduce((sum, item) => {
+      const taxable = item.qty * item.rate;
+      return sum + (taxable * getTaxRates(item.tax).cgstPercent / 100);
+    }, 0);
+    const sgstAmount = editItems.reduce((sum, item) => {
+      const taxable = item.qty * item.rate;
+      return sum + (taxable * getTaxRates(item.tax).sgstPercent / 100);
+    }, 0);
+    const otherTaxAmount = editItems.reduce((sum, item) => {
+      const taxable = item.qty * item.rate;
+      return sum + (taxable * getTaxRates(item.tax).otherPercent / 100);
+    }, 0);
+    const taxTotal = cgstAmount + sgstAmount + otherTaxAmount;
     const discountAmount = editDiscountType === 'percent' ? (subTotal * editDiscount / 100) : editDiscount;
-    const total = subTotal - discountAmount + editAdjustment;
-    return { subTotal, discountAmount, total };
+    const total = subTotal + taxTotal - discountAmount + editAdjustment;
+    return { subTotal, cgstAmount, sgstAmount, otherTaxAmount, taxTotal, discountAmount, total };
   };
 
   const addEditItem = () => {
@@ -326,6 +392,31 @@ export default function ProposalsTab() {
     }]);
   };
 
+  const addEditCatalogItem = (catalogItemId: string, catalog: CatalogItem[]) => {
+    if (catalogItemId === 'custom') {
+      addEditItem();
+      setSelectedEditCatalogItem('');
+      return;
+    }
+
+    const selectedItem = catalog.find((item) => item.id === catalogItemId);
+    if (!selectedItem) return;
+
+    const newItem: ProposalLineItem = {
+      id: editItems.length + 1,
+      description: selectedItem.description,
+      longDescription: selectedItem.longDescription,
+      qty: 1,
+      rate: selectedItem.defaultRate,
+      tax: selectedItem.defaultTax,
+      amount: 0,
+    };
+
+    newItem.amount = calculateItemAmountWithTax(newItem);
+    setEditItems([...editItems, newItem]);
+    setSelectedEditCatalogItem('');
+  };
+
   const removeEditItem = (id: number) => {
     if (editItems.length > 1) {
       setEditItems(editItems.filter(item => item.id !== id));
@@ -336,8 +427,8 @@ export default function ProposalsTab() {
     setEditItems(editItems.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
-        if (field === 'qty' || field === 'rate') {
-          updated.amount = updated.qty * updated.rate;
+        if (field === 'qty' || field === 'rate' || field === 'tax') {
+          updated.amount = calculateItemAmountWithTax(updated);
         }
         return updated;
       }
@@ -347,9 +438,10 @@ export default function ProposalsTab() {
 
   // New Proposal Form State
   const [allowComments, setAllowComments] = useState(false);
-  const [proposalItems, setProposalItems] = useState([
+  const [proposalItems, setProposalItems] = useState<ProposalLineItem[]>([
     { id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: 'No Tax', amount: 0 }
   ]);
+  const [selectedCatalogItem, setSelectedCatalogItem] = useState<string>('');
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState('%');
   const [adjustment, setAdjustment] = useState(0);
@@ -527,9 +619,22 @@ export default function ProposalsTab() {
   // Calculate totals
   const calculateTotals = () => {
     const subTotal = proposalItems.reduce((sum, item) => sum + (item.qty * item.rate), 0);
+    const cgstAmount = proposalItems.reduce((sum, item) => {
+      const taxable = item.qty * item.rate;
+      return sum + (taxable * getTaxRates(item.tax).cgstPercent / 100);
+    }, 0);
+    const sgstAmount = proposalItems.reduce((sum, item) => {
+      const taxable = item.qty * item.rate;
+      return sum + (taxable * getTaxRates(item.tax).sgstPercent / 100);
+    }, 0);
+    const otherTaxAmount = proposalItems.reduce((sum, item) => {
+      const taxable = item.qty * item.rate;
+      return sum + (taxable * getTaxRates(item.tax).otherPercent / 100);
+    }, 0);
+    const taxTotal = cgstAmount + sgstAmount + otherTaxAmount;
     const discountAmount = discountType === '%' ? (subTotal * discount / 100) : discount;
-    const total = subTotal - discountAmount + adjustment;
-    return { subTotal, discountAmount, total };
+    const total = subTotal + taxTotal - discountAmount + adjustment;
+    return { subTotal, cgstAmount, sgstAmount, otherTaxAmount, taxTotal, discountAmount, total };
   };
 
   const addProposalItem = () => {
@@ -544,6 +649,31 @@ export default function ProposalsTab() {
     }]);
   };
 
+  const addCatalogItem = (catalogItemId: string, catalog: CatalogItem[]) => {
+    if (catalogItemId === 'custom') {
+      addProposalItem();
+      setSelectedCatalogItem('');
+      return;
+    }
+
+    const selectedItem = catalog.find((item) => item.id === catalogItemId);
+    if (!selectedItem) return;
+
+    const newItem: ProposalLineItem = {
+      id: proposalItems.length + 1,
+      description: selectedItem.description,
+      longDescription: selectedItem.longDescription,
+      qty: 1,
+      rate: selectedItem.defaultRate,
+      tax: selectedItem.defaultTax,
+      amount: 0,
+    };
+
+    newItem.amount = calculateItemAmountWithTax(newItem);
+    setProposalItems([...proposalItems, newItem]);
+    setSelectedCatalogItem('');
+  };
+
   const removeProposalItem = (id: number) => {
     setProposalItems(proposalItems.filter(item => item.id !== id));
   };
@@ -552,8 +682,8 @@ export default function ProposalsTab() {
     setProposalItems(proposalItems.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
-        if (field === 'qty' || field === 'rate') {
-          updated.amount = updated.qty * updated.rate;
+        if (field === 'qty' || field === 'rate' || field === 'tax') {
+          updated.amount = calculateItemAmountWithTax(updated);
         }
         return updated;
       }
@@ -622,6 +752,54 @@ export default function ProposalsTab() {
       return matchesSearch && matchesStatus;
     });
   }, [searchQuery, statusFilter, proposals]);
+
+  const itemCatalog = useMemo<CatalogItem[]>(() => {
+    const deduped = new Map<string, CatalogItem>();
+
+    proposals.forEach((proposal) => {
+      proposal.items.forEach((item) => {
+        const key = item.description.trim().toLowerCase();
+        if (!key || deduped.has(key)) return;
+
+        deduped.set(key, {
+          id: `catalog-${item.id}-${key.replace(/\s+/g, '-')}`,
+          type: inferCatalogType(item.description),
+          description: item.description,
+          longDescription: item.longDescription || '',
+          defaultRate: item.rate,
+          defaultTax: 'GST 18%',
+        });
+      });
+    });
+
+    const fallbackCatalog: CatalogItem[] = [
+      {
+        id: 'catalog-fallback-service',
+        type: 'service',
+        description: 'Consulting Service',
+        longDescription: 'Professional consulting and advisory services.',
+        defaultRate: 5000,
+        defaultTax: 'GST 18%',
+      },
+      {
+        id: 'catalog-fallback-product',
+        type: 'product',
+        description: 'Software License',
+        longDescription: 'Software subscription or perpetual license.',
+        defaultRate: 10000,
+        defaultTax: 'GST 18%',
+      },
+    ];
+
+    fallbackCatalog.forEach((item) => {
+      const key = item.description.trim().toLowerCase();
+      if (!deduped.has(key)) {
+        deduped.set(key, item);
+      }
+    });
+
+    return Array.from(deduped.values()).sort((a, b) => a.description.localeCompare(b.description));
+  }, [proposals]);
 
   const handleExport = (type: 'excel' | 'pdf') => {
     setIsExporting(true);
@@ -1282,15 +1460,23 @@ export default function ProposalsTab() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Select>
+                    <Select
+                      value={selectedCatalogItem}
+                      onValueChange={(value) => {
+                        setSelectedCatalogItem(value);
+                        addCatalogItem(value, itemCatalog);
+                      }}
+                    >
                       <SelectTrigger className="w-48 h-10 bg-white border-slate-300">
-                        <SelectValue placeholder="Add items" />
+                        <SelectValue placeholder="Select product or service" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="custom">Custom Item</SelectItem>
-                        <SelectItem value="service-1">Consulting Service</SelectItem>
-                        <SelectItem value="service-2">Development Service</SelectItem>
-                        <SelectItem value="product-1">Software License</SelectItem>
+                        {itemCatalog.map((catalogItem) => (
+                          <SelectItem key={catalogItem.id} value={catalogItem.id}>
+                            {catalogItem.type === 'product' ? 'Product' : 'Service'} - {catalogItem.description}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <Button size="sm" variant="outline" onClick={addProposalItem} className="bg-white hover:bg-orange-50 border-orange-300">
@@ -1364,7 +1550,10 @@ export default function ProposalsTab() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="No Tax">No Tax</SelectItem>
+                                  <SelectItem value="GST 5%">GST 5% (CGST 2.5% + SGST 2.5%)</SelectItem>
+                                  <SelectItem value="GST 12%">GST 12% (CGST 6% + SGST 6%)</SelectItem>
                                   <SelectItem value="GST 18%">GST 18%</SelectItem>
+                                  <SelectItem value="IGST 18%">IGST 18%</SelectItem>
                                   <SelectItem value="VAT 10%">VAT 10%</SelectItem>
                                   <SelectItem value="Sales Tax 8%">Sales Tax 8%</SelectItem>
                                 </SelectContent>
@@ -1398,6 +1587,20 @@ export default function ProposalsTab() {
                         <span className="text-slate-600 font-medium">Sub Total:</span>
                         <span className="font-semibold text-slate-800">${calculateTotals().subTotal.toFixed(2)}</span>
                       </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-slate-600 font-medium">CGST:</span>
+                        <span className="font-semibold text-slate-800">${calculateTotals().cgstAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-slate-600 font-medium">SGST:</span>
+                        <span className="font-semibold text-slate-800">${calculateTotals().sgstAmount.toFixed(2)}</span>
+                      </div>
+                      {calculateTotals().otherTaxAmount > 0 && (
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-600 font-medium">Other Tax:</span>
+                          <span className="font-semibold text-slate-800">${calculateTotals().otherTaxAmount.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center gap-3 py-2 border-y border-dashed">
                         <span className="text-slate-600 text-sm font-medium">Discount</span>
                         <div className="flex items-center gap-2">
@@ -2344,14 +2547,23 @@ export default function ProposalsTab() {
                 <div className="space-y-4 pt-4 border-t">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Select>
+                      <Select
+                        value={selectedEditCatalogItem}
+                        onValueChange={(value) => {
+                          setSelectedEditCatalogItem(value);
+                          addEditCatalogItem(value, itemCatalog);
+                        }}
+                      >
                         <SelectTrigger className="w-32 h-9">
-                          <SelectValue placeholder="Add Item" />
+                          <SelectValue placeholder="Select Item" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="custom">Custom Item</SelectItem>
-                          <SelectItem value="brochure">Brochure</SelectItem>
-                          <SelectItem value="flyer">Flyer</SelectItem>
+                          {itemCatalog.map((catalogItem) => (
+                            <SelectItem key={catalogItem.id} value={catalogItem.id}>
+                              {catalogItem.type === 'product' ? 'Product' : 'Service'} - {catalogItem.description}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <Button size="sm" variant="outline" onClick={addEditItem} className="h-9 w-9 p-0">
@@ -2463,7 +2675,10 @@ export default function ProposalsTab() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="No Tax">No Tax</SelectItem>
+                                  <SelectItem value="GST 5%">GST 5% (CGST 2.5% + SGST 2.5%)</SelectItem>
+                                  <SelectItem value="GST 12%">GST 12% (CGST 6% + SGST 6%)</SelectItem>
                                   <SelectItem value="GST 18%">GST 18%</SelectItem>
+                                  <SelectItem value="IGST 18%">IGST 18%</SelectItem>
                                   <SelectItem value="VAT 10%">VAT 10%</SelectItem>
                                 </SelectContent>
                               </Select>
@@ -2506,6 +2721,20 @@ export default function ProposalsTab() {
                       <span className="text-slate-600">Sub Total:</span>
                       <span className="font-semibold">${calculateEditTotals().subTotal.toFixed(2)}</span>
                     </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-600">CGST:</span>
+                      <span className="font-semibold">${calculateEditTotals().cgstAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-600">SGST:</span>
+                      <span className="font-semibold">${calculateEditTotals().sgstAmount.toFixed(2)}</span>
+                    </div>
+                    {calculateEditTotals().otherTaxAmount > 0 && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-slate-600">Other Tax:</span>
+                        <span className="font-semibold">${calculateEditTotals().otherTaxAmount.toFixed(2)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between items-center gap-3">
                       <span className="text-slate-600 text-sm">Discount</span>
                       <div className="flex items-center gap-2">

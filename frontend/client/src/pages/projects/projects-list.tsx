@@ -23,6 +23,7 @@ import {
 import {
   FolderKanban,
   Plus,
+  Upload,
   Filter,
   Download,
   RefreshCw,
@@ -61,6 +62,7 @@ import {
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
+import { customerDirectory } from '@/lib/customer-directory';
 
 const RichTextEditor = ({ value, onChange }: { value: string; onChange: (val: string) => void }) => {
   return (
@@ -122,7 +124,8 @@ export default function ProjectsList() {
     totalRate: '',
     estimatedHours: '',
     members: [] as string[],
-    sendEmail: false
+    sendEmail: false,
+    projectDocuments: [] as File[]
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -235,6 +238,10 @@ export default function ProjectsList() {
     finished: { label: 'Finished', class: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle }
   };
 
+  const customerSuggestions = Array.from(
+    new Set(customerDirectory.map((customer) => customer.companyName.trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+
   const filteredProjects = projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          project.customer.toLowerCase().includes(searchQuery.toLowerCase());
@@ -277,7 +284,8 @@ export default function ProjectsList() {
       totalRate: '',
       estimatedHours: '',
       members: [] as string[],
-      sendEmail: false
+      sendEmail: false,
+      projectDocuments: [] as File[]
     });
     setFormErrors({});
   };
@@ -309,7 +317,8 @@ export default function ProjectsList() {
       totalRate: project.totalRate || '',
       estimatedHours: project.estimatedHours || '',
       members: Array.isArray(project.members) ? project.members : typeof project.members === 'string' ? [project.members] : [],
-      sendEmail: project.sendEmail || false
+      sendEmail: project.sendEmail || false,
+      projectDocuments: []
     });
     setShowEditDialog(true);
   };
@@ -657,11 +666,17 @@ export default function ProjectsList() {
                   <Label htmlFor="customer" className="text-xs font-bold text-slate-600 uppercase tracking-tight">Customer <span className="text-red-500">*</span></Label>
                   <Input
                     id="customer"
+                    list="project-customer-suggestions"
                     value={projectForm.customer}
                     onChange={(e) => setProjectForm({ ...projectForm, customer: e.target.value })}
                     placeholder="e.g. Acme Corp"
                     className={`h-10 ${formErrors.customer ? 'border-red-500 bg-red-50/30' : 'border-slate-200 focus:ring-2 focus:ring-blue-100'}`}
                   />
+                  <datalist id="project-customer-suggestions">
+                    {customerSuggestions.map((customerName) => (
+                      <option key={customerName} value={customerName} />
+                    ))}
+                  </datalist>
                   {formErrors.customer && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.customer}</p>}
                 </div>
               </div>
@@ -884,6 +899,34 @@ export default function ProjectsList() {
                 />
               </div>
 
+              {/* Project Documents */}
+              <div className="space-y-2 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                <Label htmlFor="project-documents" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-2">
+                  <Upload className="h-3.5 w-3.5 text-blue-500" />
+                  Project Files & Documents
+                </Label>
+                <Input
+                  id="project-documents"
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setProjectForm({ ...projectForm, projectDocuments: files });
+                  }}
+                  className="h-10 border-slate-200 bg-white file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
+                />
+                {projectForm.projectDocuments.length > 0 && (
+                  <div className="rounded-lg border border-slate-200 bg-white p-2.5 space-y-1.5 max-h-32 overflow-auto">
+                    {projectForm.projectDocuments.map((file, index) => (
+                      <p key={`${file.name}-${index}`} className="text-xs text-slate-600 truncate">
+                        {file.name}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[10px] text-slate-500">You can upload multiple files (documents, briefs, and related project assets).</p>
+              </div>
+
               {/* Email Notification */}
               <div className="flex items-center space-x-2.5 p-3 rounded-xl bg-blue-50/40 border border-blue-100 shadow-sm">
                 <Checkbox 
@@ -946,6 +989,7 @@ export default function ProjectsList() {
                   <Label htmlFor="edit-customer" className="text-xs font-bold text-slate-600 uppercase tracking-tight">Customer <span className="text-red-500">*</span></Label>
                   <Input
                     id="edit-customer"
+                    list="project-customer-suggestions"
                     value={projectForm.customer}
                     onChange={(e) => setProjectForm({ ...projectForm, customer: e.target.value })}
                     className={`h-10 ${formErrors.customer ? 'border-red-500 bg-red-50/30' : 'border-slate-200 focus:ring-2 focus:ring-indigo-100'}`}
@@ -1176,6 +1220,33 @@ export default function ProjectsList() {
                   value={projectForm.description} 
                   onChange={(val) => setProjectForm({ ...projectForm, description: val })} 
                 />
+              </div>
+
+              <div className="space-y-2 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                <Label htmlFor="edit-project-documents" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-2">
+                  <Upload className="h-3.5 w-3.5 text-indigo-500" />
+                  Project Files & Documents
+                </Label>
+                <Input
+                  id="edit-project-documents"
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setProjectForm({ ...projectForm, projectDocuments: files });
+                  }}
+                  className="h-10 border-slate-200 bg-white file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
+                />
+                {projectForm.projectDocuments.length > 0 && (
+                  <div className="rounded-lg border border-slate-200 bg-white p-2.5 space-y-1.5 max-h-32 overflow-auto">
+                    {projectForm.projectDocuments.map((file, index) => (
+                      <p key={`${file.name}-edit-${index}`} className="text-xs text-slate-600 truncate">
+                        {file.name}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[10px] text-slate-500">Select one or more files to attach to this project.</p>
               </div>
             </div>
           </ScrollArea>

@@ -25,6 +25,7 @@ import HRMTravelExpense from "@/pages/hrm/hrm-travel-expense";
 import HRMAutomation from "@/pages/hrm/hrm-automation";
 import HRMWorkflows from "@/pages/hrm/hrm-workflows";
 import HRMAnnouncements from "@/pages/hrm/hrm-announcements";
+import HRMPublicHolidays from "@/pages/hrm/hrm-public-holidays";
 
 // Sales Module Pages
 import SalesDashboard from "@/pages/sales/sales-dashboard";
@@ -137,6 +138,7 @@ function AppRouter() {
       <Route path="/hrm/automation" component={HRMAutomation} />
       <Route path="/hrm/workflows" component={HRMWorkflows} />
       <Route path="/hrm/announcements" component={HRMAnnouncements} />
+      <Route path="/hrm/public-holidays" component={HRMPublicHolidays} />
       <Route path="/hrm/*" component={HRMDashboard} />
       <Route path="/hrm" component={HRMDashboard} />
       

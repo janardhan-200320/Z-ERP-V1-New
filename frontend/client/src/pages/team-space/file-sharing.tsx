@@ -264,6 +264,10 @@ const teamMembers = [
   "Ryan Wilson",
 ];
 
+const CUSTOM_FOLDER_VALUE = "__custom_folder__";
+const CUSTOM_SHARED_BY_VALUE = "__custom_shared_by__";
+const CUSTOM_DEPARTMENT_VALUE = "__custom_department__";
+
 const emptyFile: Omit<SharedFile, "id"> = {
   name: "",
   type: "document",
@@ -286,34 +290,227 @@ export default function FileSharingModule() {
   const [selectedFolder, setSelectedFolder] = useState("All");
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [formData, setFormData] = useState<Omit<SharedFile, "id">>(emptyFile);
+  const [customFolder, setCustomFolder] = useState("");
+  const [customSharedBy, setCustomSharedBy] = useState("");
+  const [customDepartment, setCustomDepartment] = useState("");
+  const [selectedUploadFiles, setSelectedUploadFiles] = useState<File[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<SharedFile | null>(null);
 
-  const handleUpload = () => {
-    setFormData(emptyFile);
-    setUploadDialogOpen(true);
+  const formatFileSize = (bytes: number) => {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+    const value = bytes / Math.pow(1024, index);
+    return `${value >= 10 || index === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[index]}`;
   };
 
-  const handleSave = () => {
-    if (!formData.name) {
+  const resolveTypeFromFile = (file: File): SharedFile["type"] => {
+    const mime = file.type.toLowerCase();
+    const fileName = file.name.toLowerCase();
+
+    if (mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg)$/.test(fileName)) {
+      return "image";
+    }
+
+    if (mime.includes("pdf") || fileName.endsWith(".pdf")) {
+      return "pdf";
+    }
+
+    return "document";
+  };
+
+  const applySelectedFiles = (selected: File[]) => {
+    if (selected.length === 0) return;
+
+    const first = selected[0];
+    const detectedType = resolveTypeFromFile(first);
+    const totalSize = selected.reduce((sum, current) => sum + current.size, 0);
+
+    setSelectedUploadFiles(selected);
+    setFormData((prev) => ({
+      ...prev,
+      type: selected.length === 1 ? detectedType : "document",
+      name:
+        selected.length === 1
+          ? first.name
+          : `${selected.length} files selected`,
+      size: formatFileSize(totalSize),
+      url: selected.length === 1 ? URL.createObjectURL(first) : "",
+    }));
+  };
+
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = event.target.files;
+    if (!selected || selected.length === 0) return;
+
+    applySelectedFiles(Array.from(selected));
+  };
+
+  const handlePasteUpload = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of Array.from(items)) {
+      if (!item.type.startsWith("image/")) continue;
+      const pastedFile = item.getAsFile();
+      if (!pastedFile) continue;
+
+      event.preventDefault();
+      applySelectedFiles([pastedFile]);
       toast({
-        title: "Validation Error",
-        description: "Please enter a file name or link URL.",
+        title: "Image Pasted",
+        description: `${pastedFile.name || "Screenshot"} is ready to share.`,
+      });
+      break;
+    }
+  };
+
+  const handleOpenFile = (file: SharedFile) => {
+    if (!file.url || file.url === "#") {
+      toast({
+        title: "Unavailable",
+        description: "This file does not have an accessible URL yet.",
         variant: "destructive",
       });
       return;
     }
 
-    const newFile: SharedFile = {
-      ...formData,
-      id: `FILE-${String(files.length + 1).padStart(3, "0")}`,
-      downloads: 0,
-    };
-    setFiles((prev) => [newFile, ...prev]);
+    window.open(file.url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDownloadFile = (file: SharedFile) => {
+    if (!file.url || file.url === "#") {
+      toast({
+        title: "Unavailable",
+        description: "This file cannot be downloaded right now.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = file.url;
+    link.download = file.name;
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setFiles((prev) =>
+      prev.map((entry) =>
+        entry.id === file.id && entry.type !== "link"
+          ? { ...entry, downloads: entry.downloads + 1 }
+          : entry
+      )
+    );
+  };
+
+  const handleUpload = () => {
+    setFormData(emptyFile);
+    setCustomFolder("");
+    setCustomSharedBy("");
+    setCustomDepartment("");
+    setSelectedUploadFiles([]);
+    setUploadDialogOpen(true);
+  };
+
+  const handleSave = () => {
+    if (formData.type === "link" && !formData.url.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid link URL.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.type !== "link" && !formData.name.trim() && selectedUploadFiles.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please upload a file or enter a file name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const resolvedFolder = formData.folder === CUSTOM_FOLDER_VALUE ? customFolder.trim() : formData.folder;
+    const resolvedSharedBy = formData.uploadedBy === CUSTOM_SHARED_BY_VALUE ? customSharedBy.trim() : formData.uploadedBy;
+    const resolvedDepartment =
+      formData.department === CUSTOM_DEPARTMENT_VALUE
+        ? customDepartment.trim()
+        : formData.department;
+
+    if (!resolvedFolder) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide a folder value.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!resolvedSharedBy) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide a Shared By value.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!resolvedDepartment) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide a department value.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const normalizedName = formData.type === "link" ? formData.url.trim() : formData.name.trim();
+
+    if (formData.type !== "link" && selectedUploadFiles.length > 0) {
+      const newFiles: SharedFile[] = selectedUploadFiles.map((selected, index) => ({
+        ...formData,
+        id: `FILE-${String(files.length + index + 1).padStart(3, "0")}`,
+        name: selected.name,
+        type: resolveTypeFromFile(selected),
+        size: formatFileSize(selected.size),
+        url: URL.createObjectURL(selected),
+        folder: resolvedFolder,
+        uploadedBy: resolvedSharedBy,
+        department: resolvedDepartment,
+        downloads: 0,
+      }));
+
+      setFiles((prev) => [...newFiles, ...prev]);
+    } else {
+      const newFile: SharedFile = {
+        ...formData,
+        name: normalizedName,
+        url: formData.type === "link" ? formData.url.trim() : formData.url || "#",
+        size: formData.type === "link" ? "-" : formData.size,
+        folder: resolvedFolder,
+        uploadedBy: resolvedSharedBy,
+        department: resolvedDepartment,
+        id: `FILE-${String(files.length + 1).padStart(3, "0")}`,
+        downloads: 0,
+      };
+      setFiles((prev) => [newFile, ...prev]);
+    }
+
+    if (formData.url.startsWith("blob:")) {
+      URL.revokeObjectURL(formData.url);
+    }
+
     setUploadDialogOpen(false);
     toast({
       title: "File Shared",
-      description: `"${formData.name}" has been shared with the team.`,
+      description:
+        selectedUploadFiles.length > 1
+          ? `${selectedUploadFiles.length} files have been shared with the team.`
+          : `"${formData.name}" has been shared with the team.`,
     });
   };
 
@@ -324,6 +521,9 @@ export default function FileSharingModule() {
 
   const confirmDelete = () => {
     if (fileToDelete) {
+      if (fileToDelete.url.startsWith("blob:")) {
+        URL.revokeObjectURL(fileToDelete.url);
+      }
       setFiles((prev) => prev.filter((f) => f.id !== fileToDelete.id));
       toast({
         title: "File Removed",
@@ -561,17 +761,17 @@ export default function FileSharingModule() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   {file.type === "link" ? (
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleOpenFile(file)}>
                                       <ExternalLink className="h-4 w-4 mr-2" />
                                       Open Link
                                     </DropdownMenuItem>
                                   ) : (
                                     <>
-                                      <DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleOpenFile(file)}>
                                         <Eye className="h-4 w-4 mr-2" />
                                         Preview
                                       </DropdownMenuItem>
-                                      <DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleDownloadFile(file)}>
                                         <Download className="h-4 w-4 mr-2" />
                                         Download
                                       </DropdownMenuItem>
@@ -635,12 +835,12 @@ export default function FileSharingModule() {
                         </div>
                         <div className="flex items-center justify-between mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
                           {file.type === "link" ? (
-                            <Button variant="ghost" size="sm" className="h-7 text-xs">
+                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleOpenFile(file)}>
                               <ExternalLink className="h-3 w-3 mr-1" />
                               Open
                             </Button>
                           ) : (
-                            <Button variant="ghost" size="sm" className="h-7 text-xs">
+                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleDownloadFile(file)}>
                               <Download className="h-3 w-3 mr-1" />
                               Download
                             </Button>
@@ -718,9 +918,18 @@ export default function FileSharingModule() {
               <Label>File Type</Label>
               <Select
                 value={formData.type}
-                onValueChange={(value: "image" | "pdf" | "document" | "link") =>
-                  setFormData((prev) => ({ ...prev, type: value }))
-                }
+                onValueChange={(value: "image" | "pdf" | "document" | "link") => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    type: value,
+                    name: value === "link" ? "" : prev.name,
+                    size: value === "link" ? "" : prev.size,
+                    url: value === "link" ? "" : prev.url,
+                  }));
+                  if (value === "link") {
+                    setSelectedUploadFiles([]);
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -812,8 +1021,16 @@ export default function FileSharingModule() {
                           {folder}
                         </SelectItem>
                       ))}
+                    <SelectItem value={CUSTOM_FOLDER_VALUE}>Custom</SelectItem>
                   </SelectContent>
                 </Select>
+                {formData.folder === CUSTOM_FOLDER_VALUE && (
+                  <Input
+                    placeholder="Enter custom folder"
+                    value={customFolder}
+                    onChange={(e) => setCustomFolder(e.target.value)}
+                  />
+                )}
               </div>
               <div className="grid gap-2">
                 <Label>Shared By</Label>
@@ -832,8 +1049,16 @@ export default function FileSharingModule() {
                         {member}
                       </SelectItem>
                     ))}
+                    <SelectItem value={CUSTOM_SHARED_BY_VALUE}>Custom</SelectItem>
                   </SelectContent>
                 </Select>
+                {formData.uploadedBy === CUSTOM_SHARED_BY_VALUE && (
+                  <Input
+                    placeholder="Enter custom shared by"
+                    value={customSharedBy}
+                    onChange={(e) => setCustomSharedBy(e.target.value)}
+                  />
+                )}
               </div>
             </div>
 
@@ -855,9 +1080,51 @@ export default function FileSharingModule() {
                       {dept}
                     </SelectItem>
                   ))}
+                  <SelectItem value={CUSTOM_DEPARTMENT_VALUE}>Custom</SelectItem>
                 </SelectContent>
               </Select>
+              {formData.department === CUSTOM_DEPARTMENT_VALUE && (
+                <Input
+                  placeholder="Enter custom department"
+                  value={customDepartment}
+                  onChange={(e) => setCustomDepartment(e.target.value)}
+                />
+              )}
             </div>
+
+            {formData.type !== "link" && (
+              <div className="grid gap-2">
+                <Label>Upload Files / Folder</Label>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onPaste={handlePasteUpload}
+                  className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                >
+                  <div className="grid gap-2">
+                    <Input
+                      id="fileUploadAny"
+                      type="file"
+                      multiple
+                      onChange={handleFileInputChange}
+                    />
+                    <Input
+                      id="folderUpload"
+                      type="file"
+                      multiple
+                      onChange={handleFileInputChange}
+                      {...({ webkitdirectory: "", directory: "" } as any)}
+                    />
+                    <p>Choose files or an entire folder. You can also paste an image with Ctrl+V.</p>
+                    {selectedUploadFiles.length > 0 && (
+                      <p className="text-slate-500">
+                        Selected: {selectedUploadFiles.length} item(s), total {formData.size}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>

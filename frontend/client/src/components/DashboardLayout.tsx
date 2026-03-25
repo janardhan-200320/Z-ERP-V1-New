@@ -312,6 +312,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       submenu: [
         { name: 'Leads', path: '/leads' },
         { name: 'Call Status', path: '/leads/call-status' },
+        { name: 'Form Builder', path: '/leads/form-builder' },
       ]
     },
     { 
@@ -1061,7 +1062,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                   readOnly
                 />
                 <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs font-semibold text-slate-500 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-md shadow-sm">
-                  âŒ˜K
+                  ⌘K
                 </kbd>
               </div>
             </div>
@@ -1181,9 +1182,9 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 <p className="text-sm text-slate-500 mb-2">Start typing to search</p>
                 <div className="flex flex-wrap gap-2 justify-center text-xs text-slate-400">
                   <span>Try: Dashboard</span>
-                  <span>â€¢</span>
+                  <span>•</span>
                   <span>Employees</span>
-                  <span>â€¢</span>
+                  <span>•</span>
                   <span>Invoices</span>
                 </div>
               </div>
@@ -1205,7 +1206,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'} found
                   </p>
-                  <p className="text-xs text-slate-400">â†‘â†“ Navigate â€¢ â†µ Select â€¢ ESC Close</p>
+                  <p className="text-xs text-slate-400">↑↓ Navigate • ↵ Select • ESC Close</p>
                 </div>
                 <ScrollArea className="max-h-96">
                   <div className="space-y-1">

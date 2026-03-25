@@ -211,11 +211,31 @@ type ViewMode = "table" | "kanban" | "grid";
 // ==================== COMPONENT ====================
 export default function LeadsModule() {
   const { toast } = useToast();
+  const leadSourceOptions = [
+    "Website",
+    "LinkedIn",
+    "Referral",
+    "Trade Show",
+    "Cold Call",
+    "Email Campaign",
+    "Social Media",
+    "Advertisement",
+    "Partner",
+    "Other",
+  ] as const;
+  const customLeadSourceValue = "__custom_source__";
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [addLeadModalOpen, setAddLeadModalOpen] = useState(false);
+  const [bulkAssignDialogOpen, setBulkAssignDialogOpen] = useState(false);
+  const [bulkCustomAssignDialogOpen, setBulkCustomAssignDialogOpen] = useState(false);
+  const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
+  const [bulkAssignTo, setBulkAssignTo] = useState("John Smith");
+  const [bulkCustomAssignTo, setBulkCustomAssignTo] = useState("");
+  const [bulkStatusValue, setBulkStatusValue] = useState<Lead["status"]>("qualified");
   const [activeDetailTab, setActiveDetailTab] = useState("overview");
   
   // Filter states
@@ -227,9 +247,12 @@ export default function LeadsModule() {
 
   // Form state
   const [formData, setFormData] = useState<Partial<Lead>>({});
-  const [tags, setTags] = useState<string[]>([]);
-  const [tagsInput, setTagsInput] = useState("");
+  const [isCustomLeadSource, setIsCustomLeadSource] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const selectedLeadSourceValue = isCustomLeadSource
+    ? customLeadSourceValue
+    : (formData.source || "");
 
   // Demo data
   const [leads, setLeads] = useState<Lead[]>([
@@ -820,12 +843,20 @@ export default function LeadsModule() {
     return matchesSearch && matchesStatus && matchesSource && matchesAssigned && matchesScore;
   });
 
+  const selectedLeads = leads.filter((lead) => selectedLeadIds.includes(lead.id));
+  const allFilteredSelected = filteredLeads.length > 0 && filteredLeads.every((lead) => selectedLeadIds.includes(lead.id));
+  const selectedCount = selectedLeadIds.length;
+  const availableAssignees = Array.from(new Set(leads.map((lead) => lead.assignedTo).filter(Boolean))).sort();
+
+  useEffect(() => {
+    setSelectedLeadIds((prev) => prev.filter((id) => leads.some((lead) => lead.id === id)));
+  }, [leads]);
+
   const stats = {
     total: leads.length,
     new: leads.filter(l => l.status === "new").length,
     qualified: leads.filter(l => l.status === "qualified").length,
     won: leads.filter(l => l.status === "won").length,
-    avgScore: Math.round(leads.reduce((sum, l) => sum + (l.leadScore || 0), 0) / leads.length),
     totalValue: leads.reduce((sum, l) => sum + (l.leadValue || 0), 0),
     hotLeads: leads.filter(l => l.temperature === "hot").length,
   };
@@ -846,16 +877,16 @@ export default function LeadsModule() {
       temperature: "warm",
       leadScore: 50,
     });
-    setTags([]);
-    setTagsInput("");
+    setIsCustomLeadSource(false);
     setAddLeadModalOpen(true);
   };
 
   const openEditModal = (lead: Lead) => {
+    const hasCustomSource = !!lead.source && !leadSourceOptions.includes(lead.source as (typeof leadSourceOptions)[number]);
     setFormData({
       ...lead,
     });
-    setTags(lead.tags || []);
+    setIsCustomLeadSource(hasCustomSource);
     setSelectedLead(lead);
     setAddLeadModalOpen(true);
   };
@@ -863,11 +894,11 @@ export default function LeadsModule() {
   // Contact Actions
   const handleCall = (lead: Lead, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    console.log("ðŸ“ž Initiating call to:", lead.name, lead.phone);
+    console.log("Initiating call to:", lead.name, lead.phone);
     
     if (!lead.phone) {
       toast({
-        title: "âš ï¸ No Phone Number",
+        title: "No phone number",
         description: `${lead.name} doesn't have a phone number on record.`,
         variant: "destructive",
         duration: 3000,
@@ -877,7 +908,7 @@ export default function LeadsModule() {
 
     // In a real app, this would integrate with a phone system (Twilio, etc.)
     toast({
-      title: "ðŸ“ž Calling " + lead.name,
+      title: "Calling " + lead.name,
       description: `Dialing ${lead.phone}...`,
       duration: 4000,
     });
@@ -907,11 +938,11 @@ export default function LeadsModule() {
 
   const handleEmail = (lead: Lead, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    console.log("ðŸ“§ Composing email to:", lead.name, lead.email);
+    console.log("Composing email to:", lead.name, lead.email);
     
     if (!lead.email) {
       toast({
-        title: "âš ï¸ No Email Address",
+        title: "No email address",
         description: `${lead.name} doesn't have an email address on record.`,
         variant: "destructive",
         duration: 3000,
@@ -920,7 +951,7 @@ export default function LeadsModule() {
     }
 
     toast({
-      title: "âœ‰ï¸ Opening Email",
+      title: "Opening email",
       description: `Composing email to ${lead.name}...`,
       duration: 3000,
     });
@@ -954,7 +985,7 @@ export default function LeadsModule() {
     e?.stopPropagation();
     if (!lead.phone) {
       toast({
-        title: "âš ï¸ No Phone Number",
+        title: "No phone number",
         description: "Cannot open WhatsApp without a phone number.",
         variant: "destructive",
       });
@@ -966,7 +997,7 @@ export default function LeadsModule() {
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
     
     toast({
-      title: "ðŸ’¬ Opening WhatsApp",
+      title: "Opening WhatsApp",
       description: `Messaging ${lead.name}...`,
       duration: 3000,
     });
@@ -983,7 +1014,7 @@ export default function LeadsModule() {
       setLeads(prev => prev.filter(l => l.id !== leadId));
       
       toast({
-        title: "ðŸ—‘ï¸ Lead Deleted",
+        title: "Lead deleted",
         description: `${lead.name} has been removed from your leads.`,
         duration: 3000,
       });
@@ -1013,7 +1044,7 @@ export default function LeadsModule() {
     setLeads(prev => [duplicatedLead, ...prev]);
 
     toast({
-      title: "ðŸ“‹ Lead Duplicated",
+      title: "Lead duplicated",
       description: `Created a copy of ${lead.name}`,
       duration: 3000,
     });
@@ -1032,7 +1063,7 @@ export default function LeadsModule() {
       
       if (file) {
         toast({
-          title: "ðŸ“¥ Importing Leads",
+          title: "Importing leads",
           description: `Processing ${file.name}...`,
           duration: 3000,
         });
@@ -1041,7 +1072,7 @@ export default function LeadsModule() {
         // For now, just show success
         setTimeout(() => {
           toast({
-            title: "âœ… Import Complete",
+            title: "Import complete",
             description: "Leads have been imported successfully.",
             duration: 3000,
           });
@@ -1068,46 +1099,159 @@ export default function LeadsModule() {
     window.URL.revokeObjectURL(url);
 
     toast({
-      title: "ðŸ“¥ Export Complete",
+      title: "Export complete",
       description: `Exported ${filteredLeads.length} leads to CSV`,
       duration: 3000,
     });
   };
 
   // Bulk Actions
-  const handleBulkAssign = (assignTo: string) => {
+  const toggleLeadSelection = (leadId: string) => {
+    setSelectedLeadIds((prev) => (
+      prev.includes(leadId)
+        ? prev.filter((id) => id !== leadId)
+        : [...prev, leadId]
+    ));
+  };
+
+  const toggleSelectAllFiltered = () => {
+    if (allFilteredSelected) {
+      setSelectedLeadIds((prev) => prev.filter((id) => !filteredLeads.some((lead) => lead.id === id)));
+      return;
+    }
+
+    const filteredIds = filteredLeads.map((lead) => lead.id);
+    setSelectedLeadIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
+  };
+
+  const requireSelection = () => {
+    if (selectedLeadIds.length > 0) {
+      return true;
+    }
+
     toast({
-      title: "ðŸ‘¥ Bulk Assignment",
-      description: `This feature will assign selected leads to ${assignTo}`,
+      title: "No leads selected",
+      description: "Select one or more leads to run bulk actions.",
+      variant: "destructive",
+      duration: 3000,
+    });
+    return false;
+  };
+
+  const openBulkAssignDialog = () => {
+    if (!requireSelection()) {
+      return;
+    }
+
+    setBulkAssignTo(availableAssignees[0] || "John Smith");
+    setBulkAssignDialogOpen(true);
+  };
+
+  const openBulkStatusDialog = () => {
+    if (!requireSelection()) {
+      return;
+    }
+
+    setBulkStatusValue("qualified");
+    setBulkStatusDialogOpen(true);
+  };
+
+  const openBulkCustomAssignDialog = () => {
+    if (!requireSelection()) {
+      return;
+    }
+
+    setBulkCustomAssignTo("");
+    setBulkCustomAssignDialogOpen(true);
+  };
+
+  const handleBulkAssign = (assignTo: string) => {
+    if (!requireSelection()) {
+      return;
+    }
+
+    const selectedSet = new Set(selectedLeadIds);
+    setLeads((prev) => prev.map((lead) => (
+      selectedSet.has(lead.id)
+        ? {
+            ...lead,
+            assignedTo: assignTo,
+            lastContact: "Just now",
+          }
+        : lead
+    )));
+
+    setSelectedLeadIds([]);
+    setBulkAssignDialogOpen(false);
+
+    toast({
+      title: "Bulk assignment updated",
+      description: `${selectedCount} lead(s) assigned to ${assignTo}.`,
       duration: 3000,
     });
   };
 
   const handleBulkStatusChange = (newStatus: string) => {
+    if (!requireSelection()) {
+      return;
+    }
+
+    const selectedSet = new Set(selectedLeadIds);
+    setLeads((prev) => prev.map((lead) => (
+      selectedSet.has(lead.id)
+        ? {
+            ...lead,
+            status: newStatus as Lead["status"],
+            lastContact: "Just now",
+          }
+        : lead
+    )));
+
+    setSelectedLeadIds([]);
+    setBulkStatusDialogOpen(false);
+
     toast({
-      title: "ðŸ”„ Status Update",
-      description: `This feature will change status of selected leads to ${newStatus}`,
+      title: "Bulk status updated",
+      description: `${selectedCount} lead(s) moved to ${newStatus}.`,
       duration: 3000,
     });
   };
 
-  const handleBulkAddTags = () => {
-    toast({
-      title: "ðŸ·ï¸ Bulk Tag Addition",
-      description: "This feature will add tags to selected leads",
-      duration: 3000,
-    });
-  };
 
   const handleBulkDelete = () => {
+    if (!requireSelection()) {
+      return;
+    }
+
     if (confirm("Are you sure you want to delete the selected leads?")) {
+      const selectedSet = new Set(selectedLeadIds);
+      setLeads((prev) => prev.filter((lead) => !selectedSet.has(lead.id)));
+      setSelectedLeadIds([]);
+
       toast({
-        title: "ðŸ—‘ï¸ Bulk Delete",
-        description: "Selected leads will be deleted",
+        title: "Bulk delete completed",
+        description: `${selectedCount} lead(s) deleted successfully.`,
         variant: "destructive",
         duration: 3000,
       });
     }
+  };
+
+  const handleBulkCustomAssign = () => {
+    const assignTo = bulkCustomAssignTo.trim();
+    if (!assignTo) {
+      toast({
+        title: "Assignee required",
+        description: "Please enter a custom assignee name.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    handleBulkAssign(assignTo);
+    setBulkCustomAssignDialogOpen(false);
+    setBulkCustomAssignTo("");
   };
 
   const createLeadObject = (): Lead => {
@@ -1134,7 +1278,6 @@ export default function LeadsModule() {
       zipCode: formData.zipCode,
       address: formData.address,
       description: formData.description,
-      tags,
       activities: [],
       tasks: [],
       notes: [],
@@ -1150,16 +1293,15 @@ export default function LeadsModule() {
       temperature: "warm",
       leadScore: 50,
     });
-    setTags([]);
-    setTagsInput("");
+    setIsCustomLeadSource(false);
   };
 
   const saveNewLead = async () => {
     const isEditing = !!formData.id;
-    console.log(isEditing ? "âœï¸ saveNewLead (EDIT MODE)" : "ðŸ”¥ saveNewLead (CREATE MODE)", { formData, name: formData.name, source: formData.source });
+    console.log(isEditing ? "✏️ saveNewLead (EDIT MODE)" : "🔥 saveNewLead (CREATE MODE)", { formData, name: formData.name, source: formData.source });
     
     if (!formData.name || !formData.source) {
-      console.log("âŒ Validation failed", { name: formData.name, source: formData.source });
+      console.log("❌ Validation failed", { name: formData.name, source: formData.source });
       
       // Scroll to top to show required fields
       const scrollArea = document.querySelector('[data-radix-scroll-area-viewport]');
@@ -1168,7 +1310,7 @@ export default function LeadsModule() {
       }
       
       toast({
-        title: "âš ï¸ Missing Required Fields",
+        title: "⚠️ Missing Required Fields",
         description: !formData.name && !formData.source 
           ? "Please fill in both Full Name and Lead Source to continue." 
           : !formData.name 
@@ -1180,7 +1322,7 @@ export default function LeadsModule() {
       return;
     }
     
-    console.log("âœ… Validation passed, starting to save...");
+    console.log("✅ Validation passed, starting to save...");
     setIsSaving(true);
     
     try {
@@ -1189,40 +1331,39 @@ export default function LeadsModule() {
       
       if (isEditing) {
         // UPDATE existing lead
-        console.log("ðŸ“ Updating existing lead:", formData.id);
+        console.log("📝 Updating existing lead:", formData.id);
         setLeads(prev => prev.map(l => {
           if (l.id === formData.id) {
             return {
               ...l,
               ...formData,
-              tags: tags,
             };
           }
           return l;
         }));
         
-        console.log("ðŸŽ‰ Lead update complete!");
+        console.log("🎉 Lead update complete!");
         toast({
-          title: "âœ… Lead Updated Successfully!",
+          title: "✅ Lead Updated Successfully!",
           description: `${formData.name} has been updated.`,
           duration: 3000,
         });
       } else {
         // CREATE new lead
-        console.log("ðŸ’¾ Creating new lead object...");
+        console.log("💾 Creating new lead object...");
         const newLead = createLeadObject();
-        console.log("ðŸ“ New lead created:", newLead);
+        console.log("📝 New lead created:", newLead);
         
         setLeads(prev => {
-          console.log("ðŸ“‹ Current leads count:", prev.length);
+          console.log("📋 Current leads count:", prev.length);
           const updated = [newLead, ...prev];
-          console.log("ðŸ“‹ Updated leads count:", updated.length);
+          console.log("📋 Updated leads count:", updated.length);
           return updated;
         });
         
-        console.log("ðŸŽ‰ Lead save complete!");
+        console.log("🎉 Lead save complete!");
         toast({
-          title: "âœ¨ Lead Created Successfully!",
+          title: "✨ Lead Created Successfully!",
           description: `${newLead.name} from ${newLead.company || 'Unknown Company'} has been added to your pipeline.`,
           duration: 5000,
         });
@@ -1234,7 +1375,7 @@ export default function LeadsModule() {
       setSelectedLead(null);
       
     } catch (error) {
-      console.error("âŒ Error saving lead:", error);
+      console.error("❌ Error saving lead:", error);
       toast({
         title: "Error",
         description: `Failed to ${isEditing ? 'update' : 'create'} lead. Please try again.`,
@@ -1246,7 +1387,7 @@ export default function LeadsModule() {
   };
 
   const saveAndAddAnother = async () => {
-    console.log("ðŸ”„ saveAndAddAnother called", { formData });
+    console.log("🔄 saveAndAddAnother called", { formData });
     
     if (!formData.name || !formData.source) {
       // Scroll to top to show required fields
@@ -1256,7 +1397,7 @@ export default function LeadsModule() {
       }
       
       toast({
-        title: "âš ï¸ Missing Required Fields",
+        title: "⚠️ Missing Required Fields",
         description: !formData.name && !formData.source 
           ? "Please fill in both Full Name and Lead Source to continue." 
           : !formData.name 
@@ -1273,7 +1414,7 @@ export default function LeadsModule() {
     try {
       // Create lead
       const newLead = createLeadObject();
-      console.log("ðŸ“ New lead created:", newLead);
+      console.log("📝 New lead created:", newLead);
       
       // Small delay for UX
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -1285,7 +1426,7 @@ export default function LeadsModule() {
       
       // Success toast
       toast({
-        title: "âœ… Lead Saved!",
+        title: "✅ Lead Saved!",
         description: `${newLead.name} has been saved. Ready to add another lead.`,
         duration: 3000,
       });
@@ -1296,9 +1437,9 @@ export default function LeadsModule() {
         scrollArea.scrollTop = 0;
       }
       
-      console.log("ðŸŽ‰ Lead saved, ready for next entry");
+      console.log("🎉 Lead saved, ready for next entry");
     } catch (error) {
-      console.error("âŒ Error saving lead:", error);
+      console.error("❌ Error saving lead:", error);
       toast({
         title: "Error",
         description: "Failed to create lead. Please try again.",
@@ -1306,26 +1447,6 @@ export default function LeadsModule() {
       });
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const addTag = (value: string) => {
-    const v = value.trim();
-    if (!v || tags.includes(v)) return;
-    setTags(prev => [...prev, v]);
-    setTagsInput("");
-  };
-
-  const removeTag = (index: number) => {
-    setTags(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addTag(tagsInput);
-    } else if (e.key === "Backspace" && tagsInput === "") {
-      setTags(prev => prev.slice(0, -1));
     }
   };
 
@@ -1435,25 +1556,51 @@ export default function LeadsModule() {
                     <Button variant="outline" size="sm" className="hover:bg-purple-50 hover:border-purple-500">
                       <MoreVertical className="w-4 h-4 sm:mr-2" />
                       <span className="hidden sm:inline">Bulk Actions</span>
+                      {selectedCount > 0 && (
+                        <Badge variant="secondary" className="ml-2 h-5 rounded-full px-1.5 text-[10px]">
+                          {selectedCount}
+                        </Badge>
+                      )}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuContent align="end" className="w-[90vw] max-w-xs sm:w-56">
                     <DropdownMenuLabel className="text-xs text-gray-500 font-semibold">Bulk Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleBulkAssign("John Smith")}>
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setTimeout(() => openBulkAssignDialog(), 0);
+                      }}
+                    >
                       <User className="w-4 h-4 mr-2" />
                       Assign to user
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleBulkStatusChange("qualified")}>
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setTimeout(() => openBulkStatusDialog(), 0);
+                      }}
+                    >
                       <CheckCircle className="w-4 h-4 mr-2" />
                       Change status
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleBulkAddTags}>
-                      <TagIcon className="w-4 h-4 mr-2" />
-                      Add tags
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setTimeout(() => openBulkCustomAssignDialog(), 0);
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Custom assign
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleBulkDelete} className="text-red-600 focus:text-red-600">
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        handleBulkDelete();
+                      }}
+                      className="text-red-600 focus:text-red-600"
+                    >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete selected
                     </DropdownMenuItem>
@@ -1465,6 +1612,46 @@ export default function LeadsModule() {
                 </Button>
               </div>
             </div>
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+              <Button variant="outline" size="sm" onClick={toggleSelectAllFiltered}>
+                {allFilteredSelected ? "Clear filtered" : "Select filtered"}
+              </Button>
+              {selectedCount > 0 ? (
+                <>
+                  <Badge variant="secondary">{selectedCount} selected</Badge>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedLeadIds([])}>
+                    Clear selection
+                  </Button>
+                </>
+              ) : (
+                <span className="text-xs text-gray-500">Select one or more leads to enable bulk actions.</span>
+              )}
+            </div>
+
+            {selectedCount > 0 && (
+              <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50/50 p-2 sm:p-3">
+                <div className="mb-2 text-xs font-semibold text-blue-700">Quick Bulk Actions</div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <Button variant="outline" size="sm" className="justify-start bg-white" onClick={openBulkAssignDialog}>
+                    <User className="w-4 h-4 mr-2" />
+                    Assign
+                  </Button>
+                  <Button variant="outline" size="sm" className="justify-start bg-white" onClick={openBulkStatusDialog}>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Status
+                  </Button>
+                  <Button variant="outline" size="sm" className="justify-start bg-white" onClick={openBulkCustomAssignDialog}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Custom
+                  </Button>
+                  <Button variant="outline" size="sm" className="justify-start bg-white text-red-600 border-red-200 hover:bg-red-50" onClick={handleBulkDelete}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Stats Cards - Horizontally Scrollable */}
             <div className="flex overflow-x-auto pb-4 pt-1 gap-4 mb-2 scrollbar-hide snap-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -1511,15 +1698,6 @@ export default function LeadsModule() {
                   </div>
                   <p className="text-2xl font-bold text-gray-900 truncate">{stats.hotLeads}</p>
                   <p className="text-sm text-gray-600">Hot Leads</p>
-                </CardContent>
-              </Card>
-              <Card className="shadow-sm min-w-[160px] flex-1 snap-start overflow-hidden hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <BarChart3 className="w-5 h-5 text-amber-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-gray-900 truncate">{stats.avgScore}</p>
-                  <p className="text-sm text-gray-600">Avg Score</p>
                 </CardContent>
               </Card>
               <Card className="shadow-sm min-w-[160px] flex-1 snap-start overflow-hidden hover:shadow-md transition-shadow">
@@ -1723,6 +1901,15 @@ export default function LeadsModule() {
                 >
                     <CardContent className="p-4 sm:p-5">
                       <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
+                      <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedLeadIds.includes(lead.id)}
+                          onChange={() => toggleLeadSelection(lead.id)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          aria-label={`Select ${lead.name}`}
+                        />
+                      </div>
                       {/* Avatar & Name */}
                       <div className="flex items-center gap-4 flex-1 min-w-0">
                         <Avatar className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold flex-shrink-0">
@@ -1749,7 +1936,7 @@ export default function LeadsModule() {
                         </div>
                       </div>
 
-                      {/* Tags & Badges */}
+                      {/* Status & Priority */}
                       <div className="flex items-center gap-2 flex-wrap md:max-w-xs">
                         <Badge className={`${getStatusColor(lead.status)} text-white font-medium capitalize`}>
                           {lead.status}
@@ -1757,11 +1944,6 @@ export default function LeadsModule() {
                         <Badge variant="outline" className={getPriorityColor(lead.priority)}>
                           {lead.priority}
                         </Badge>
-                        {lead.tags?.slice(0, 2).map(tag => (
-                          <Badge key={tag} variant="secondary" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
                       </div>
 
                       {/* Score */}
@@ -1909,6 +2091,15 @@ export default function LeadsModule() {
                                   onClick={() => openDetailModal(lead)}
                                 >
                                   <CardContent className="p-4">
+                                    <div className="mb-2 flex justify-end" onClick={(e) => e.stopPropagation()}>
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedLeadIds.includes(lead.id)}
+                                        onChange={() => toggleLeadSelection(lead.id)}
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        aria-label={`Select ${lead.name}`}
+                                      />
+                                    </div>
                                     <div className="flex items-start gap-3 mb-3">
                                       <Avatar className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600">
                                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
@@ -1941,16 +2132,6 @@ export default function LeadsModule() {
                                           </span>
                                         </div>
                                         <Progress value={lead.leadScore} className="h-1.5" />
-                                      </div>
-                                    )}
-
-                                    {lead.tags && lead.tags.length > 0 && (
-                                      <div className="flex flex-wrap gap-1 mb-2">
-                                        {lead.tags.slice(0, 2).map(tag => (
-                                          <Badge key={tag} variant="secondary" className="text-xs">
-                                            {tag}
-                                          </Badge>
-                                        ))}
                                       </div>
                                     )}
 
@@ -1995,6 +2176,15 @@ export default function LeadsModule() {
                   onClick={() => openDetailModal(lead)}
                 >
                   <CardContent className="p-5">
+                    <div className="mb-2 flex justify-end" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedLeadIds.includes(lead.id)}
+                        onChange={() => toggleLeadSelection(lead.id)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        aria-label={`Select ${lead.name}`}
+                      />
+                    </div>
                     <div className="text-center mb-4">
                       <Avatar className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-blue-500 to-purple-600">
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-lg">
@@ -2042,16 +2232,6 @@ export default function LeadsModule() {
                           </span>
                         </div>
                         <Progress value={lead.leadScore} className="h-2" />
-                      </div>
-                    )}
-
-                    {lead.tags && lead.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-3">
-                        {lead.tags.slice(0, 3).map(tag => (
-                          <Badge key={tag} variant="secondary" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
                       </div>
                     )}
 
@@ -2137,6 +2317,97 @@ export default function LeadsModule() {
           )}
         </div>
 
+        {/* Bulk Assign Dialog */}
+        <Dialog open={bulkAssignDialogOpen} onOpenChange={setBulkAssignDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Assign Selected Leads</DialogTitle>
+              <DialogDescription>
+                Assign {selectedCount} selected lead(s) to a team member.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Label>Assign to</Label>
+              <Select value={bulkAssignTo} onValueChange={setBulkAssignTo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableAssignees.map((assignee) => (
+                    <SelectItem key={assignee} value={assignee}>{assignee}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="rounded-md bg-gray-50 p-3 text-xs text-gray-600">
+                {selectedLeads.slice(0, 4).map((lead) => lead.name).join(", ")}
+                {selectedLeads.length > 4 ? ` and ${selectedLeads.length - 4} more` : ""}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkAssignDialogOpen(false)}>Cancel</Button>
+              <Button onClick={() => handleBulkAssign(bulkAssignTo)}>Assign Leads</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Status Dialog */}
+        <Dialog open={bulkStatusDialogOpen} onOpenChange={setBulkStatusDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Change Status in Bulk</DialogTitle>
+              <DialogDescription>
+                Update status for {selectedCount} selected lead(s).
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Label>New status</Label>
+              <Select value={bulkStatusValue} onValueChange={(value) => setBulkStatusValue(value as Lead["status"])}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">New</SelectItem>
+                  <SelectItem value="contacted">Contacted</SelectItem>
+                  <SelectItem value="qualified">Qualified</SelectItem>
+                  <SelectItem value="proposal">Proposal</SelectItem>
+                  <SelectItem value="negotiation">Negotiation</SelectItem>
+                  <SelectItem value="won">Won</SelectItem>
+                  <SelectItem value="lost">Lost</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkStatusDialogOpen(false)}>Cancel</Button>
+              <Button onClick={() => handleBulkStatusChange(bulkStatusValue)}>Update Status</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Custom Assign Dialog */}
+        <Dialog open={bulkCustomAssignDialogOpen} onOpenChange={setBulkCustomAssignDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Custom Assign in Bulk</DialogTitle>
+              <DialogDescription>
+                Assign {selectedCount} selected lead(s) to a custom user name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Label htmlFor="bulk-custom-assign-input">Assignee name</Label>
+              <Input
+                id="bulk-custom-assign-input"
+                value={bulkCustomAssignTo}
+                onChange={(event) => setBulkCustomAssignTo(event.target.value)}
+                placeholder="Enter assignee name"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkCustomAssignDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleBulkCustomAssign}>Assign Leads</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* ENHANCED ADD LEAD MODAL WITH ADVANCED FEATURES */}
         <Dialog open={addLeadModalOpen} onOpenChange={setAddLeadModalOpen}>
           <DialogContent 
@@ -2146,7 +2417,7 @@ export default function LeadsModule() {
               if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault();
                 if (formData.name && formData.source && !isSaving) {
-                  console.log("âŽ Keyboard shortcut triggered!");
+                  console.log("⏎ Keyboard shortcut triggered!");
                   saveNewLead();
                 }
               }
@@ -2157,11 +2428,11 @@ export default function LeadsModule() {
               <div className="flex items-center justify-between">
                 <div>
                   <DialogTitle className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">
-                    {formData.id ? 'âœï¸ Edit Lead' : 'âœ¨ Add New Lead'}
+                    {formData.id ? '✏️ Edit Lead' : '✨ Add New Lead'}
                   </DialogTitle>
                   <DialogDescription className="mt-2 text-xs sm:text-sm text-gray-700 font-medium">
                     {formData.id ? 'Update lead information and keep your pipeline organized' : 'Create a new lead and start tracking your sales opportunity'}
-                    <span className="hidden sm:inline text-blue-700 ml-2 font-semibold">â€¢ Press Ctrl+Enter to save quickly âš¡</span>
+                    <span className="hidden sm:inline text-blue-700 ml-2 font-semibold">• Press Ctrl+Enter to save quickly ⚡</span>
                   </DialogDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2251,23 +2522,45 @@ export default function LeadsModule() {
                           Lead Source <span className="text-red-500 text-base">*</span>
                           {formData.source && <CheckCircle className="w-4 h-4 text-green-500" />}
                         </Label>
-                        <Select value={formData.source || ""} onValueChange={(v) => setFormData(prev => ({ ...prev, source: v }))}>
+                        <Select
+                          value={selectedLeadSourceValue}
+                          onValueChange={(v) => {
+                            if (v === customLeadSourceValue) {
+                              setIsCustomLeadSource(true);
+                              setFormData(prev => ({ ...prev, source: "" }));
+                              return;
+                            }
+
+                            setIsCustomLeadSource(false);
+                            setFormData(prev => ({ ...prev, source: v }));
+                          }}
+                        >
                           <SelectTrigger className={`mt-1 transition-all duration-200 ${!formData.source ? 'border-2 border-red-300 focus:border-red-500' : 'border-2 border-green-300 focus:border-green-500 bg-green-50/30'}`}>
                             <SelectValue placeholder="Select where this lead came from *" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Website">ðŸŒ Website</SelectItem>
-                            <SelectItem value="LinkedIn">ðŸ’¼ LinkedIn</SelectItem>
-                            <SelectItem value="Referral">ðŸ¤ Referral</SelectItem>
-                            <SelectItem value="Trade Show">ðŸŽª Trade Show</SelectItem>
-                            <SelectItem value="Cold Call">ðŸ“ž Cold Call</SelectItem>
-                            <SelectItem value="Email Campaign">ðŸ“§ Email Campaign</SelectItem>
-                            <SelectItem value="Social Media">ðŸ“± Social Media</SelectItem>
-                            <SelectItem value="Advertisement">ðŸ“º Advertisement</SelectItem>
-                            <SelectItem value="Partner">ðŸ”— Partner</SelectItem>
-                            <SelectItem value="Other">ðŸ“‹ Other</SelectItem>
+                            <SelectItem value="Website">🌐 Website</SelectItem>
+                            <SelectItem value="LinkedIn">💼 LinkedIn</SelectItem>
+                            <SelectItem value="Referral">🤝 Referral</SelectItem>
+                            <SelectItem value="Trade Show">🎪 Trade Show</SelectItem>
+                            <SelectItem value="Cold Call">📞 Cold Call</SelectItem>
+                            <SelectItem value="Email Campaign">📧 Email Campaign</SelectItem>
+                            <SelectItem value="Social Media">📱 Social Media</SelectItem>
+                            <SelectItem value="Advertisement">📺 Advertisement</SelectItem>
+                            <SelectItem value="Partner">🔗 Partner</SelectItem>
+                            <SelectItem value="Other">📋 Other</SelectItem>
+                            <SelectItem value={customLeadSourceValue}>✍️ Custom</SelectItem>
                           </SelectContent>
                         </Select>
+                        {isCustomLeadSource && (
+                          <Input
+                            id="custom-source"
+                            value={formData.source || ""}
+                            onChange={(e) => setFormData(prev => ({ ...prev, source: e.target.value }))}
+                            placeholder="Enter custom lead source"
+                            className="mt-2 border-2 border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                          />
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -2369,7 +2662,7 @@ export default function LeadsModule() {
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-1 gap-3 sm:gap-4">
                       <div>
                         <Label htmlFor="preferredContact">Preferred Contact Method</Label>
                         <Select 
@@ -2380,25 +2673,12 @@ export default function LeadsModule() {
                             <SelectValue placeholder="Select method" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="email">ðŸ“§ Email</SelectItem>
-                            <SelectItem value="phone">ðŸ“ž Phone Call</SelectItem>
-                            <SelectItem value="linkedin">ðŸ’¼ LinkedIn Message</SelectItem>
-                            <SelectItem value="meeting">ðŸ¤ In-Person Meeting</SelectItem>
+                            <SelectItem value="email">📧 Email</SelectItem>
+                            <SelectItem value="phone">📞 Phone Call</SelectItem>
+                            <SelectItem value="linkedin">💼 LinkedIn Message</SelectItem>
+                            <SelectItem value="meeting">🤝 In-Person Meeting</SelectItem>
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="nextFollowUp">Next Follow-up Date</Label>
-                        <div className="relative">
-                          <Calendar className="absolute left-3 top-[50%] -translate-y-1/2 w-4 h-4 text-gray-400" />
-                          <Input
-                            id="nextFollowUp"
-                            type="date"
-                            value={formData.nextFollowUp || ""}
-                            onChange={(e) => setFormData(prev => ({ ...prev, nextFollowUp: e.target.value }))}
-                            className="mt-1.5 pl-9"
-                          />
-                        </div>
                       </div>
                     </div>
                     <div>
@@ -2428,7 +2708,7 @@ export default function LeadsModule() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-1 gap-3 sm:gap-4">
                       <div>
                         <Label htmlFor="status" className="flex items-center gap-1">
                           Lead Status
@@ -2466,32 +2746,6 @@ export default function LeadsModule() {
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-pink-500"></div>
                                 Negotiation
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="assignedTo">Assign To</Label>
-                        <Select value={formData.assignedTo || "John Smith"} onValueChange={(v) => setFormData(prev => ({ ...prev, assignedTo: v }))}>
-                          <SelectTrigger className="mt-1.5">
-                            <SelectValue placeholder="Select user" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="John Smith">
-                              <div className="flex items-center gap-2">
-                                <Avatar className="w-5 h-5">
-                                  <AvatarFallback className="text-xs bg-blue-100">JS</AvatarFallback>
-                                </Avatar>
-                                John Smith
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="Emily Davis">
-                              <div className="flex items-center gap-2">
-                                <Avatar className="w-5 h-5">
-                                  <AvatarFallback className="text-xs bg-purple-100">ED</AvatarFallback>
-                                </Avatar>
-                                Emily Davis
                               </div>
                             </SelectItem>
                           </SelectContent>
@@ -2541,7 +2795,7 @@ export default function LeadsModule() {
                             <SelectItem value="hot">
                               <div className="flex items-center gap-2">
                                 <Flame className="w-4 h-4 text-red-500" />
-                                Hot ðŸ”¥
+                                Hot 🔥
                               </div>
                             </SelectItem>
                             <SelectItem value="warm">
@@ -2662,16 +2916,16 @@ export default function LeadsModule() {
                             <SelectValue placeholder="Select industry" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Technology">ðŸ’» Technology</SelectItem>
-                            <SelectItem value="Finance">ðŸ’° Finance</SelectItem>
-                            <SelectItem value="Healthcare">ðŸ¥ Healthcare</SelectItem>
-                            <SelectItem value="Manufacturing">ðŸ­ Manufacturing</SelectItem>
-                            <SelectItem value="Retail">ðŸ›ï¸ Retail</SelectItem>
-                            <SelectItem value="Education">ðŸŽ“ Education</SelectItem>
-                            <SelectItem value="Real Estate">ðŸ¢ Real Estate</SelectItem>
-                            <SelectItem value="Marketing">ðŸ“¢ Marketing</SelectItem>
-                            <SelectItem value="Consulting">ðŸ¤ Consulting</SelectItem>
-                            <SelectItem value="Other">ðŸ“‹ Other</SelectItem>
+                            <SelectItem value="Technology">💻 Technology</SelectItem>
+                            <SelectItem value="Finance">💰 Finance</SelectItem>
+                            <SelectItem value="Healthcare">🏥 Healthcare</SelectItem>
+                            <SelectItem value="Manufacturing">🏭 Manufacturing</SelectItem>
+                            <SelectItem value="Retail">🛍️ Retail</SelectItem>
+                            <SelectItem value="Education">🎓 Education</SelectItem>
+                            <SelectItem value="Real Estate">🏢 Real Estate</SelectItem>
+                            <SelectItem value="Marketing">📢 Marketing</SelectItem>
+                            <SelectItem value="Consulting">🤝 Consulting</SelectItem>
+                            <SelectItem value="Other">📋 Other</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2682,12 +2936,12 @@ export default function LeadsModule() {
                             <SelectValue placeholder="Select size" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="1-10">ðŸ‘¤ 1-10 employees</SelectItem>
-                            <SelectItem value="11-50">ðŸ‘¥ 11-50 employees</SelectItem>
-                            <SelectItem value="51-200">ðŸ‘¨â€ðŸ‘©â€ðŸ‘§â€ðŸ‘¦ 51-200 employees</SelectItem>
-                            <SelectItem value="201-500">ðŸ¢ 201-500 employees</SelectItem>
-                            <SelectItem value="501-1000">ðŸ­ 501-1000 employees</SelectItem>
-                            <SelectItem value="1000+">ðŸŒ 1000+ employees</SelectItem>
+                            <SelectItem value="1-10">👤 1-10 employees</SelectItem>
+                            <SelectItem value="11-50">👥 11-50 employees</SelectItem>
+                            <SelectItem value="51-200">👨‍👩‍👧‍👦 51-200 employees</SelectItem>
+                            <SelectItem value="201-500">🏢 201-500 employees</SelectItem>
+                            <SelectItem value="501-1000">🏭 501-1000 employees</SelectItem>
+                            <SelectItem value="1000+">🌐 1000+ employees</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2721,27 +2975,17 @@ export default function LeadsModule() {
                             <SelectValue placeholder="When will they decide?" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Immediate">âš¡ Immediate (This week)</SelectItem>
-                            <SelectItem value="1-month">ðŸ“… Within 1 month</SelectItem>
-                            <SelectItem value="1-3-months">ðŸ—“ï¸ 1-3 months</SelectItem>
-                            <SelectItem value="3-6-months">ðŸ“† 3-6 months</SelectItem>
-                            <SelectItem value="6-12-months">ðŸ“Š 6-12 months</SelectItem>
-                            <SelectItem value="Not sure">â“ Not sure yet</SelectItem>
+                            <SelectItem value="Immediate">⚡ Immediate (This week)</SelectItem>
+                            <SelectItem value="1-month">📅 Within 1 month</SelectItem>
+                            <SelectItem value="1-3-months">🗓️ 1-3 months</SelectItem>
+                            <SelectItem value="3-6-months">📆 3-6 months</SelectItem>
+                            <SelectItem value="6-12-months">📊 6-12 months</SelectItem>
+                            <SelectItem value="Not sure">❓ Not sure yet</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div>
-                        <Label htmlFor="campaignSource">Campaign Source</Label>
-                        <Input
-                          id="campaignSource"
-                          value={formData.campaignSource || ""}
-                          onChange={(e) => setFormData(prev => ({ ...prev, campaignSource: e.target.value }))}
-                          placeholder="e.g., Summer Promo 2026"
-                          className="mt-1.5 border-gray-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all"
-                        />
-                      </div>
+                    <div className="grid grid-cols-1 gap-3 sm:gap-4">
                       <div>
                         <Label htmlFor="referredBy">Referred By</Label>
                         <Input
@@ -2813,41 +3057,6 @@ export default function LeadsModule() {
                   </CardContent>
                 </Card>
 
-                {/* Tags & Categories Section */}
-                <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50/50 to-white shadow-lg">
-                  <CardHeader className="pb-4 bg-gradient-to-r from-green-100/50 to-emerald-100/50">
-                    <CardTitle className="text-base flex items-center gap-3 text-green-900">
-                      <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-md">
-                        <TagIcon className="w-5 h-5 text-white" />
-                      </div>
-                      <span className="font-bold">Tags & Categories</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Label>Add Tags (press Enter or comma to add)</Label>
-                    <div className="mt-1.5 flex items-center gap-2 flex-wrap border-2 border-gray-300 rounded-lg px-3 py-2.5 bg-white min-h-[50px] focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-200 transition-all">
-                      {tags.map((tag, idx) => (
-                        <Badge key={idx} className="gap-1.5 bg-green-100 text-green-700 hover:bg-green-200">
-                          <TagIcon className="w-3 h-3" />
-                          {tag}
-                          <X className="w-3 h-3 cursor-pointer hover:text-green-900" onClick={() => removeTag(idx)} />
-                        </Badge>
-                      ))}
-                      <input
-                        value={tagsInput}
-                        onChange={(e) => setTagsInput(e.target.value)}
-                        onKeyDown={handleTagKeyDown}
-                        onBlur={() => { if (tagsInput.trim()) addTag(tagsInput); }}
-                        placeholder={tags.length === 0 ? "e.g., Enterprise, SaaS, High Value" : "Add another tag..."}
-                        className="flex-1 min-w-[180px] bg-transparent outline-none text-sm"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      ðŸ’¡ Tip: Use tags like "Enterprise", "Hot Lead", "Follow Up", etc. for better organization
-                    </p>
-                  </CardContent>
-                </Card>
-
                 {/* Address Section */}
                 <Card className="border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white shadow-lg">
                   <CardHeader className="pb-4 bg-gradient-to-r from-indigo-100/50 to-blue-100/50">
@@ -2899,12 +3108,12 @@ export default function LeadsModule() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="USA">ðŸ‡ºðŸ‡¸ United States</SelectItem>
-                            <SelectItem value="Canada">ðŸ‡¨ðŸ‡¦ Canada</SelectItem>
-                            <SelectItem value="UK">ðŸ‡¬ðŸ‡§ United Kingdom</SelectItem>
-                            <SelectItem value="India">ðŸ‡®ðŸ‡³ India</SelectItem>
-                            <SelectItem value="Australia">ðŸ‡¦ðŸ‡º Australia</SelectItem>
-                            <SelectItem value="Germany">ðŸ‡©ðŸ‡ª Germany</SelectItem>
+                            <SelectItem value="USA">🇺🇸 United States</SelectItem>
+                            <SelectItem value="Canada">🇨🇦 Canada</SelectItem>
+                            <SelectItem value="UK">🇬🇧 United Kingdom</SelectItem>
+                            <SelectItem value="India">🇮🇳 India</SelectItem>
+                            <SelectItem value="Australia">🇦🇺 Australia</SelectItem>
+                            <SelectItem value="Germany">🇩🇪 Germany</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2966,7 +3175,7 @@ export default function LeadsModule() {
                   ) : (
                     <>
                       <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                      <span className="text-green-700 font-bold text-xs sm:text-sm">âœ“ Ready to {formData.id ? 'update' : 'create'} lead</span>
+                      <span className="text-green-700 font-bold text-xs sm:text-sm">✓ Ready to {formData.id ? 'update' : 'create'} lead</span>
                     </>
                   )}
                 </div>
@@ -2988,7 +3197,7 @@ export default function LeadsModule() {
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
-                      console.log("ðŸ–±ï¸ Save & Add Another clicked!", e);
+                      console.log("🖱️ Save & Add Another clicked!", e);
                       saveAndAddAnother();
                     }}
                     disabled={!formData.name || !formData.source || isSaving}
@@ -3011,7 +3220,7 @@ export default function LeadsModule() {
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
-                      console.log("ðŸ–±ï¸ Create Lead Button clicked!", e);
+                      console.log("🖱️ Create Lead Button clicked!", e);
                       console.log("Form data at click:", formData);
                       saveNewLead();
                     }}
@@ -3115,6 +3324,13 @@ function LeadDetailModal({
   const [reminderNotifyBefore, setReminderNotifyBefore] = useState(15);
   const [reminderRecurrence, setReminderRecurrence] = useState<"once" | "daily" | "weekly" | "monthly">("once");
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+  const [meetingType, setMeetingType] = useState<"regular" | "google" | "zoom">("regular");
+  const [meetingTitle, setMeetingTitle] = useState("");
+  const [meetingDate, setMeetingDate] = useState("");
+  const [meetingTime, setMeetingTime] = useState("");
+  const [meetingLocation, setMeetingLocation] = useState("");
+  const [meetingLink, setMeetingLink] = useState("");
+  const [meetingAgenda, setMeetingAgenda] = useState("");
   
   // Dialog states for cancellation and rescheduling
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -3162,6 +3378,15 @@ function LeadDetailModal({
   const [callDate, setCallDate] = useState(new Date().toISOString().split('T')[0]);
   const [callNotes, setCallNotes] = useState("");
   const [nextSteps, setNextSteps] = useState("");
+  const [shareFolder, setShareFolder] = useState("General");
+  const [customShareFolder, setCustomShareFolder] = useState("");
+  const [shareDepartment, setShareDepartment] = useState("Sales");
+  const [customShareDepartment, setCustomShareDepartment] = useState("");
+  const [shareRecipient, setShareRecipient] = useState("");
+  const [shareNote, setShareNote] = useState("");
+  const [sharingMode, setSharingMode] = useState<"private" | "public-link">("private");
+  const [selectedShareFile, setSelectedShareFile] = useState<{ name: string; size: number; type: string } | null>(null);
+  const shareFileInputRef = useRef<HTMLInputElement | null>(null);
   const [proposalForm, setProposalForm] = useState({
     title: "",
     lineItems: [] as ProposalLineItem[],
@@ -3175,6 +3400,7 @@ function LeadDetailModal({
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
   const [showProposalForm, setShowProposalForm] = useState(false);
   const [viewingProposal, setViewingProposal] = useState<Proposal | null>(null);
+  const meetingActivities = (lead.activities || []).filter((activity) => activity.type === "meeting");
   
   // Handler functions
   const handleUpdateStatus = () => {
@@ -3193,7 +3419,7 @@ function LeadDetailModal({
       }));
     }
     toast({
-      title: "âœ… Status Updated",
+      title: "✅ Status Updated",
       description: `Lead status changed to ${currentStatus}`,
       duration: 3000,
     });
@@ -3207,7 +3433,7 @@ function LeadDetailModal({
       }));
     }
     toast({
-      title: "âœ… Lead Assigned",
+      title: "✅ Lead Assigned",
       description: `Lead assigned to ${currentAssignee}`,
       duration: 3000,
     });
@@ -3217,7 +3443,7 @@ function LeadDetailModal({
   const handleAddNewAssignee = () => {
     if (!newAssigneeName.trim()) {
       toast({
-        title: "âš ï¸ Name Required",
+        title: "⚠️ Name Required",
         description: "Please enter a name for the new assignee",
         duration: 3000,
       });
@@ -3226,7 +3452,7 @@ function LeadDetailModal({
     
     if (teamMembers.includes(newAssigneeName.trim())) {
       toast({
-        title: "âš ï¸ Already Exists",
+        title: "⚠️ Already Exists",
         description: "This assignee name already exists",
         duration: 3000,
       });
@@ -3236,7 +3462,7 @@ function LeadDetailModal({
     setTeamMembers([...teamMembers, newAssigneeName.trim()]);
     setCurrentAssignee(newAssigneeName.trim());
     toast({
-      title: "âœ… Assignee Added",
+      title: "✅ Assignee Added",
       description: `${newAssigneeName.trim()} has been added to the team`,
       duration: 3000,
     });
@@ -3247,7 +3473,7 @@ function LeadDetailModal({
   const handleAddCustomStatus = () => {
     if (!customStatusText.trim()) {
       toast({
-        title: "âš ï¸ Status Required",
+        title: "⚠️ Status Required",
         description: "Please enter a custom status name",
         duration: 3000,
       });
@@ -3256,7 +3482,7 @@ function LeadDetailModal({
     
     if (customStatuses.includes(customStatusText.trim())) {
       toast({
-        title: "âš ï¸ Already Exists",
+        title: "⚠️ Already Exists",
         description: "This custom status already exists",
         duration: 3000,
       });
@@ -3267,7 +3493,7 @@ function LeadDetailModal({
     setCustomStatuses([...customStatuses, newStatus]);
     setCurrentStatus(newStatus);
     toast({
-      title: "âœ… Custom Status Added",
+      title: "✅ Custom Status Added",
       description: `"${newStatus}" has been added to your statuses`,
       duration: 3000,
     });
@@ -3290,13 +3516,212 @@ function LeadDetailModal({
       }));
     }
     toast({
-      title: "âœ… Call Log Saved",
+      title: "✅ Call Log Saved",
       description: `Call status updated to ${currentCallStatus.replace('_', ' ')}`,
       duration: 3000,
     });
     setCallNotes("");
     setNextSteps("");
     setCallDuration("");
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handlePickShareFile = () => {
+    shareFileInputRef.current?.click();
+  };
+
+  const handleShareFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setSelectedShareFile({
+      name: file.name,
+      size: file.size,
+      type: file.type || "application/octet-stream",
+    });
+  };
+
+  const handleShareDocument = () => {
+    if (!selectedShareFile) {
+      toast({
+        title: "File required",
+        description: "Please choose a document to share.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    const folderName = shareFolder === "custom" ? customShareFolder.trim() : shareFolder;
+    const departmentName = shareDepartment === "custom" ? customShareDepartment.trim() : shareDepartment;
+
+    if (!folderName) {
+      toast({
+        title: "Folder required",
+        description: "Please enter a custom folder name.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (!departmentName) {
+      toast({
+        title: "Department required",
+        description: "Please enter a custom department name.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (sharingMode === "private" && !shareRecipient.trim()) {
+      toast({
+        title: "Recipient required",
+        description: "Please enter an email to share privately.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (onUpdateLead) {
+      onUpdateLead(lead.id, (prevLead) => ({
+        attachments: [
+          {
+            id: `att-${Date.now()}`,
+            name: selectedShareFile.name,
+            size: formatFileSize(selectedShareFile.size),
+            type: selectedShareFile.type,
+            addedDate: new Date().toLocaleDateString(),
+          },
+          ...(prevLead.attachments || []),
+        ],
+        activities: [
+          {
+            id: `act-share-${Date.now()}`,
+            type: "note",
+            title: "Document shared",
+            description: `${selectedShareFile.name} shared in ${folderName} (${departmentName}) via ${sharingMode === "private" ? `private share to ${shareRecipient.trim()}` : "public link"}${shareNote.trim() ? `. Note: ${shareNote.trim()}` : ""}.`,
+            timestamp: "Just now",
+            user: "Current User",
+          },
+          ...(prevLead.activities || []),
+        ],
+      }));
+    }
+
+    toast({
+      title: "Document shared",
+      description: `${selectedShareFile.name} shared successfully.`,
+      duration: 3000,
+    });
+
+    setSelectedShareFile(null);
+    setShareRecipient("");
+    setShareNote("");
+  };
+
+  const handleScheduleMeeting = () => {
+    if (!meetingTitle.trim() || !meetingDate || !meetingTime) {
+      toast({
+        title: "⚠️ Missing Meeting Details",
+        description: "Please enter meeting title, date, and time.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (meetingType === "regular" && !meetingLocation.trim()) {
+      toast({
+        title: "⚠️ Location Required",
+        description: "Please enter a meeting location for a regular meeting.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    const meetingDateTime = new Date(`${meetingDate}T${meetingTime}`);
+    if (meetingDateTime < new Date()) {
+      toast({
+        title: "⚠️ Invalid Date/Time",
+        description: "Meeting date and time cannot be in the past.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    const generatedLink = meetingType === "google"
+      ? (meetingLink.trim() || "https://meet.google.com/new")
+      : meetingType === "zoom"
+        ? (meetingLink.trim() || "https://zoom.us/start/videomeeting")
+        : "";
+
+    const meetingTypeLabel = meetingType === "google"
+      ? "Google Meet"
+      : meetingType === "zoom"
+        ? "Zoom Meeting"
+        : "Meeting";
+
+    const details: string[] = [
+      `${meetingTypeLabel} scheduled for ${new Date(meetingDate).toLocaleDateString()} at ${meetingTime}.`,
+    ];
+
+    if (meetingType === "regular" && meetingLocation.trim()) {
+      details.push(`Location: ${meetingLocation.trim()}.`);
+    }
+
+    if (generatedLink) {
+      details.push(`Link: ${generatedLink}`);
+    }
+
+    if (meetingAgenda.trim()) {
+      details.push(`Agenda: ${meetingAgenda.trim()}`);
+    }
+
+    const activity: Activity = {
+      id: `meet-${Date.now()}`,
+      type: "meeting",
+      title: meetingTitle.trim(),
+      description: details.join(" "),
+      timestamp: "Just now",
+      user: "Current User",
+    };
+
+    if (onUpdateLead) {
+      onUpdateLead(lead.id, (prevLead) => ({
+        lastContact: "Just now",
+        activities: [activity, ...(prevLead.activities || [])],
+      }));
+    }
+
+    if (generatedLink) {
+      window.open(generatedLink, "_blank", "noopener,noreferrer");
+    }
+
+    toast({
+      title: "✅ Meeting Scheduled",
+      description: `${meetingTypeLabel} created successfully for ${new Date(meetingDate).toLocaleDateString()} at ${meetingTime}.`,
+      duration: 3500,
+    });
+
+    setMeetingType("regular");
+    setMeetingTitle("");
+    setMeetingDate("");
+    setMeetingTime("");
+    setMeetingLocation("");
+    setMeetingLink("");
+    setMeetingAgenda("");
   };
 
   // Activity Management
@@ -3327,7 +3752,7 @@ function LeadDetailModal({
     }
 
     toast({
-      title: "âœ… Activity Added",
+      title: "✅ Activity Added",
       description: `${newActivity.title} has been logged`,
       duration: 3000,
     });
@@ -3419,7 +3844,7 @@ function LeadDetailModal({
       }
 
       toast({
-        title: "ðŸ”„ Reminder Auto-Rescheduled",
+        title: "🔄 Reminder Auto-Rescheduled",
         description: `Cancelled and automatically rescheduled to ${new Date(nextDate).toLocaleDateString()} at ${selectedReminderForAction.time}`,
         duration: 4000,
       });
@@ -3432,7 +3857,7 @@ function LeadDetailModal({
       }
 
       toast({
-        title: "ðŸš« Reminder Cancelled",
+        title: "🚫 Reminder Cancelled",
         description: "Reminder has been cancelled. You can reschedule it if needed.",
         duration: 3000,
       });
@@ -3453,7 +3878,7 @@ function LeadDetailModal({
   const confirmReschedule = () => {
     if (!selectedReminderForAction || !rescheduleDate || !rescheduleTime) {
       toast({
-        title: "âš ï¸ Missing Information",
+        title: "⚠️ Missing Information",
         description: "Please select new date and time.",
         variant: "destructive",
       });
@@ -3464,7 +3889,7 @@ function LeadDetailModal({
     const newDateTime = new Date(`${rescheduleDate}T${rescheduleTime}`);
     if (newDateTime < new Date()) {
       toast({
-        title: "âš ï¸ Invalid Date/Time",
+        title: "⚠️ Invalid Date/Time",
         description: "Rescheduled date and time cannot be in the past.",
         variant: "destructive",
       });
@@ -3488,7 +3913,7 @@ function LeadDetailModal({
     }
 
     toast({
-      title: "ðŸ”„ Reminder Rescheduled",
+      title: "🔄 Reminder Rescheduled",
       description: `Reminder rescheduled to ${new Date(`${rescheduleDate}T${rescheduleTime}`).toLocaleString()}`,
     });
 
@@ -3501,7 +3926,7 @@ function LeadDetailModal({
   const handleAddLineItem = () => {
     if (!newLineItem.description || newLineItem.quantity <= 0 || newLineItem.unitPrice <= 0) {
       toast({
-        title: "âŒ Invalid Line Item",
+        title: "❌ Invalid Line Item",
         description: "Please fill in all fields with valid values",
         duration: 3000,
       });
@@ -3534,7 +3959,7 @@ function LeadDetailModal({
   const handleSaveProposal = () => {
     if (!proposalForm.title || proposalForm.lineItems.length === 0) {
       toast({
-        title: "âŒ Invalid Proposal",
+        title: "❌ Invalid Proposal",
         description: "Please add a title and at least one line item",
         duration: 3000,
       });
@@ -3575,7 +4000,7 @@ function LeadDetailModal({
     }
 
     toast({
-      title: "âœ… Proposal Saved",
+      title: "✅ Proposal Saved",
       description: editingProposal ? "Proposal updated successfully" : "New proposal created",
       duration: 3000,
     });
@@ -3618,7 +4043,7 @@ function LeadDetailModal({
       }));
     }
     toast({
-      title: "âœ… Proposal Sent",
+      title: "✅ Proposal Sent",
       description: "Proposal has been sent to the lead",
       duration: 3000,
     });
@@ -3629,7 +4054,7 @@ function LeadDetailModal({
     setViewingProposal(proposal);
     onTabChange('proposals');
     toast({
-      title: "ðŸ“„ Viewing Proposal",
+      title: "📄 Viewing Proposal",
       description: `Opened ${proposal.title}`,
       duration: 2000,
     });
@@ -3680,7 +4105,7 @@ Generated: ${new Date().toLocaleString()}
     URL.revokeObjectURL(url);
 
     toast({
-      title: "â¬‡ï¸ Download Started",
+      title: "⬇️ Download Started",
       description: `Downloading ${proposal.title}`,
       duration: 3000,
     });
@@ -3689,7 +4114,7 @@ Generated: ${new Date().toLocaleString()}
   const handleAddNote = () => {
     if (!noteContent.trim()) {
       toast({
-        title: "âŒ Empty Note",
+        title: "❌ Empty Note",
         description: "Please enter some content for the note",
         duration: 3000,
       });
@@ -3717,7 +4142,7 @@ Generated: ${new Date().toLocaleString()}
     }
 
     toast({
-      title: "âœ… Note Added",
+      title: "✅ Note Added",
       description: "Note saved successfully",
       duration: 3000,
     });
@@ -3796,9 +4221,9 @@ Generated: ${new Date().toLocaleString()}
                         lead.priority === 'medium' ? 'border-yellow-500 text-yellow-700' :
                         'border-gray-500 text-gray-700'
                       }`}>
-                        {lead.priority === 'high' && 'ðŸ”´'}
-                        {lead.priority === 'medium' && 'ðŸŸ¡'}
-                        {lead.priority === 'low' && 'âšª'}
+                        {lead.priority === 'high' && '🔴'}
+                        {lead.priority === 'medium' && '🟡'}
+                        {lead.priority === 'low' && '⚪'}
                         {' '}{lead.priority}
                       </Badge>
                     )}
@@ -3864,15 +4289,15 @@ Generated: ${new Date().toLocaleString()}
                       </div>
                       <Progress value={lead.leadScore} className="h-2.5" />
                       <p className="text-xs text-center mt-2 text-gray-500">
-                        {lead.leadScore >= 80 ? 'ðŸŽ¯ Excellent' :
-                         lead.leadScore >= 60 ? 'âœ… Good' :
-                         lead.leadScore >= 40 ? 'âš ï¸ Fair' : 'ðŸ“‰ Needs attention'}
+                        {lead.leadScore >= 80 ? '🎯 Excellent' :
+                         lead.leadScore >= 60 ? '✅ Good' :
+                         lead.leadScore >= 40 ? '⚠️ Fair' : '📉 Needs attention'}
                       </p>
                     </div>
                   )}
 
                   {/* Contact Buttons */}
-                  <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -3899,15 +4324,6 @@ Generated: ${new Date().toLocaleString()}
                     >
                       <MessageCircle className="w-4 h-4 mr-2" />
                       WhatsApp
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full hover:bg-orange-50 hover:border-orange-500 hover:text-orange-700 transition-all"
-                      onClick={(e) => { e.stopPropagation(); }}
-                    >
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Schedule
                     </Button>
                   </div>
                 </div>
@@ -4075,22 +4491,6 @@ Generated: ${new Date().toLocaleString()}
                     )}
                   </div>
 
-                  {/* Tags */}
-                  {lead.tags && lead.tags.length > 0 && (
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase tracking-wide mb-2 font-semibold flex items-center gap-1">
-                        <TagIcon className="w-3 h-3" /> Tags
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {lead.tags.map(tag => (
-                          <Badge key={tag} variant="secondary" className="text-xs font-medium">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Address */}
                   {(lead.address || lead.city) && (
                     <div className="bg-white rounded-lg p-3 border border-gray-200">
@@ -4113,7 +4513,7 @@ Generated: ${new Date().toLocaleString()}
           <div className="flex flex-col overflow-hidden h-full max-h-[95vh]">
             <div className="border-b border-gray-200 px-4 sm:px-6 pt-4 sm:pt-6 bg-white sticky top-0 z-10">
               <Tabs value={activeTab} onValueChange={onTabChange}>
-                <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 h-auto bg-gray-100 gap-1">
+                <TabsList className="grid w-full grid-cols-4 lg:grid-cols-10 h-auto bg-gray-100 gap-1">
                   <TabsTrigger value="overview" className="text-xs py-2 data-[state=active]:bg-white">
                     <Eye className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
                     <span className="hidden sm:inline">Overview</span>
@@ -4122,9 +4522,17 @@ Generated: ${new Date().toLocaleString()}
                     <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
                     <span className="hidden sm:inline">Notes</span>
                   </TabsTrigger>
+                  <TabsTrigger value="files" className="text-xs py-2 data-[state=active]:bg-white">
+                    <Paperclip className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Files</span>
+                  </TabsTrigger>
                   <TabsTrigger value="reminders" className="text-xs py-2 data-[state=active]:bg-white">
                     <Bell className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
                     <span className="hidden sm:inline">Reminder</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="meeting" className="text-xs py-2 data-[state=active]:bg-white">
+                    <Video className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Meeting</span>
                   </TabsTrigger>
                   <TabsTrigger value="lead-status" className="text-xs py-2 data-[state=active]:bg-white">
                     <Flag className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
@@ -4181,7 +4589,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              ðŸ“ Notes
+                              📝 Notes
                               {lead.notes && lead.notes.length > 0 && (
                                 <Badge className="bg-slate-600 text-white text-xs px-2 py-0.5">
                                   {lead.notes.length}
@@ -4212,7 +4620,7 @@ Generated: ${new Date().toLocaleString()}
                                   </AvatarFallback>
                                 </Avatar>
                                 <span className="font-semibold text-gray-700">{note.createdBy}</span>
-                                <span className="text-gray-400">â€¢</span>
+                                <span className="text-gray-400">•</span>
                                 <Clock className="w-3 h-3 text-gray-500" />
                                 <span className="text-gray-600">{note.createdAt}</span>
                               </div>
@@ -4241,7 +4649,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              ðŸ”” Follow Up Reminder
+                              🔔 Follow Up Reminder
                               {lead.reminders && lead.reminders.length > 0 && (
                                 <Badge className="bg-orange-600 text-white text-xs px-2 py-0.5">
                                   {lead.reminders.length}
@@ -4274,7 +4682,7 @@ Generated: ${new Date().toLocaleString()}
                                     reminder.priority === 'medium' ? 'bg-yellow-500 text-white' :
                                     'bg-gray-500 text-white'
                                   }`}>
-                                    {reminder.priority === 'high' ? 'ðŸ”¥' : reminder.priority === 'medium' ? 'âš¡' : 'ðŸ“Œ'} {reminder.priority.toUpperCase()}
+                                    {reminder.priority === 'high' ? '🔥' : reminder.priority === 'medium' ? '⚡' : '📌'} {reminder.priority.toUpperCase()}
                                   </Badge>
                                 )}
                               </div>
@@ -4313,7 +4721,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              ðŸ“¨ Communication Actions
+                              📨 Communication Actions
                             </div>
                             <p className="text-xs text-gray-600 font-normal mt-0.5">Quick communication options</p>
                           </div>
@@ -4375,7 +4783,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              ðŸ Lead Status
+                              🏁 Lead Status
                             </div>
                             <p className="text-xs text-gray-600 font-normal mt-0.5">Current status and pipeline stage</p>
                           </div>
@@ -4405,12 +4813,12 @@ Generated: ${new Date().toLocaleString()}
                               lead.status === 'won' ? 'bg-green-500 text-white' :
                               'bg-red-500 text-white'
                             }`}>
-                              {lead.status === 'new' ? 'ðŸ†•' :
-                               lead.status === 'contacted' ? 'ðŸ“ž' :
-                               lead.status === 'qualified' ? 'âœ…' :
-                               lead.status === 'proposal' ? 'ðŸ“„' :
-                               lead.status === 'negotiation' ? 'ðŸ’¬' :
-                               lead.status === 'won' ? 'ðŸŽ‰' : 'âŒ'} {lead.status.toUpperCase()}
+                              {lead.status === 'new' ? '🆕' :
+                               lead.status === 'contacted' ? '📞' :
+                               lead.status === 'qualified' ? '✅' :
+                               lead.status === 'proposal' ? '📄' :
+                               lead.status === 'negotiation' ? '💬' :
+                               lead.status === 'won' ? '🎉' : '❌'} {lead.status.toUpperCase()}
                             </Badge>
                           </div>
                           <div className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
@@ -4423,7 +4831,7 @@ Generated: ${new Date().toLocaleString()}
                               lead.priority === 'medium' ? 'bg-yellow-500 text-white' :
                               'bg-gray-500 text-white'
                             }`}>
-                              {lead.priority === 'high' ? 'ðŸ”¥' : lead.priority === 'medium' ? 'âš¡' : 'ðŸ“Œ'} {lead.priority.toUpperCase()}
+                              {lead.priority === 'high' ? '🔥' : lead.priority === 'medium' ? '⚡' : '📌'} {lead.priority.toUpperCase()}
                             </Badge>
                           </div>
                         </div>
@@ -4441,7 +4849,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              ðŸ‘¤ Assign Lead
+                              👤 Assign Lead
                             </div>
                             <p className="text-xs text-gray-600 font-normal mt-0.5">Manage lead ownership</p>
                           </div>
@@ -4466,7 +4874,7 @@ Generated: ${new Date().toLocaleString()}
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold text-gray-700">Assigned To:</span>
                               <Badge className="bg-indigo-500 text-white font-semibold shadow-sm">
-                                ðŸ‘¤ {lead.assignedTo || 'Unassigned'}
+                                👤 {lead.assignedTo || 'Unassigned'}
                               </Badge>
                             </div>
                             <p className="text-xs text-gray-600 mt-1">Team member responsible for this lead</p>
@@ -4486,7 +4894,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              ðŸ“ž Call Status
+                              📞 Call Status
                             </div>
                             <p className="text-xs text-gray-600 font-normal mt-0.5">Track call activities</p>
                           </div>
@@ -4514,10 +4922,10 @@ Generated: ${new Date().toLocaleString()}
                               lead.callStatus === 'interested' ? 'bg-blue-500 text-white' :
                               'bg-red-500 text-white'
                             }`}>
-                              {lead.callStatus === 'called' ? 'âœ…' :
-                               lead.callStatus === 'not_called' ? 'â“' :
-                               lead.callStatus === 'no_answer' ? 'âš ï¸' :
-                               lead.callStatus === 'interested' ? 'ðŸ”µ' : 'ðŸ”´'} {lead.callStatus?.replace('_', ' ').toUpperCase() || 'NO CALLS'}
+                              {lead.callStatus === 'called' ? '✅' :
+                               lead.callStatus === 'not_called' ? '❓' :
+                               lead.callStatus === 'no_answer' ? '⚠️' :
+                               lead.callStatus === 'interested' ? '🔵' : '🔴'} {lead.callStatus?.replace('_', ' ').toUpperCase() || 'NO CALLS'}
                             </Badge>
                           </div>
                           <div className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
@@ -4542,7 +4950,7 @@ Generated: ${new Date().toLocaleString()}
                           </div>
                           <div>
                             <div className="font-bold flex items-center gap-2">
-                              ðŸ“„ Proposal
+                              📄 Proposal
                               {lead.proposals && lead.proposals.length > 0 && (
                                 <Badge className="bg-rose-600 text-white text-xs font-bold shadow-sm">
                                   {lead.proposals.length}
@@ -4569,7 +4977,7 @@ Generated: ${new Date().toLocaleString()}
                               <div className="flex items-start justify-between mb-4">
                                 <div className="flex-1">
                                   <h4 className="font-bold text-base text-gray-900 mb-1.5 flex items-center gap-2">
-                                    ðŸ“„ {proposal.title}
+                                    📄 {proposal.title}
                                   </h4>
                                   <div className="flex flex-wrap items-center gap-2">
                                     <span className="text-xs text-gray-600 bg-white px-2 py-1 rounded-md border border-gray-200">
@@ -4592,10 +5000,10 @@ Generated: ${new Date().toLocaleString()}
                                   proposal.status === 'accepted' ? 'bg-green-500 text-white' :
                                   'bg-red-500 text-white'
                                 }`}>
-                                  {proposal.status === 'draft' ? 'ðŸ“' :
-                                   proposal.status === 'sent' ? 'ðŸ“¤' :
-                                   proposal.status === 'viewed' ? 'ðŸ‘ï¸' :
-                                   proposal.status === 'accepted' ? 'âœ…' : 'âŒ'} {proposal.status.toUpperCase()}
+                                  {proposal.status === 'draft' ? '📝' :
+                                   proposal.status === 'sent' ? '📤' :
+                                   proposal.status === 'viewed' ? '👁️' :
+                                   proposal.status === 'accepted' ? '✅' : '❌'} {proposal.status.toUpperCase()}
                                 </Badge>
                               </div>
 
@@ -4614,7 +5022,7 @@ Generated: ${new Date().toLocaleString()}
                                             {index + 1}. {item.description}
                                           </p>
                                           <p className="text-xs text-gray-500 mt-0.5">
-                                            Qty: {item.quantity} Ã— ${item.unitPrice.toLocaleString()}
+                                            Qty: {item.quantity} × ${item.unitPrice.toLocaleString()}
                                           </p>
                                         </div>
                                         <span className="text-xs font-bold text-gray-900 ml-2 whitespace-nowrap">
@@ -4644,7 +5052,7 @@ Generated: ${new Date().toLocaleString()}
                                 <Separator className="my-2" />
                                 <div className="flex items-center justify-between">
                                   <span className="text-base font-bold text-gray-900 flex items-center gap-2">
-                                    ðŸ’° Total Amount:
+                                    💰 Total Amount:
                                   </span>
                                   <span className="text-xl font-bold text-rose-600">
                                     ${proposal.total.toLocaleString()}
@@ -4995,7 +5403,7 @@ Generated: ${new Date().toLocaleString()}
                                     task.priority === 'medium' ? 'border-yellow-500 text-yellow-700 bg-yellow-50' :
                                     'border-gray-500 text-gray-700 bg-gray-50'
                                   }`}>
-                                    {task.priority === 'high' ? 'ðŸ”´ ' : task.priority === 'medium' ? 'ðŸŸ¡ ' : 'âšª '}
+                                    {task.priority === 'high' ? '🔴 ' : task.priority === 'medium' ? '🟡 ' : '⚪ '}
                                     {task.priority}
                                   </Badge>
                                   <span className="text-xs sm:text-sm text-gray-600 flex items-center gap-1">
@@ -5262,7 +5670,7 @@ Generated: ${new Date().toLocaleString()}
                                 </div>
                                 <div className="flex items-center gap-4 text-sm text-gray-600">
                                   <span>Quantity: <strong className="text-gray-900">{item.quantity}</strong></span>
-                                  <span>Ã—</span>
+                                  <span>×</span>
                                   <span>Unit Price: <strong className="text-gray-900">${item.unitPrice.toLocaleString()}</strong></span>
                                   <span>=</span>
                                   <span className="font-bold text-gray-900">${item.total.toLocaleString()}</span>
@@ -5399,7 +5807,7 @@ Generated: ${new Date().toLocaleString()}
                                     {proposal.title}
                                   </CardTitle>
                                   <CardDescription className="text-sm mt-1">
-                                    Version {proposal.version} â€¢ Created by {proposal.createdBy}
+                                    Version {proposal.version} • Created by {proposal.createdBy}
                                   </CardDescription>
                                 </div>
                                 <Badge className={`${
@@ -5568,7 +5976,7 @@ Generated: ${new Date().toLocaleString()}
                                 </AvatarFallback>
                               </Avatar>
                               <span className="font-medium">{note.createdBy}</span>
-                              <span>â€¢</span>
+                              <span>•</span>
                               <span className="flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
                                 {note.createdAt}
@@ -5591,16 +5999,143 @@ Generated: ${new Date().toLocaleString()}
 
                 {/* FILES TAB */}
                 <TabsContent value="files" className="mt-0">
-                  <div className="text-center py-12 sm:py-16 text-gray-400">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center">
-                      <Paperclip className="w-8 h-8 text-orange-600" />
-                    </div>
-                    <p className="text-sm sm:text-base font-medium">No files yet</p>
-                    <p className="text-xs mt-1 mb-4">Upload files related to this lead</p>
-                    <Button className="mt-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white shadow-md">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Upload Files
-                    </Button>
+                  <Card className="border-2 border-orange-200 shadow-md">
+                    <CardHeader className="pb-3 bg-gradient-to-r from-orange-50 to-amber-50">
+                      <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-orange-900">
+                        <Paperclip className="w-5 h-5" />
+                        Share Files
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6 space-y-4">
+                      <input
+                        ref={shareFileInputRef}
+                        type="file"
+                        className="hidden"
+                        onChange={handleShareFileChange}
+                      />
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Choose document</Label>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button type="button" variant="outline" onClick={handlePickShareFile}>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Select File
+                          </Button>
+                          <div className="text-xs text-gray-600 flex items-center">
+                            {selectedShareFile ? `${selectedShareFile.name} (${formatFileSize(selectedShareFile.size)})` : "No file selected"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="share-folder">Folder</Label>
+                          <Select value={shareFolder} onValueChange={setShareFolder}>
+                            <SelectTrigger id="share-folder" className="border-orange-200">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="General">General</SelectItem>
+                              <SelectItem value="Contracts">Contracts</SelectItem>
+                              <SelectItem value="Proposals">Proposals</SelectItem>
+                              <SelectItem value="Invoices">Invoices</SelectItem>
+                              <SelectItem value="custom">Custom</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {shareFolder === "custom" && (
+                            <Input
+                              value={customShareFolder}
+                              onChange={(e) => setCustomShareFolder(e.target.value)}
+                              placeholder="Enter custom folder"
+                            />
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="share-department">Department</Label>
+                          <Select value={shareDepartment} onValueChange={setShareDepartment}>
+                            <SelectTrigger id="share-department" className="border-orange-200">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Sales">Sales</SelectItem>
+                              <SelectItem value="Operations">Operations</SelectItem>
+                              <SelectItem value="Finance">Finance</SelectItem>
+                              <SelectItem value="Management">Management</SelectItem>
+                              <SelectItem value="custom">Custom</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {shareDepartment === "custom" && (
+                            <Input
+                              value={customShareDepartment}
+                              onChange={(e) => setCustomShareDepartment(e.target.value)}
+                              placeholder="Enter custom department"
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="share-recipient">Share with (email)</Label>
+                        <Input
+                          id="share-recipient"
+                          type="email"
+                          value={shareRecipient}
+                          onChange={(e) => setShareRecipient(e.target.value)}
+                          placeholder="name@company.com"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="share-note">Description</Label>
+                        <Textarea
+                          id="share-note"
+                          value={shareNote}
+                          onChange={(e) => setShareNote(e.target.value)}
+                          placeholder="Add notes for this shared file"
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 space-y-2">
+                        <Label htmlFor="sharing-mode">Document Sharing Option</Label>
+                        <Select value={sharingMode} onValueChange={(value: "private" | "public-link") => setSharingMode(value)}>
+                          <SelectTrigger id="sharing-mode" className="bg-white border-orange-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="private">Private (Email Recipient)</SelectItem>
+                            <SelectItem value="public-link">Public Link</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button onClick={handleShareDocument} className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white">
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Share Document
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="mt-4 space-y-2">
+                    <h4 className="text-sm font-semibold text-gray-700">Shared Documents</h4>
+                    {(lead.attachments && lead.attachments.length > 0) ? (
+                      <div className="space-y-2">
+                        {lead.attachments.slice(0, 5).map((attachment) => (
+                          <div key={attachment.id} className="rounded-lg border border-gray-200 bg-white p-3 flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{attachment.name}</p>
+                              <p className="text-xs text-gray-500">{attachment.size} • {attachment.addedDate}</p>
+                            </div>
+                            <Badge variant="outline" className="text-xs">Shared</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">No shared documents yet.</p>
+                    )}
                   </div>
                 </TabsContent>
 
@@ -5612,7 +6147,7 @@ Generated: ${new Date().toLocaleString()}
                     <div className="flex items-center gap-3">
                       <Sparkles className="w-6 h-6" />
                       <div>
-                        <h3 className="font-bold text-lg">âœ¨ Enhanced Follow-up Reminder System</h3>
+                        <h3 className="font-bold text-lg">✨ Enhanced Follow-up Reminder System</h3>
                         <p className="text-sm text-purple-100">Complete reminder management with priority, categories, and smart notifications</p>
                       </div>
                     </div>
@@ -5777,17 +6312,17 @@ Generated: ${new Date().toLocaleString()}
                             </SelectItem>
                             <SelectItem value="daily" className="text-sm">
                               <span className="flex items-center gap-2">
-                                ðŸ”„ Daily (Auto-reschedule every day)
+                                🔄 Daily (Auto-reschedule every day)
                               </span>
                             </SelectItem>
                             <SelectItem value="weekly" className="text-sm">
                               <span className="flex items-center gap-2">
-                                ðŸ”„ Weekly (Auto-reschedule every week)
+                                🔄 Weekly (Auto-reschedule every week)
                               </span>
                             </SelectItem>
                             <SelectItem value="monthly" className="text-sm">
                               <span className="flex items-center gap-2">
-                                ðŸ”„ Monthly (Auto-reschedule every month)
+                                🔄 Monthly (Auto-reschedule every month)
                               </span>
                             </SelectItem>
                           </SelectContent>
@@ -5843,7 +6378,7 @@ Generated: ${new Date().toLocaleString()}
                             // Validation
                             if (!reminderDate || !reminderTime || !reminderMessage.trim()) {
                               toast({
-                                title: "âš ï¸ Missing Information",
+                                title: "⚠️ Missing Information",
                                 description: "Please fill in date, time, and message to set a reminder.",
                                 variant: "destructive",
                                 duration: 3000,
@@ -5855,7 +6390,7 @@ Generated: ${new Date().toLocaleString()}
                             const reminderDateTime = new Date(`${reminderDate}T${reminderTime}`);
                             if (reminderDateTime < new Date()) {
                               toast({
-                                title: "âš ï¸ Invalid Date/Time",
+                                title: "⚠️ Invalid Date/Time",
                                 description: "Reminder date and time cannot be in the past.",
                                 variant: "destructive",
                                 duration: 3000,
@@ -5885,7 +6420,7 @@ Generated: ${new Date().toLocaleString()}
                               }
 
                               toast({
-                                title: "âœ… Reminder Updated",
+                                title: "✅ Reminder Updated",
                                 description: `Reminder updated successfully`,
                                 duration: 3000,
                               });
@@ -5925,7 +6460,7 @@ Generated: ${new Date().toLocaleString()}
 
                               // Success toast
                               toast({
-                                title: "âœ… Reminder Set",
+                                title: "✅ Reminder Set",
                                 description: `Follow-up reminder scheduled for ${new Date(reminderDate).toLocaleDateString()} at ${reminderTime}`,
                                 duration: 3000,
                               });
@@ -6098,7 +6633,7 @@ Generated: ${new Date().toLocaleString()}
                                         <strong>Reason:</strong> {reminder.cancellationReason}
                                         {reminder.rescheduledTo && (
                                           <span className="block mt-1 text-blue-600">
-                                            â†’ Rescheduled automatically
+                                            → Rescheduled automatically
                                           </span>
                                         )}
                                       </div>
@@ -6138,7 +6673,7 @@ Generated: ${new Date().toLocaleString()}
                                       </span>
                                       {reminder.createdAt && (
                                         <>
-                                          <span>â€¢</span>
+                                          <span>•</span>
                                           <span className="text-gray-400">{reminder.createdAt}</span>
                                         </>
                                       )}
@@ -6249,7 +6784,7 @@ Generated: ${new Date().toLocaleString()}
                                                   }
                                                   
                                                   toast({
-                                                    title: "â° Reminder Snoozed",
+                                                    title: "⏰ Reminder Snoozed",
                                                     description: "Reminder postponed until tomorrow",
                                                     duration: 2000,
                                                   });
@@ -6302,7 +6837,7 @@ Generated: ${new Date().toLocaleString()}
                                                   }));
                                                 }
                                                 toast({
-                                                  title: "ðŸ—‘ï¸ Reminder Deleted",
+                                                  title: "🗑️ Reminder Deleted",
                                                   description: "The reminder has been removed.",
                                                   duration: 2000,
                                                 });
@@ -6533,7 +7068,7 @@ Generated: ${new Date().toLocaleString()}
                             <div className="flex flex-wrap gap-2">
                               {customStatuses.map((status) => (
                                 <Badge key={status} variant="outline" className="text-xs">
-                                  ðŸ·ï¸ {status}
+                                  🏷️ {status}
                                 </Badge>
                               ))}
                             </div>
@@ -6563,6 +7098,151 @@ Generated: ${new Date().toLocaleString()}
                   </Dialog>
                 </TabsContent>
 
+                {/* MEETING TAB */}
+                <TabsContent value="meeting" className="mt-0 space-y-4 sm:space-y-6">
+                  <Card className="border-2 border-sky-200 shadow-md">
+                    <CardHeader className="pb-3 bg-gradient-to-r from-sky-50 to-blue-50">
+                      <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-sky-900">
+                        <Video className="w-5 h-5" />
+                        Schedule Meeting
+                      </CardTitle>
+                      <CardDescription className="text-sm">
+                        Create regular, Google Meet, or Zoom meetings for {lead.name}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6 space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="meeting-title" className="text-sm font-medium">Meeting Title <span className="text-red-500">*</span></Label>
+                          <Input
+                            id="meeting-title"
+                            value={meetingTitle}
+                            onChange={(e) => setMeetingTitle(e.target.value)}
+                            placeholder="e.g., Product Demo Discussion"
+                            className="border-sky-200 focus:border-sky-400 focus:ring-sky-400"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="meeting-type" className="text-sm font-medium">Meeting Type</Label>
+                          <Select value={meetingType} onValueChange={(value: "regular" | "google" | "zoom") => setMeetingType(value)}>
+                            <SelectTrigger id="meeting-type" className="border-sky-200 focus:border-sky-400 focus:ring-sky-400">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="regular">🤝 Regular Meeting</SelectItem>
+                              <SelectItem value="google">🌐 Google Meet</SelectItem>
+                              <SelectItem value="zoom">🎥 Zoom Meeting</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="meeting-date" className="text-sm font-medium">Date <span className="text-red-500">*</span></Label>
+                          <Input
+                            id="meeting-date"
+                            type="date"
+                            min={new Date().toISOString().split('T')[0]}
+                            value={meetingDate}
+                            onChange={(e) => setMeetingDate(e.target.value)}
+                            className="border-sky-200 focus:border-sky-400 focus:ring-sky-400"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="meeting-time" className="text-sm font-medium">Time <span className="text-red-500">*</span></Label>
+                          <Input
+                            id="meeting-time"
+                            type="time"
+                            value={meetingTime}
+                            onChange={(e) => setMeetingTime(e.target.value)}
+                            className="border-sky-200 focus:border-sky-400 focus:ring-sky-400"
+                          />
+                        </div>
+                      </div>
+
+                      {meetingType === "regular" ? (
+                        <div className="space-y-2">
+                          <Label htmlFor="meeting-location" className="text-sm font-medium">Location <span className="text-red-500">*</span></Label>
+                          <Input
+                            id="meeting-location"
+                            value={meetingLocation}
+                            onChange={(e) => setMeetingLocation(e.target.value)}
+                            placeholder="e.g., Conference Room A / Client Office"
+                            className="border-sky-200 focus:border-sky-400 focus:ring-sky-400"
+                          />
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Label htmlFor="meeting-link" className="text-sm font-medium">
+                            {meetingType === "google" ? "Google Meet Link" : "Zoom Link"} (Optional)
+                          </Label>
+                          <Input
+                            id="meeting-link"
+                            value={meetingLink}
+                            onChange={(e) => setMeetingLink(e.target.value)}
+                            placeholder={meetingType === "google" ? "https://meet.google.com/..." : "https://zoom.us/j/..."}
+                            className="border-sky-200 focus:border-sky-400 focus:ring-sky-400"
+                          />
+                          <p className="text-xs text-gray-500">
+                            {meetingType === "google"
+                              ? "If empty, a new Google Meet room will open automatically."
+                              : "If empty, Zoom start page will open automatically."}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <Label htmlFor="meeting-agenda" className="text-sm font-medium">Agenda</Label>
+                        <Textarea
+                          id="meeting-agenda"
+                          value={meetingAgenda}
+                          onChange={(e) => setMeetingAgenda(e.target.value)}
+                          placeholder="What should be discussed in this meeting?"
+                          rows={3}
+                          className="resize-none border-sky-200 focus:border-sky-400 focus:ring-sky-400"
+                        />
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={handleScheduleMeeting}
+                          className="bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white"
+                        >
+                          <CalendarClock className="w-4 h-4 mr-2" />
+                          Schedule Meeting
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border border-sky-200 shadow-sm">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base text-sky-900 flex items-center gap-2">
+                        <History className="w-4 h-4" />
+                        Recent Meetings ({meetingActivities.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {meetingActivities.length > 0 ? (
+                        <div className="space-y-3">
+                          {meetingActivities.slice(0, 5).map((meeting) => (
+                            <div key={meeting.id} className="p-3 rounded-lg border border-sky-100 bg-sky-50/40">
+                              <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <p className="font-semibold text-sm text-gray-900">{meeting.title}</p>
+                                <span className="text-xs text-gray-500">{meeting.timestamp}</span>
+                              </div>
+                              <p className="text-xs text-gray-700 leading-relaxed">{meeting.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">No meetings scheduled yet.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
                 {/* LEAD STATUS TAB */}
                 <TabsContent value="lead-status" className="mt-0 space-y-4 sm:space-y-6">
                   <Card className="border-2 border-teal-200 shadow-md">
@@ -6588,25 +7268,25 @@ Generated: ${new Date().toLocaleString()}
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="new">ðŸ†• New</SelectItem>
-                              <SelectItem value="contacted">ðŸ“ž Contacted</SelectItem>
-                              <SelectItem value="qualified">âœ… Qualified</SelectItem>
-                              <SelectItem value="proposal">ðŸ“„ Proposal Sent</SelectItem>
-                              <SelectItem value="negotiation">ðŸ’¬ Negotiation</SelectItem>
-                              <SelectItem value="won">ðŸŽ‰ Won</SelectItem>
-                              <SelectItem value="lost">âŒ Lost</SelectItem>
+                              <SelectItem value="new">🆕 New</SelectItem>
+                              <SelectItem value="contacted">📞 Contacted</SelectItem>
+                              <SelectItem value="qualified">✅ Qualified</SelectItem>
+                              <SelectItem value="proposal">📄 Proposal Sent</SelectItem>
+                              <SelectItem value="negotiation">💬 Negotiation</SelectItem>
+                              <SelectItem value="won">🎉 Won</SelectItem>
+                              <SelectItem value="lost">❌ Lost</SelectItem>
                               {customStatuses.length > 0 && (
                                 <>
                                   <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 border-t mt-1 pt-2">Custom Statuses</div>
                                   {customStatuses.map((status) => (
                                     <SelectItem key={status} value={status}>
-                                      ðŸ·ï¸ {status}
+                                      🏷️ {status}
                                     </SelectItem>
                                   ))}
                                 </>
                               )}
                               <SelectItem value="custom" className="text-teal-600 font-medium">
-                                âœï¸ Custom
+                                ✏️ Custom
                               </SelectItem>
                             </SelectContent>
                           </Select>
@@ -6659,9 +7339,9 @@ Generated: ${new Date().toLocaleString()}
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="high">ðŸ”¥ High Priority</SelectItem>
-                              <SelectItem value="medium">âš¡ Medium Priority</SelectItem>
-                              <SelectItem value="low">ðŸ“Œ Low Priority</SelectItem>
+                              <SelectItem value="high">🔥 High Priority</SelectItem>
+                              <SelectItem value="medium">⚡ Medium Priority</SelectItem>
+                              <SelectItem value="low">📌 Low Priority</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -6784,27 +7464,16 @@ Generated: ${new Date().toLocaleString()}
                           <Users className="w-4 h-4 text-indigo-600" />
                           Reassign To
                         </Label>
-                        <div className="flex gap-2">
-                          <Select value={currentAssignee} onValueChange={setCurrentAssignee}>
-                            <SelectTrigger id="assign-to" className="w-full text-sm border-indigo-200">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {teamMembers.map((member) => (
-                                <SelectItem key={member} value={member}>ðŸ‘¤ {member}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowAddAssigneeDialog(true)}
-                            className="shrink-0 border-indigo-200 hover:bg-indigo-50"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        <Select value={currentAssignee} onValueChange={setCurrentAssignee}>
+                          <SelectTrigger id="assign-to" className="w-full text-sm border-indigo-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teamMembers.map((member) => (
+                              <SelectItem key={member} value={member}>👤 {member}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       {/* Assignment Reason */}
@@ -6908,11 +7577,11 @@ Generated: ${new Date().toLocaleString()}
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="not_called">ðŸ“µ Not Called</SelectItem>
-                            <SelectItem value="called">âœ… Called</SelectItem>
-                            <SelectItem value="no_answer">ðŸ“ž No Answer</SelectItem>
-                            <SelectItem value="interested">ðŸ‘ Interested</SelectItem>
-                            <SelectItem value="not_interested">ðŸ‘Ž Not Interested</SelectItem>
+                            <SelectItem value="not_called">📵 Not Called</SelectItem>
+                            <SelectItem value="called">✅ Called</SelectItem>
+                            <SelectItem value="no_answer">📞 No Answer</SelectItem>
+                            <SelectItem value="interested">👍 Interested</SelectItem>
+                            <SelectItem value="not_interested">👎 Not Interested</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -6927,12 +7596,12 @@ Generated: ${new Date().toLocaleString()}
                             <SelectValue placeholder="Select outcome..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="positive">âœ… Positive - Interested</SelectItem>
-                            <SelectItem value="followup">ðŸ“… Schedule Follow-up</SelectItem>
-                            <SelectItem value="voicemail">ðŸ“§ Left Voicemail</SelectItem>
-                            <SelectItem value="callback">ðŸ”„ Requested Callback</SelectItem>
-                            <SelectItem value="nointerest">âŒ Not Interested</SelectItem>
-                            <SelectItem value="wrongnumber">ðŸ“µ Wrong Number</SelectItem>
+                            <SelectItem value="positive">✅ Positive - Interested</SelectItem>
+                            <SelectItem value="followup">📅 Schedule Follow-up</SelectItem>
+                            <SelectItem value="voicemail">📧 Left Voicemail</SelectItem>
+                            <SelectItem value="callback">🔄 Requested Callback</SelectItem>
+                            <SelectItem value="nointerest">❌ Not Interested</SelectItem>
+                            <SelectItem value="wrongnumber">📵 Wrong Number</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -7042,7 +7711,7 @@ Generated: ${new Date().toLocaleString()}
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            âœ¨ Add New Activity
+            ✨ Add New Activity
           </DialogTitle>
           <DialogDescription>
             Log a new interaction or activity for {lead.name}

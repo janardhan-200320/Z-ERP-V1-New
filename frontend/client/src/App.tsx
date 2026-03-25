@@ -75,6 +75,12 @@ import LeadCommunication from "@/pages/leads/communication";
 import LeadAssign from "@/pages/leads/assign";
 import LeadCallStatus from "@/pages/leads/call-status";
 import LeadProposals from "@/pages/leads/proposals";
+import FormBuilderIndex from "@/pages/leads/form-builder/index";
+import FormBuilderEditor from "@/pages/leads/form-builder/builder";
+import FormBuilderResponses from "@/pages/leads/form-builder/responses";
+import LandingPageEditor from "@/pages/leads/form-builder/landing-page-editor";
+import PublicFormPage from "@/pages/leads/form-builder/public-form";
+import PublicLandingPageView from "@/pages/leads/form-builder/public-landing-page";
 
 // Contract Types
 import ContractTypes from "@/pages/contracts/contract-types";
@@ -172,6 +178,12 @@ function AppRouter() {
       <Route path="/subscriptions" component={SubscriptionManagement} />
       
       {/* Leads & Workflow Module */}
+      <Route path="/form/fill/:id" component={PublicFormPage} />
+      <Route path="/lp/:slug" component={PublicLandingPageView} />
+      <Route path="/leads/form-builder/landing-pages/:id/editor" component={LandingPageEditor} />
+      <Route path="/leads/form-builder/:id/responses" component={FormBuilderResponses} />
+      <Route path="/leads/form-builder/:id" component={FormBuilderEditor} />
+      <Route path="/leads/form-builder" component={FormBuilderIndex} />
       <Route path="/leads/notes" component={LeadNotes} />
       <Route path="/leads/communication" component={LeadCommunication} />
       <Route path="/leads/lead-status" component={LeadStatus} />

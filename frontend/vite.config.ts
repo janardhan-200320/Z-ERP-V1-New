@@ -72,7 +72,6 @@ export default defineConfig({
       'date-fns',
       'recharts',
       'jspdf',
-      'xlsx',
     ],
     exclude: [],
   },

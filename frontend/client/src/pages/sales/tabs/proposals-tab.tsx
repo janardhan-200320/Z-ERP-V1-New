@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,6 +75,11 @@ type CatalogItem = {
   defaultTax: string;
 };
 
+interface ProposalsTabProps {
+  customerFilter?: string;
+  proposalsData?: any[];
+}
+
 const TAX_RATES: Record<string, TaxBreakdown> = {
   'No Tax': { cgstPercent: 0, sgstPercent: 0, otherPercent: 0 },
   'GST 5%': { cgstPercent: 2.5, sgstPercent: 2.5, otherPercent: 0 },
@@ -102,7 +107,7 @@ const inferCatalogType = (description: string): 'product' | 'service' => {
   return serviceKeywords.some((keyword) => normalized.includes(keyword)) ? 'service' : 'product';
 };
 
-export default function ProposalsTab() {
+export default function ProposalsTab({ customerFilter, proposalsData }: ProposalsTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showFilterDialog, setShowFilterDialog] = useState(false);
@@ -244,6 +249,12 @@ export default function ProposalsTab() {
       ]
     }
   ]);
+
+  useEffect(() => {
+    if (proposalsData) {
+      setProposals(proposalsData);
+    }
+  }, [proposalsData]);
 
   const [selectedProposal, setSelectedProposal] = useState<any>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
@@ -741,17 +752,24 @@ export default function ProposalsTab() {
   };
 
   const filteredProposals = useMemo(() => {
+    const normalizedCustomerFilter = (customerFilter || '').trim().toLowerCase();
+
     return proposals.filter(prop => {
       const matchesSearch = 
         prop.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
         prop.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
         prop.subject.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesCustomer =
+        normalizedCustomerFilter.length === 0 ||
+        prop.customer.toLowerCase().includes(normalizedCustomerFilter) ||
+        (prop.preparedFor || '').toLowerCase().includes(normalizedCustomerFilter);
       
       const matchesStatus = statusFilter === 'all' || prop.status === statusFilter;
       
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesCustomer;
     });
-  }, [searchQuery, statusFilter, proposals]);
+  }, [searchQuery, statusFilter, proposals, customerFilter]);
 
   const itemCatalog = useMemo<CatalogItem[]>(() => {
     const deduped = new Map<string, CatalogItem>();
@@ -1888,82 +1906,89 @@ export default function ProposalsTab() {
         </div>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader className="bg-slate-50/80">
-            <TableRow>
-              <TableHead className="w-[140px]">
-                <div className="flex items-center gap-1">
-                  Proposal #
-                  <ChevronDown className="h-4 w-4 text-slate-400" />
-                </div>
-              </TableHead>
-              <TableHead>Subject</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead className="w-[120px]">Total Amount</TableHead>
-              <TableHead className="w-[110px]">Date</TableHead>
-              <TableHead className="w-[110px]">Valid Until</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredProposals.map((proposal, index) => (
-              <TableRow 
-                key={`${proposal.id}-${index}`}
-                className="hover:bg-slate-50/50 group"
-                onMouseEnter={() => setHoveredRow(index)}
-                onMouseLeave={() => setHoveredRow(null)}
-              >
-                <TableCell>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-blue-600 hover:underline cursor-pointer font-medium font-mono text-sm">
-                      {proposal.id}
-                    </span>
-                    {hoveredRow === index && (
-                      <div className="flex items-center gap-2 text-xs text-blue-600 animate-in fade-in duration-200">
-                        <button 
-                          className="hover:underline"
-                          onClick={() => handleAction('view', proposal)}
-                        >
-                          View
-                        </button>
-                        <span className="text-slate-300">|</span>
-                        <button 
-                          className="hover:underline"
-                          onClick={() => loadProposalForEdit(proposal)}
-                        >
-                          Edit
-                        </button>
-                        <span className="text-slate-300">|</span>
-                        <button 
-                          className="hover:underline text-green-600"
-                          onClick={() => handleAction('send', proposal)}
-                        >
-                          Send
-                        </button>
-                      </div>
-                    )}
+        {filteredProposals.length === 0 ? (
+          <div className="py-12 text-center rounded-lg border border-dashed border-slate-300 bg-slate-50/60">
+            <p className="text-sm font-medium text-slate-700">No proposals found for this client.</p>
+            <p className="text-xs text-slate-500 mt-1">Create a new proposal to get started.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader className="bg-slate-50/80">
+              <TableRow>
+                <TableHead className="w-[140px]">
+                  <div className="flex items-center gap-1">
+                    Proposal #
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
                   </div>
-                </TableCell>
-                <TableCell className="font-medium">{proposal.subject}</TableCell>
-                <TableCell>
-                  {proposal.customer && (
-                    <span className="text-blue-600 hover:underline cursor-pointer">{proposal.customer}</span>
-                  )}
-                </TableCell>
-                <TableCell className="font-semibold text-green-700">{proposal.totalAmount}</TableCell>
-                <TableCell className="text-sm text-slate-600">{proposal.date}</TableCell>
-                <TableCell className="text-sm text-slate-600">{proposal.validUntil}</TableCell>
-                <TableCell className="text-sm text-slate-600">{proposal.project}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={cn("capitalize", statusConfig[proposal.status].class)}>
-                    {statusConfig[proposal.status].label}
-                  </Badge>
-                </TableCell>
+                </TableHead>
+                <TableHead>Subject</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead className="w-[120px]">Total Amount</TableHead>
+                <TableHead className="w-[110px]">Date</TableHead>
+                <TableHead className="w-[110px]">Valid Until</TableHead>
+                <TableHead>Project</TableHead>
+                <TableHead className="w-[100px]">Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredProposals.map((proposal, index) => (
+                <TableRow 
+                  key={`${proposal.id}-${index}`}
+                  className="hover:bg-slate-50/50 group"
+                  onMouseEnter={() => setHoveredRow(index)}
+                  onMouseLeave={() => setHoveredRow(null)}
+                >
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-blue-600 hover:underline cursor-pointer font-medium font-mono text-sm">
+                        {proposal.id}
+                      </span>
+                      {hoveredRow === index && (
+                        <div className="flex items-center gap-2 text-xs text-blue-600 animate-in fade-in duration-200">
+                          <button 
+                            className="hover:underline"
+                            onClick={() => handleAction('view', proposal)}
+                          >
+                            View
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button 
+                            className="hover:underline"
+                            onClick={() => loadProposalForEdit(proposal)}
+                          >
+                            Edit
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button 
+                            className="hover:underline text-green-600"
+                            onClick={() => handleAction('send', proposal)}
+                          >
+                            Send
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium">{proposal.subject}</TableCell>
+                  <TableCell>
+                    {proposal.customer && (
+                      <span className="text-blue-600 hover:underline cursor-pointer">{proposal.customer}</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-semibold text-green-700">{proposal.totalAmount}</TableCell>
+                  <TableCell className="text-sm text-slate-600">{proposal.date}</TableCell>
+                  <TableCell className="text-sm text-slate-600">{proposal.validUntil}</TableCell>
+                  <TableCell className="text-sm text-slate-600">{proposal.project}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={cn("capitalize", statusConfig[proposal.status]?.class || statusConfig.draft.class)}>
+                      {statusConfig[proposal.status]?.label || 'Draft'}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
 
         {/* View Dialog */}
         <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef, useMemo } from "react";
 import { Link } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -62,6 +62,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import ProposalsTab from "@/pages/sales/tabs/proposals-tab";
 import {
   Tooltip,
   TooltipContent,
@@ -3392,14 +3393,44 @@ function LeadDetailModal({
     lineItems: [] as ProposalLineItem[],
     notes: "",
   });
-  const [newLineItem, setNewLineItem] = useState({
-    description: "",
-    quantity: 1,
-    unitPrice: 0,
-  });
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
   const [showProposalForm, setShowProposalForm] = useState(false);
   const [viewingProposal, setViewingProposal] = useState<Proposal | null>(null);
+  const leadScopedSalesProposals = useMemo(() => {
+    const customerName = lead.company || lead.name;
+
+    return (lead.proposals || []).map((proposal, index) => ({
+      id: proposal.id || `PROP-${index + 1}`,
+      subject: proposal.title || `Proposal ${index + 1}`,
+      customer: customerName,
+      totalAmount: `$${(proposal.total || 0).toLocaleString()}`,
+      date: proposal.createdAt || '',
+      validUntil: proposal.validUntil || '',
+      project: lead.company || 'Lead Proposal',
+      status:
+        proposal.status === 'accepted'
+          ? 'accepted'
+          : proposal.status === 'rejected'
+            ? 'declined'
+            : proposal.status === 'sent' || proposal.status === 'viewed'
+              ? 'sent'
+              : 'draft',
+      preparedFor: customerName,
+      preparedBy: proposal.createdBy || 'Current User',
+      title: proposal.title || `Proposal ${index + 1}`,
+      overview: proposal.notes || '',
+      scopeOfWork: [],
+      timeline: [],
+      items: proposal.lineItems.map((item, itemIndex) => ({
+        id: itemIndex + 1,
+        description: item.description,
+        longDescription: '',
+        qty: item.quantity,
+        rate: item.unitPrice,
+        amount: item.total,
+      })),
+    }));
+  }, [lead.company, lead.name, lead.proposals]);
   const meetingActivities = (lead.activities || []).filter((activity) => activity.type === "meeting");
   
   // Handler functions
@@ -3924,29 +3955,47 @@ function LeadDetailModal({
   };
 
   const handleAddLineItem = () => {
-    if (!newLineItem.description || newLineItem.quantity <= 0 || newLineItem.unitPrice <= 0) {
-      toast({
-        title: "❌ Invalid Line Item",
-        description: "Please fill in all fields with valid values",
-        duration: 3000,
-      });
-      return;
-    }
-
-    const lineItem: ProposalLineItem = {
-      id: String(Date.now()),
-      description: newLineItem.description,
-      quantity: newLineItem.quantity,
-      unitPrice: newLineItem.unitPrice,
-      total: newLineItem.quantity * newLineItem.unitPrice
-    };
-
     setProposalForm(prev => ({
       ...prev,
-      lineItems: [...prev.lineItems, lineItem]
+      lineItems: [
+        ...prev.lineItems,
+        {
+          id: String(Date.now()),
+          description: "",
+          quantity: 1,
+          unitPrice: 0,
+          total: 0,
+        },
+      ],
     }));
+  };
 
-    setNewLineItem({ description: "", quantity: 1, unitPrice: 0 });
+  const handleUpdateLineItem = (
+    itemId: string,
+    field: "description" | "quantity" | "unitPrice",
+    value: string | number,
+  ) => {
+    setProposalForm(prev => ({
+      ...prev,
+      lineItems: prev.lineItems.map(item => {
+        if (item.id !== itemId) return item;
+
+        const updatedItem = {
+          ...item,
+          [field]: value,
+        };
+
+        const quantity = field === "quantity" ? Number(value) || 0 : updatedItem.quantity;
+        const unitPrice = field === "unitPrice" ? Number(value) || 0 : updatedItem.unitPrice;
+
+        return {
+          ...updatedItem,
+          quantity,
+          unitPrice,
+          total: quantity * unitPrice,
+        };
+      }),
+    }));
   };
 
   const handleRemoveLineItem = (itemId: string) => {
@@ -5430,514 +5479,10 @@ Generated: ${new Date().toLocaleString()}
 
                 {/* PROPOSALS TAB */}
                 <TabsContent value="proposals" className="mt-0 space-y-4 sm:space-y-6">
-                  {/* Create/Edit Proposal Form */}
-                  {showProposalForm ? (
-                    <Card className="border-2 border-rose-200 shadow-md">
-                      <CardHeader className="pb-3 bg-gradient-to-r from-rose-50 to-pink-50">
-                        <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-rose-900">
-                          <FileCheck className="w-5 h-5" />
-                          {editingProposal ? "Edit Proposal" : "Create New Proposal"}
-                        </CardTitle>
-                        <CardDescription className="text-sm">
-                          {editingProposal ? "Update proposal details" : "Create a proposal for"} {lead.name}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-4 sm:p-6 space-y-4">
-                        {/* Proposal Title */}
-                        <div className="space-y-2">
-                          <Label htmlFor="proposal-title" className="text-sm font-medium">
-                            Proposal Title <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="proposal-title"
-                            value={proposalForm.title}
-                            onChange={(e) => setProposalForm(prev => ({ ...prev, title: e.target.value }))}
-                            placeholder="e.g., Annual Software License Proposal"
-                            className="text-sm border-rose-200"
-                          />
-                        </div>
-
-                        {/* Line Items */}
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium">Line Items</Label>
-                          
-                          {/* Existing Line Items */}
-                          {proposalForm.lineItems.length > 0 && (
-                            <div className="space-y-2 mb-3">
-                              {proposalForm.lineItems.map(item => (
-                                <div key={item.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded border">
-                                  <div className="flex-1">
-                                    <p className="text-sm font-medium">{item.description}</p>
-                                    <p className="text-xs text-gray-600">{item.quantity} x ${item.unitPrice} = ${item.total}</p>
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleRemoveLineItem(item.id)}
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Add Line Item */}
-                          <div className="grid grid-cols-12 gap-2">
-                            <Input
-                              placeholder="Description"
-                              value={newLineItem.description}
-                              onChange={(e) => setNewLineItem(prev => ({ ...prev, description: e.target.value }))}
-                              className="col-span-6 text-sm"
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Qty"
-                              value={newLineItem.quantity}
-                              onChange={(e) => setNewLineItem(prev => ({ ...prev, quantity: Number(e.target.value) }))}
-                              className="col-span-2 text-sm"
-                              min="1"
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Price"
-                              value={newLineItem.unitPrice}
-                              onChange={(e) => setNewLineItem(prev => ({ ...prev, unitPrice: Number(e.target.value) }))}
-                              className="col-span-3 text-sm"
-                              min="0"
-                            />
-                            <Button
-                              size="sm"
-                              onClick={handleAddLineItem}
-                              className="col-span-1 bg-rose-600 hover:bg-rose-700 text-white"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Proposal Notes */}
-                        <div className="space-y-2">
-                          <Label htmlFor="proposal-notes" className="text-sm font-medium">
-                            Additional Notes
-                          </Label>
-                          <Textarea
-                            id="proposal-notes"
-                            value={proposalForm.notes}
-                            onChange={(e) => setProposalForm(prev => ({ ...prev, notes: e.target.value }))}
-                            placeholder="Terms, conditions, or additional information..."
-                            className="min-h-[100px] text-sm border-rose-200"
-                          />
-                        </div>
-
-                        {/* Pricing Summary */}
-                        {proposalForm.lineItems.length > 0 && (
-                          <div className="p-3 bg-rose-50 rounded-lg border border-rose-200">
-                            <div className="space-y-1 text-sm">
-                              <div className="flex justify-between">
-                                <span>Subtotal:</span>
-                                <span>${proposalForm.lineItems.reduce((sum, item) => sum + item.total, 0).toLocaleString()}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Tax (10%):</span>
-                                <span>${(proposalForm.lineItems.reduce((sum, item) => sum + item.total, 0) * 0.1).toLocaleString()}</span>
-                              </div>
-                              <Separator className="my-2" />
-                              <div className="flex justify-between font-bold text-base">
-                                <span>Total:</span>
-                                <span className="text-rose-700">${(proposalForm.lineItems.reduce((sum, item) => sum + item.total, 0) * 1.1).toLocaleString()}</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => {
-                              setShowProposalForm(false);
-                              setProposalForm({ title: "", lineItems: [], notes: "" });
-                              setEditingProposal(null);
-                            }}
-                            variant="outline"
-                            className="flex-1"
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            onClick={handleSaveProposal}
-                            className="flex-1 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700 text-white"
-                          >
-                            <Save className="w-4 h-4 mr-2" />
-                            {editingProposal ? "Update" : "Create"} Proposal
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <Button 
-                      onClick={() => setShowProposalForm(true)}
-                      className="w-full bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700 text-white shadow-md"
-                    >
-                      <PlusCircle className="w-4 h-4 mr-2" />
-                      Create New Proposal
-                    </Button>
-                  )}
-
-                  {/* Proposal Detail View */}
-                  {viewingProposal && !showProposalForm && (
-                    <Card className="border-3 border-rose-400 shadow-2xl">
-                      <CardHeader className="pb-4 bg-gradient-to-r from-rose-100 via-pink-100 to-rose-100 border-b-2 border-rose-300">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <CardTitle className="text-xl font-bold text-rose-900 flex items-center gap-2 mb-2">
-                              <FileCheck className="w-6 h-6" />
-                              {viewingProposal.title}
-                            </CardTitle>
-                            <div className="flex flex-wrap items-center gap-3 text-sm">
-                              <Badge className="bg-white text-rose-900 border-2 border-rose-300 font-semibold">
-                                Version {viewingProposal.version}
-                              </Badge>
-                              <Badge className={`font-semibold ${
-                                viewingProposal.status === 'draft' ? 'bg-gray-500 text-white' :
-                                viewingProposal.status === 'sent' ? 'bg-blue-500 text-white' :
-                                viewingProposal.status === 'viewed' ? 'bg-purple-500 text-white' :
-                                viewingProposal.status === 'accepted' ? 'bg-green-500 text-white' :
-                                'bg-red-500 text-white'
-                              }`}>
-                                {viewingProposal.status.toUpperCase()}
-                              </Badge>
-                              <span className="text-gray-700 font-medium">{viewingProposal.id}</span>
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setViewingProposal(null)}
-                            className="border-2"
-                          >
-                            <X className="w-4 h-4 mr-1" />
-                            Close
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-6 space-y-6">
-                        {/* Lead Information */}
-                        <div className="p-4 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl border-2 border-cyan-200">
-                          <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-                            <User className="w-4 h-4 text-cyan-600" />
-                            Client Information
-                          </h3>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <p className="text-xs text-gray-600">Name</p>
-                              <p className="text-sm font-semibold text-gray-900">{lead.name}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-600">Company</p>
-                              <p className="text-sm font-semibold text-gray-900">{lead.company}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-600">Email</p>
-                              <p className="text-sm font-semibold text-gray-900">{lead.email}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-600">Phone</p>
-                              <p className="text-sm font-semibold text-gray-900">{lead.phone}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Line Items Detailed View */}
-                        <div>
-                          <h3 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
-                            <FileText className="w-5 h-5 text-rose-600" />
-                            Line Items
-                          </h3>
-                          <div className="space-y-3">
-                            {viewingProposal.lineItems.map((item, index) => (
-                              <div key={item.id} className="p-4 bg-gradient-to-r from-rose-50 via-pink-50 to-rose-50 rounded-xl border-2 border-rose-200">
-                                <div className="flex items-start justify-between mb-2">
-                                  <div className="flex-1">
-                                    <p className="font-semibold text-gray-900 text-base">
-                                      {index + 1}. {item.description}
-                                    </p>
-                                  </div>
-                                  <Badge className="bg-rose-600 text-white font-bold">
-                                    ${item.total.toLocaleString()}
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-4 text-sm text-gray-600">
-                                  <span>Quantity: <strong className="text-gray-900">{item.quantity}</strong></span>
-                                  <span>x</span>
-                                  <span>Unit Price: <strong className="text-gray-900">${item.unitPrice.toLocaleString()}</strong></span>
-                                  <span>=</span>
-                                  <span className="font-bold text-gray-900">${item.total.toLocaleString()}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Pricing Summary */}
-                        <div className="p-6 bg-gradient-to-br from-rose-100 via-pink-100 to-rose-100 rounded-2xl border-3 border-rose-300 shadow-lg">
-                          <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <DollarSign className="w-5 h-5 text-rose-600" />
-                            Pricing Summary
-                          </h3>
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between p-3 bg-white rounded-lg">
-                              <span className="text-gray-700 font-medium">Subtotal:</span>
-                              <span className="text-lg font-semibold text-gray-900">${viewingProposal.subtotal.toLocaleString()}</span>
-                            </div>
-                            <div className="flex items-center justify-between p-3 bg-white rounded-lg">
-                              <span className="text-gray-700 font-medium">Tax (10%):</span>
-                              <span className="text-lg font-semibold text-gray-900">${viewingProposal.tax.toLocaleString()}</span>
-                            </div>
-                            <Separator className="bg-rose-300" />
-                            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-rose-200 to-pink-200 rounded-xl border-2 border-rose-400">
-                              <span className="text-xl font-bold text-rose-900">Total Amount:</span>
-                              <span className="text-3xl font-bold text-rose-700">${viewingProposal.total.toLocaleString()}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Timeline & Notes */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
-                            <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-blue-600" />
-                              Timeline
-                            </h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Created:</span>
-                                <span className="font-semibold text-gray-900">{viewingProposal.createdAt}</span>
-                              </div>
-                              {viewingProposal.sentAt && (
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Sent:</span>
-                                  <span className="font-semibold text-gray-900">{viewingProposal.sentAt}</span>
-                                </div>
-                              )}
-                              {viewingProposal.validUntil && (
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Valid Until:</span>
-                                  <span className="font-semibold text-orange-900">{viewingProposal.validUntil}</span>
-                                </div>
-                              )}
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Created By:</span>
-                                <span className="font-semibold text-gray-900">{viewingProposal.createdBy}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {viewingProposal.notes && (
-                            <div className="p-4 bg-yellow-50 rounded-xl border-2 border-yellow-200">
-                              <h4 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-yellow-600" />
-                                Notes
-                              </h4>
-                              <p className="text-sm text-gray-700 leading-relaxed">{viewingProposal.notes}</p>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          <Button
-                            onClick={() => {
-                              if (viewingProposal) {
-                                setEditingProposal(viewingProposal);
-                                setProposalForm({
-                                  title: viewingProposal.title,
-                                  lineItems: viewingProposal.lineItems,
-                                  notes: viewingProposal.notes || ""
-                                });
-                                setShowProposalForm(true);
-                                setViewingProposal(null);
-                              }
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </Button>
-                          <Button
-                            onClick={() => viewingProposal && handleDownloadProposal(viewingProposal)}
-                            variant="outline"
-                            className="border-2 border-green-500 text-green-700 hover:bg-green-50"
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Download
-                          </Button>
-                          {viewingProposal?.status === 'draft' && (
-                            <Button
-                              onClick={() => viewingProposal && handleSendProposal(viewingProposal.id)}
-                              className="bg-purple-600 hover:bg-purple-700 text-white"
-                            >
-                              <Send className="w-4 h-4 mr-2" />
-                              Send
-                            </Button>
-                          )}
-                          <Button
-                            onClick={() => setViewingProposal(null)}
-                            variant="outline"
-                            className="border-2"
-                          >
-                            <ArrowRight className="w-4 h-4 mr-2" />
-                            Back to List
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Proposals List */}
-                  {!viewingProposal && lead.proposals && lead.proposals.length > 0 ? (
-                    <div className="space-y-4">
-                      {lead.proposals.map(proposal => (
-                          <Card key={proposal.id} className="border-2 border-rose-200 shadow-md hover:shadow-lg transition-all">
-                            <CardHeader className="pb-3 bg-gradient-to-r from-rose-50 to-pink-50">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <CardTitle className="text-base sm:text-lg text-rose-900">
-                                    {proposal.title}
-                                  </CardTitle>
-                                  <CardDescription className="text-sm mt-1">
-                                    Version {proposal.version} - Created by {proposal.createdBy}
-                                  </CardDescription>
-                                </div>
-                                <Badge className={`${
-                                  proposal.status === 'draft' ? 'bg-gray-100 text-gray-800' :
-                                  proposal.status === 'sent' ? 'bg-blue-100 text-blue-800' :
-                                  proposal.status === 'viewed' ? 'bg-purple-100 text-purple-800' :
-                                  proposal.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                                  'bg-red-100 text-red-800'
-                                }`}>
-                                  {proposal.status}
-                                </Badge>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="pt-4">
-                              {/* Line Items Summary */}
-                              <div className="mb-4">
-                                <h4 className="text-sm font-semibold text-gray-700 mb-2">Line Items</h4>
-                                <div className="space-y-2">
-                                  {proposal.lineItems.slice(0, 3).map(item => (
-                                    <div key={item.id} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
-                                      <span className="text-gray-700">{item.description}</span>
-                                      <span className="font-medium text-gray-900">${item.total.toLocaleString()}</span>
-                                    </div>
-                                  ))}
-                                  {proposal.lineItems.length > 3 && (
-                                    <p className="text-xs text-gray-500 text-center">
-                                      +{proposal.lineItems.length - 3} more items
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Pricing Summary */}
-                              <div className="p-3 bg-gradient-to-r from-rose-50 to-pink-50 rounded-lg border border-rose-200">
-                                <div className="space-y-1">
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-600">Subtotal:</span>
-                                    <span className="font-medium">${proposal.subtotal.toLocaleString()}</span>
-                                  </div>
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-600">Tax:</span>
-                                    <span className="font-medium">${proposal.tax.toLocaleString()}</span>
-                                  </div>
-                                  <Separator className="my-2" />
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-semibold text-gray-900">Total:</span>
-                                    <span className="text-lg font-bold text-rose-700">${proposal.total.toLocaleString()}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Timeline */}
-                              <div className="mt-4 space-y-2 text-xs text-gray-600">
-                                <div className="flex items-center gap-2">
-                                  <Clock className="w-3 h-3" />
-                                  <span>Created: {proposal.createdAt}</span>
-                                </div>
-                                {proposal.sentAt && (
-                                  <div className="flex items-center gap-2">
-                                    <Send className="w-3 h-3 text-blue-600" />
-                                    <span>Sent: {proposal.sentAt}</span>
-                                  </div>
-                                )}
-                                {proposal.viewedAt && (
-                                  <div className="flex items-center gap-2">
-                                    <Eye className="w-3 h-3 text-purple-600" />
-                                    <span>Viewed: {proposal.viewedAt}</span>
-                                  </div>
-                                )}
-                                {proposal.respondedAt && (
-                                  <div className="flex items-center gap-2">
-                                    <CheckCircle className="w-3 h-3 text-green-600" />
-                                    <span>Responded: {proposal.respondedAt}</span>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Action Buttons */}
-                              <div className="mt-4 flex flex-wrap gap-2">
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="flex-1 hover:bg-blue-50 hover:border-blue-400"
-                                  onClick={() => setViewingProposal(proposal)}
-                                >
-                                  <Eye className="w-3 h-3 mr-1" />
-                                  View
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="flex-1 hover:bg-purple-50 hover:border-purple-400"
-                                  onClick={() => handleEditProposal(proposal)}
-                                >
-                                  <Edit className="w-3 h-3 mr-1" />
-                                  Edit
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="flex-1 hover:bg-green-50 hover:border-green-400"
-                                  onClick={() => handleSendProposal(proposal.id)}
-                                  disabled={proposal.status !== "draft"}
-                                >
-                                  <Send className="w-3 h-3 mr-1" />
-                                  {proposal.status === "draft" ? "Send" : "Sent"}
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="flex-1 hover:bg-orange-50 hover:border-orange-400"
-                                  onClick={() => handleDownloadProposal(proposal)}
-                                >
-                                  <Download className="w-3 h-3 mr-1" />
-                                  PDF
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                  ) : !showProposalForm ? (
-                    <div className="text-center py-12 sm:py-16 text-gray-400">
-                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center">
-                        <FileCheck className="w-8 h-8 text-rose-600" />
-                      </div>
-                      <p className="text-sm sm:text-base font-medium">No proposals yet</p>
-                      <p className="text-xs mt-1 mb-4">Create your first proposal for this lead</p>
-                    </div>
-                  ) : null}
+                  <ProposalsTab
+                    customerFilter={lead.company || lead.name}
+                    proposalsData={leadScopedSalesProposals}
+                  />
                 </TabsContent>
 
                 {/* NOTES TAB */}

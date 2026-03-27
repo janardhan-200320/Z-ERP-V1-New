@@ -622,57 +622,6 @@ export default function DashboardOverview() {
             </CardContent>
           </Card>
 
-          <Card
-            className="border-emerald-100 bg-gradient-to-r from-emerald-50 via-green-50 to-white cursor-pointer hover:shadow-md transition-all"
-            onClick={() => setLocation('/hrm/public-holidays')}
-          >
-            <CardHeader className="pb-2">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-slate-900">
-                  <CalendarIcon className="h-5 w-5 text-emerald-600" />
-                  Public Holidays
-                </CardTitle>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setLocation('/hrm/public-holidays');
-                  }}
-                >
-                  Manage
-                </Button>
-              </div>
-              <CardDescription>Official office holidays configured by HR.</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {publicHolidays.length === 0 ? (
-                <div className="rounded-md border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-500">
-                  No public holidays published.
-                </div>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-3">
-                  {publicHolidays.slice(0, 3).map((holiday) => (
-                    <div key={holiday.id} className="rounded-lg border border-slate-200 bg-white p-3">
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-semibold text-slate-900 line-clamp-1">{holiday.name}</h3>
-                        <Badge variant="outline" className="uppercase text-[10px]">
-                          Holiday
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-slate-600 line-clamp-1">
-                        {new Date(`${holiday.date}T00:00:00`).toLocaleDateString()}
-                      </p>
-                      {holiday.description && (
-                        <p className="mt-1 text-xs text-slate-500 line-clamp-2">{holiday.description}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* KPI SUMMARY CARDS - Responsive Grid */}
           {widgets.quickStatistics && (
           <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
@@ -1750,6 +1699,7 @@ export default function DashboardOverview() {
                     Day: ({ date, ...props }) => {
                       const events = getEventsForDate(date);
                       const hasEvents = events.length > 0;
+                      const hasHoliday = events.some(event => event.type === 'holiday');
                       
                       return (
                         <div className="relative">
@@ -1758,11 +1708,12 @@ export default function DashboardOverview() {
                             className={`
                               ${props.className}
                               ${hasEvents ? 'font-semibold' : ''}
+                              ${hasHoliday ? 'bg-red-500 text-white hover:bg-red-600 rounded-md' : ''}
                             `}
                           >
                             {date.getDate()}
                           </button>
-                          {hasEvents && (
+                          {hasEvents && !hasHoliday && (
                             <div className="absolute bottom-0.5 sm:bottom-1 left-1/2 transform -translate-x-1/2 flex gap-0.5">
                               {events.slice(0, 3).map((event, idx) => (
                                 <div

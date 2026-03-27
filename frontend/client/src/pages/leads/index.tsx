@@ -211,6 +211,13 @@ type ViewMode = "table" | "kanban" | "grid";
 // ==================== COMPONENT ====================
 export default function LeadsModule() {
   const { toast } = useToast();
+  const teamMemberEmailMap: Record<string, string> = {
+    "John Smith": "john@techcorp.com",
+    "Emily Davis": "emily@digitalsol.com",
+    "Michael Chen": "michael@innovation.com",
+    "Sarah Wilson": "sarah@futuresys.com",
+    "David Brown": "david@smartent.com",
+  };
   const leadSourceOptions = [
     "Website",
     "LinkedIn",
@@ -249,6 +256,8 @@ export default function LeadsModule() {
   const [formData, setFormData] = useState<Partial<Lead>>({});
   const [isCustomLeadSource, setIsCustomLeadSource] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const leadImportInputRef = useRef<HTMLInputElement | null>(null);
 
   const selectedLeadSourceValue = isCustomLeadSource
     ? customLeadSourceValue
@@ -938,12 +947,17 @@ export default function LeadsModule() {
 
   const handleEmail = (lead: Lead, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    console.log("Composing email to:", lead.name, lead.email);
+    const assigneeName = lead.assignedTo || "";
+    const assigneeEmail = teamMemberEmailMap[assigneeName] || "";
+    const targetEmail = assigneeEmail || lead.email;
+    const targetName = assigneeEmail ? assigneeName : lead.name;
+
+    console.log("Composing email to:", targetName, targetEmail);
     
-    if (!lead.email) {
+    if (!targetEmail) {
       toast({
         title: "No email address",
-        description: `${lead.name} doesn't have an email address on record.`,
+        description: `${assigneeName || lead.name} doesn't have an email address on record.`,
         variant: "destructive",
         duration: 3000,
       });
@@ -952,7 +966,7 @@ export default function LeadsModule() {
 
     toast({
       title: "Opening email",
-      description: `Composing email to ${lead.name}...`,
+      description: `Composing email to ${targetName}...`,
       duration: 3000,
     });
 
@@ -966,7 +980,7 @@ export default function LeadsModule() {
             id: String(Date.now()),
             type: "email" as const,
             title: "Email Sent",
-            description: `Email sent to ${lead.email}`,
+            description: `Email sent to ${targetEmail}`,
             timestamp: "Just now",
             user: "Current User"
           }, ...(l.activities || [])]
@@ -975,10 +989,20 @@ export default function LeadsModule() {
       return l;
     }));
 
-    // Open email client with pre-filled data
-    const subject = encodeURIComponent(`Following up - ${lead.company || 'Your Inquiry'}`);
-    const body = encodeURIComponent(`Hi ${lead.name.split(' ')[0]},\n\nI wanted to follow up with you regarding...`);
-    window.location.href = `mailto:${lead.email}?subject=${subject}&body=${body}`;
+    // Open in-app communication compose with pre-filled draft
+    const greetingName = targetName.split(" ")[0] || "there";
+    const subject = `Lead Follow-up - ${lead.company || "Your Inquiry"}`;
+    const body = `Hi ${greetingName},\n\nFollowing up regarding lead ${lead.name} from ${lead.company || "your account"}.\n\nThanks.`;
+    const params = new URLSearchParams({
+      compose: "email",
+      leadName: targetName,
+      company: lead.company || "Lead Assignment",
+      email: targetEmail,
+      phone: lead.phone || "",
+      subject,
+      body,
+    });
+    window.location.href = `/leads/communication?${params.toString()}`;
   };
 
   const handleWhatsApp = (lead: Lead, e?: React.MouseEvent) => {
@@ -1051,36 +1075,351 @@ export default function LeadsModule() {
   };
 
   // Import/Export
-  const handleImport = () => {
-    // Create a file input element
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv,.xlsx';
-    
-    input.onchange = (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      const file = target.files?.[0];
-      
-      if (file) {
+  const normalizeImportKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  const parseCSVRows = (csvText: string) => {
+    const rows: string[][] = [];
+    let current = "";
+    let row: string[] = [];
+    let inQuotes = false;
+
+    for (let i = 0; i < csvText.length; i += 1) {
+      const char = csvText[i];
+      const nextChar = csvText[i + 1];
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+        continue;
+      }
+
+      if (char === ',' && !inQuotes) {
+        row.push(current.trim());
+        current = "";
+        continue;
+      }
+
+      if ((char === '\n' || char === '\r') && !inQuotes) {
+        if (char === '\r' && nextChar === '\n') {
+          i += 1;
+        }
+        row.push(current.trim());
+        const hasValues = row.some((cell) => cell.length > 0);
+        if (hasValues) {
+          rows.push(row);
+        }
+        row = [];
+        current = "";
+        continue;
+      }
+
+      current += char;
+    }
+
+    if (current.length > 0 || row.length > 0) {
+      row.push(current.trim());
+      const hasValues = row.some((cell) => cell.length > 0);
+      if (hasValues) {
+        rows.push(row);
+      }
+    }
+
+    return rows;
+  };
+
+  const getCellText = (value: unknown): string => {
+    if (value === null || value === undefined) {
+      return "";
+    }
+
+    if (typeof value === "string") {
+      return value.trim();
+    }
+
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value).trim();
+    }
+
+    if (value instanceof Date) {
+      return value.toISOString().split("T")[0];
+    }
+
+    if (typeof value === "object") {
+      const maybeText = (value as { text?: string }).text;
+      if (typeof maybeText === "string") {
+        return maybeText.trim();
+      }
+
+      const maybeResult = (value as { result?: unknown }).result;
+      if (maybeResult !== undefined && maybeResult !== null) {
+        return String(maybeResult).trim();
+      }
+    }
+
+    return String(value).trim();
+  };
+
+  const rowsToRecords = (rows: string[][]) => {
+    if (rows.length < 2) {
+      return [] as Record<string, string>[];
+    }
+
+    const headers = rows[0].map((header) => normalizeImportKey(header));
+    const records: Record<string, string>[] = [];
+
+    rows.slice(1).forEach((row) => {
+      const record: Record<string, string> = {};
+
+      headers.forEach((header, index) => {
+        if (!header) {
+          return;
+        }
+        record[header] = (row[index] || "").trim();
+      });
+
+      const hasData = Object.values(record).some((value) => value.length > 0);
+      if (hasData) {
+        records.push(record);
+      }
+    });
+
+    return records;
+  };
+
+  const parseFileToRecords = async (file: File) => {
+    const lowerName = file.name.toLowerCase();
+
+    if (lowerName.endsWith(".csv")) {
+      const csvText = await file.text();
+      return rowsToRecords(parseCSVRows(csvText));
+    }
+
+    if (lowerName.endsWith(".xlsx")) {
+      const { Workbook } = await import("exceljs");
+      const workbook = new Workbook();
+      await workbook.xlsx.load(await file.arrayBuffer());
+      const firstSheet = workbook.worksheets[0];
+
+      if (!firstSheet) {
+        return [] as Record<string, string>[];
+      }
+
+      const sheetRows: string[][] = [];
+      firstSheet.eachRow({ includeEmpty: false }, (row) => {
+        const values: string[] = [];
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          values[colNumber - 1] = getCellText(cell.value);
+        });
+        sheetRows.push(values);
+      });
+
+      return rowsToRecords(sheetRows);
+    }
+
+    throw new Error("Unsupported file type. Please upload a CSV or XLSX file.");
+  };
+
+  const pickImportValue = (record: Record<string, string>, aliases: string[]) => {
+    for (const alias of aliases) {
+      const value = record[normalizeImportKey(alias)] || "";
+      if (value.trim().length > 0) {
+        return value.trim();
+      }
+    }
+    return "";
+  };
+
+  const normalizeStatus = (value: string): Lead["status"] => {
+    const normalized = normalizeImportKey(value);
+
+    if (normalized === "new") return "new";
+    if (normalized === "contacted") return "contacted";
+    if (normalized === "qualified") return "qualified";
+    if (normalized === "proposal") return "proposal";
+    if (normalized === "negotiation") return "negotiation";
+    if (normalized === "won" || normalized === "closedwon") return "won";
+    if (normalized === "lost" || normalized === "closedlost") return "lost";
+
+    return "new";
+  };
+
+  const normalizePriority = (value: string): Lead["priority"] => {
+    const normalized = normalizeImportKey(value);
+
+    if (normalized === "high") return "high";
+    if (normalized === "low") return "low";
+    return "medium";
+  };
+
+  const toNumberOrUndefined = (value: string) => {
+    if (!value) {
+      return undefined;
+    }
+
+    const parsed = Number(value.replace(/[^\d.-]/g, ""));
+    if (Number.isNaN(parsed)) {
+      return undefined;
+    }
+
+    return parsed;
+  };
+
+  const toLeadFingerprint = (lead: Pick<Lead, "name" | "email" | "phone" | "company">) => {
+    const emailKey = lead.email.trim().toLowerCase();
+    const phoneKey = lead.phone.replace(/\D/g, "");
+    const nameKey = lead.name.trim().toLowerCase();
+    const companyKey = lead.company.trim().toLowerCase();
+
+    if (emailKey) return `email:${emailKey}`;
+    if (phoneKey) return `phone:${phoneKey}`;
+    return `name:${nameKey}|company:${companyKey}`;
+  };
+
+  const buildLeadFromRecord = (record: Record<string, string>, rowIndex: number): Lead | null => {
+    const name = pickImportValue(record, ["name", "lead name", "full name", "contact name"]);
+    const email = pickImportValue(record, ["email", "email address", "mail"]);
+    const phone = pickImportValue(record, ["phone", "phone number", "mobile", "contact number"]);
+
+    if (!name && !email && !phone) {
+      return null;
+    }
+
+    const company = pickImportValue(record, ["company", "company name", "organization"]);
+    const source = pickImportValue(record, ["source", "lead source", "campaign source"]) || "Website";
+    const assignedTo = pickImportValue(record, ["assigned to", "owner", "assignee", "sales rep"]) || "John Smith";
+    const leadValue = toNumberOrUndefined(pickImportValue(record, ["lead value", "value", "budget"]));
+    const leadScore = toNumberOrUndefined(pickImportValue(record, ["score", "lead score", "rating"]));
+    const status = normalizeStatus(pickImportValue(record, ["status", "stage"]));
+    const priority = normalizePriority(pickImportValue(record, ["priority"]));
+
+    return {
+      id: `${Date.now()}-${rowIndex}-${Math.random().toString(36).slice(2, 8)}`,
+      name: name || email || `Lead ${rowIndex + 1}`,
+      company: company || "Not specified",
+      email,
+      phone,
+      source,
+      status,
+      priority,
+      assignedTo,
+      createdDate: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      lastContact: "Just imported",
+      leadValue,
+      leadScore,
+      position: pickImportValue(record, ["position", "job title", "title"]),
+      city: pickImportValue(record, ["city"]),
+      state: pickImportValue(record, ["state", "province"]),
+      country: pickImportValue(record, ["country"]),
+      website: pickImportValue(record, ["website", "url"]),
+      description: pickImportValue(record, ["description", "notes"]),
+      tags: pickImportValue(record, ["tags"])
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+      activities: [],
+      tasks: [],
+      notes: [],
+    };
+  };
+
+  const handleImportFile = async (file: File) => {
+    setIsImporting(true);
+
+    try {
+      toast({
+        title: "Import started",
+        description: `Reading ${file.name}...`,
+      });
+
+      const records = await parseFileToRecords(file);
+      if (records.length === 0) {
         toast({
-          title: "Importing leads",
-          description: `Processing ${file.name}...`,
-          duration: 3000,
+          title: "No records found",
+          description: "The selected file has no lead rows to import.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const parsedLeads = records
+        .map((record, index) => buildLeadFromRecord(record, index + 1))
+        .filter((lead): lead is Lead => !!lead);
+
+      if (parsedLeads.length === 0) {
+        toast({
+          title: "No valid leads",
+          description: "Could not map rows to lead fields. Check your column headers.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      let importedCount = 0;
+      let duplicateCount = 0;
+
+      setLeads((prev) => {
+        const knownFingerprints = new Set(prev.map((lead) => toLeadFingerprint(lead)));
+        const uniqueLeads: Lead[] = [];
+
+        parsedLeads.forEach((lead) => {
+          const fingerprint = toLeadFingerprint(lead);
+          if (knownFingerprints.has(fingerprint)) {
+            duplicateCount += 1;
+            return;
+          }
+
+          knownFingerprints.add(fingerprint);
+          uniqueLeads.push(lead);
         });
 
-        // In a real app, this would parse the CSV/Excel file
-        // For now, just show success
-        setTimeout(() => {
-          toast({
-            title: "Import complete",
-            description: "Leads have been imported successfully.",
-            duration: 3000,
-          });
-        }, 1500);
+        importedCount = uniqueLeads.length;
+        return [...uniqueLeads, ...prev];
+      });
+
+      if (importedCount === 0) {
+        toast({
+          title: "Import skipped",
+          description: "All rows already exist as duplicates.",
+          variant: "destructive",
+        });
+        return;
       }
-    };
-    
-    input.click();
+
+      const duplicateMessage = duplicateCount > 0 ? ` (${duplicateCount} duplicate rows skipped)` : "";
+      toast({
+        title: "Import complete",
+        description: `Imported ${importedCount} lead(s)${duplicateMessage}.`,
+        duration: 4000,
+      });
+    } catch (error) {
+      console.error("Lead import failed", error);
+      toast({
+        title: "Import failed",
+        description: "Unable to import this file. Please use CSV or XLSX with lead columns.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleImport = () => {
+    leadImportInputRef.current?.click();
+  };
+
+  const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    await handleImportFile(file);
   };
 
   const handleExport = () => {
@@ -1543,14 +1882,13 @@ export default function LeadsModule() {
                 </div>
               </div>
               <div className="flex w-full md:w-auto items-center justify-start md:justify-end gap-2 flex-wrap">
-                <Button variant="outline" size="sm" onClick={handleImport} className="hover:bg-blue-50 hover:border-blue-500">
-                  <Import className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Import</span>
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleExport} className="hover:bg-green-50 hover:border-green-500">
-                  <Download className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Export</span>
-                </Button>
+                <input
+                  ref={leadImportInputRef}
+                  type="file"
+                  accept=".csv,.xlsx"
+                  className="hidden"
+                  onChange={handleImportFileChange}
+                />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="hover:bg-purple-50 hover:border-purple-500">
@@ -1565,6 +1903,26 @@ export default function LeadsModule() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-[90vw] max-w-xs sm:w-56">
                     <DropdownMenuLabel className="text-xs text-gray-500 font-semibold">Bulk Actions</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      disabled={isImporting}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setTimeout(() => handleImport(), 0);
+                      }}
+                    >
+                      {isImporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Import className="w-4 h-4 mr-2" />}
+                      {isImporting ? "Importing..." : "Import Leads"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setTimeout(() => handleExport(), 0);
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Leads
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onSelect={(event) => {

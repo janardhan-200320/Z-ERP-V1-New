@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,6 +59,7 @@ interface CommunicationLog {
 
 export default function LeadCommunication() {
   const { toast } = useToast();
+  const composeHydratedRef = useRef(false);
   
   // State
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -141,6 +142,42 @@ export default function LeadCommunication() {
       createdBy: "Emily Davis"
     }
   ]);
+
+  useEffect(() => {
+    if (composeHydratedRef.current) {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const composeType = params.get("compose");
+    if (composeType !== "email") {
+      return;
+    }
+
+    const leadName = params.get("leadName") || "Team Member";
+    const company = params.get("company") || "Lead Assignment";
+    const email = params.get("email") || "";
+    const phone = params.get("phone") || "";
+    const subject = params.get("subject") || "";
+    const body = params.get("body") || "";
+
+    if (!email) {
+      return;
+    }
+
+    composeHydratedRef.current = true;
+    setActiveTab("quick-actions");
+    setSelectedLead({
+      id: `compose-${Date.now()}`,
+      name: leadName,
+      company,
+      email,
+      phone,
+    });
+    setEmailSubject(subject);
+    setEmailBody(body);
+    setEmailDialogOpen(true);
+  }, []);
 
   // WhatsApp Handler
   const handleSendWhatsApp = async () => {
@@ -708,7 +745,7 @@ export default function LeadCommunication() {
 
         {/* Email Dialog */}
         <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-          <DialogContent className="sm:max-w-[700px]">
+          <DialogContent className="w-[95vw] max-h-[90vh] overflow-y-auto sm:max-w-[700px]">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Mail className="w-5 h-5 text-blue-600" />

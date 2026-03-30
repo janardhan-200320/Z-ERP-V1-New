@@ -27,6 +27,7 @@ import HRMPublicHolidays from "@/pages/hrm/hrm-public-holidays";
 
 // Sales Module Pages
 import SalesDashboard from "@/pages/sales/sales-dashboard";
+import ProposalViewPage from "@/pages/sales/proposal-view-page";
 
 // Accounts Module Pages
 import AccountsModule from "@/pages/accounts/index";
@@ -57,12 +58,6 @@ import AdminSetup from "@/pages/admin/AdminSetup";
 
 // Contacts Module
 // ContactsList removed
-
-// Setup Module
-import StaffSetup from "@/pages/setup/StaffSetup";
-import GroupsPage from "@/pages/setup/groups";
-import PermissionsPage from "@/pages/setup/permissions";
-import RolesPage from "@/pages/setup/roles";
 
 // Customer Groups
 import CustomerGroups from "@/pages/customers/customer-groups";
@@ -115,6 +110,9 @@ function AppRouter() {
       
       {/* Roots and Modules */}
       <Route path="/" component={DashboardOverview} />
+
+      {/* Standalone Proposal View */}
+      <Route path="/proposal-view/:id" component={ProposalViewPage} />
       
       {/* Accounts Module Routes - Delegate all /accounts paths */}
       <Route path="/accounts/*" component={AccountsModule} />
@@ -163,13 +161,6 @@ function AppRouter() {
       {/* Organizations Module */}
       <Route path="/organizations/*" component={OrganizationsManagement} />
       <Route path="/organizations" component={OrganizationsManagement} />
-      
-      {/* Setup Module */}
-      <Route path="/dashboard/setup/groups" component={GroupsPage} />
-      <Route path="/dashboard/setup/roles" component={RolesPage} />
-      <Route path="/dashboard/setup/permissions" component={PermissionsPage} />
-      <Route path="/dashboard/setup/*" component={StaffSetup} />
-      <Route path="/dashboard/setup" component={StaffSetup} />
       
       {/* Subscription Management Module */}
       <Route path="/subscriptions/*" component={SubscriptionManagement} />

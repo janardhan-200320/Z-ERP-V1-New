@@ -93,7 +93,7 @@ export const customerDirectory: CustomerDirectoryEntry[] = [
   {
     id: 9,
     companyName: 'Zollid',
-    primaryContact: 'Ragni ca',
+    primaryContact: 'Ragni c....a',
     primaryEmail: 'raginichavan1703@gmail.com',
     phone: '12',
     active: true,

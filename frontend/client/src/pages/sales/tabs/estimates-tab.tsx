@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plus, 
   Download, 
@@ -46,6 +47,39 @@ import { exportToCSV } from '@/lib/csv-export';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from '@/lib/utils';
+import { BANK_ACCOUNTS_UPDATED_EVENT, getActiveBankAccountOptions } from '@/lib/bank-accounts';
+
+type EstimateLineItem = {
+  id: number;
+  item: string;
+  description: string;
+  qty: number;
+  rate: number;
+  tax: string;
+  amount: number;
+};
+
+type EstimateCatalogItem = {
+  id: string;
+  type: 'service' | 'product';
+  name: string;
+  description: string;
+  defaultRate: number;
+  defaultTax: string;
+};
+
+const parseEstimateTaxRate = (taxLabel: string): number => {
+  const match = taxLabel.match(/(\d+(?:\.\d+)?)\s*%/);
+  return match ? Number(match[1]) : 0;
+};
+
+const getEstimateTaxBreakdown = (taxLabel: string) => {
+  const rate = parseEstimateTaxRate(taxLabel);
+  if (taxLabel.includes('GST') && !taxLabel.includes('IGST')) {
+    return { cgstPercent: rate / 2, sgstPercent: rate / 2, otherPercent: 0 };
+  }
+  return { cgstPercent: 0, sgstPercent: 0, otherPercent: rate };
+};
 
 export default function EstimatesTab() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,6 +116,181 @@ export default function EstimatesTab() {
   const [editDiscountPercent, setEditDiscountPercent] = useState(0);
   const [editAdjustment, setEditAdjustment] = useState(0);
   const [showQtyAs, setShowQtyAs] = useState<'qty' | 'hours' | 'both'>('qty');
+
+  // Create Form State
+  const [createPaymentMode, setCreatePaymentMode] = useState('bank');
+  const [createBankAccountId, setCreateBankAccountId] = useState('');
+  const [bankAccountOptions, setBankAccountOptions] = useState(() => getActiveBankAccountOptions());
+  const [createCatalogTab, setCreateCatalogTab] = useState<'service' | 'product'>('service');
+  const [createCatalogSelection, setCreateCatalogSelection] = useState('');
+  const [createDiscountValue, setCreateDiscountValue] = useState(0);
+  const [createDiscountMode, setCreateDiscountMode] = useState<'percent' | 'fixed'>('percent');
+  const [createAdjustment, setCreateAdjustment] = useState(0);
+  const [createItems, setCreateItems] = useState<EstimateLineItem[]>([
+    { id: 1, item: '', description: '', qty: 1, rate: 0, tax: 'No Tax', amount: 0 }
+  ]);
+  const [createCustomFields, setCreateCustomFields] = useState<Array<{ id: number; label: string; value: string }>>([]);
+  const [createCustomSections, setCreateCustomSections] = useState<Array<{ id: number; title: string; content: string }>>([]);
+
+  useEffect(() => {
+    const reloadBankAccounts = () => {
+      setBankAccountOptions(getActiveBankAccountOptions());
+    };
+
+    window.addEventListener(BANK_ACCOUNTS_UPDATED_EVENT, reloadBankAccounts);
+    window.addEventListener('storage', reloadBankAccounts);
+
+    return () => {
+      window.removeEventListener(BANK_ACCOUNTS_UPDATED_EVENT, reloadBankAccounts);
+      window.removeEventListener('storage', reloadBankAccounts);
+    };
+  }, []);
+
+  const createCatalog = useMemo<EstimateCatalogItem[]>(() => [
+    {
+      id: 'svc-consulting',
+      type: 'service',
+      name: 'Consulting Service',
+      description: 'Professional advisory and consulting service.',
+      defaultRate: 5000,
+      defaultTax: 'GST 18%',
+    },
+    {
+      id: 'svc-development',
+      type: 'service',
+      name: 'Development Service',
+      description: 'Application or website development work.',
+      defaultRate: 10000,
+      defaultTax: 'GST 18%',
+    },
+    {
+      id: 'prd-license',
+      type: 'product',
+      name: 'Software License',
+      description: 'Annual software license subscription.',
+      defaultRate: 8000,
+      defaultTax: 'GST 18%',
+    },
+    {
+      id: 'prd-maintenance',
+      type: 'product',
+      name: 'Maintenance Package',
+      description: 'Maintenance and support package.',
+      defaultRate: 3000,
+      defaultTax: 'GST 18%',
+    },
+  ], []);
+
+  const createServiceCatalog = useMemo(
+    () => createCatalog.filter((item) => item.type === 'service'),
+    [createCatalog],
+  );
+
+  const createProductCatalog = useMemo(
+    () => createCatalog.filter((item) => item.type === 'product'),
+    [createCatalog],
+  );
+
+  const addCreateItem = () => {
+    const newId = createItems.length > 0 ? Math.max(...createItems.map((i) => i.id)) + 1 : 1;
+    setCreateItems([...createItems, { id: newId, item: '', description: '', qty: 1, rate: 0, tax: 'No Tax', amount: 0 }]);
+  };
+
+  const updateCreateItem = (id: number, field: keyof EstimateLineItem, value: string | number) => {
+    setCreateItems(createItems.map((line) => {
+      if (line.id !== id) return line;
+      const updated = { ...line, [field]: value };
+      updated.amount = updated.qty * updated.rate;
+      return updated;
+    }));
+  };
+
+  const removeCreateItem = (id: number) => {
+    if (createItems.length <= 1) return;
+    setCreateItems(createItems.filter((line) => line.id !== id));
+  };
+
+  const addCreateCatalogItem = (catalogId: string) => {
+    if (catalogId === 'custom') {
+      addCreateItem();
+      setCreateCatalogSelection('');
+      return;
+    }
+
+    const found = createCatalog.find((item) => item.id === catalogId);
+    if (!found) return;
+
+    const newId = createItems.length > 0 ? Math.max(...createItems.map((i) => i.id)) + 1 : 1;
+    setCreateItems([
+      ...createItems,
+      {
+        id: newId,
+        item: found.name,
+        description: found.description,
+        qty: 1,
+        rate: found.defaultRate,
+        tax: found.defaultTax,
+        amount: found.defaultRate,
+      },
+    ]);
+    setCreateCatalogSelection('');
+  };
+
+  const calculateCreateTotals = () => {
+    const subTotal = createItems.reduce((sum, line) => sum + (line.qty * line.rate), 0);
+    const cgstAmount = createItems.reduce((sum, line) => {
+      const rates = getEstimateTaxBreakdown(line.tax);
+      return sum + ((line.qty * line.rate) * rates.cgstPercent / 100);
+    }, 0);
+    const sgstAmount = createItems.reduce((sum, line) => {
+      const rates = getEstimateTaxBreakdown(line.tax);
+      return sum + ((line.qty * line.rate) * rates.sgstPercent / 100);
+    }, 0);
+    const otherTaxAmount = createItems.reduce((sum, line) => {
+      const rates = getEstimateTaxBreakdown(line.tax);
+      return sum + ((line.qty * line.rate) * rates.otherPercent / 100);
+    }, 0);
+    const taxAmount = cgstAmount + sgstAmount + otherTaxAmount;
+    const discountAmount = createDiscountMode === 'percent'
+      ? (subTotal * createDiscountValue) / 100
+      : createDiscountValue;
+    const total = subTotal + taxAmount - discountAmount + createAdjustment;
+    return { subTotal, cgstAmount, sgstAmount, otherTaxAmount, discountAmount, total };
+  };
+
+  const addCreateCustomField = () => {
+    setCreateCustomFields([
+      ...createCustomFields,
+      { id: Date.now(), label: '', value: '' },
+    ]);
+  };
+
+  const updateCreateCustomField = (id: number, field: 'label' | 'value', value: string) => {
+    setCreateCustomFields(createCustomFields.map((entry) => (
+      entry.id === id ? { ...entry, [field]: value } : entry
+    )));
+  };
+
+  const removeCreateCustomField = (id: number) => {
+    setCreateCustomFields(createCustomFields.filter((entry) => entry.id !== id));
+  };
+
+  const addCreateCustomSection = () => {
+    setCreateCustomSections([
+      ...createCustomSections,
+      { id: Date.now(), title: '', content: '' },
+    ]);
+  };
+
+  const updateCreateCustomSection = (id: number, field: 'title' | 'content', value: string) => {
+    setCreateCustomSections(createCustomSections.map((entry) => (
+      entry.id === id ? { ...entry, [field]: value } : entry
+    )));
+  };
+
+  const removeCreateCustomSection = (id: number) => {
+    setCreateCustomSections(createCustomSections.filter((entry) => entry.id !== id));
+  };
 
   // Load estimate data into edit form
   const loadEstimateForEdit = (estimate: typeof estimates[0]) => {
@@ -1017,11 +1226,54 @@ export default function EstimatesTab() {
                           </div>
                         </div>
 
-                        {/* Reference */}
+                        {/* Payment Mode */}
                         <div className="space-y-2">
-                          <Label className="text-xs text-slate-600">Reference #</Label>
-                          <Input placeholder="" className="h-10" />
+                          <Label className="text-xs text-slate-600">Payment Mode</Label>
+                          <Select
+                            value={createPaymentMode}
+                            onValueChange={(value) => {
+                              setCreatePaymentMode(value);
+                              if (value !== 'bank') {
+                                setCreateBankAccountId('');
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="bank">Bank</SelectItem>
+                              <SelectItem value="upi">UPI</SelectItem>
+                              <SelectItem value="cash">Cash</SelectItem>
+                              <SelectItem value="stripe">Stripe</SelectItem>
+                              <SelectItem value="paypal">PayPal</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
+
+                        {createPaymentMode === 'bank' && (
+                          <div className="space-y-2">
+                            <Label className="text-xs text-slate-600">Bank Name</Label>
+                            <Select value={createBankAccountId} onValueChange={setCreateBankAccountId}>
+                              <SelectTrigger className="h-10">
+                                <SelectValue placeholder="Select bank account" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {bankAccountOptions.length > 0 ? (
+                                  bankAccountOptions.map((account) => (
+                                    <SelectItem key={account.id} value={account.id}>
+                                      {account.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="__no_accounts__" disabled>
+                                    No active bank accounts found
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
 
                         {/* Sale Agent / Discount Type */}
                         <div className="grid grid-cols-2 gap-4">
@@ -1066,19 +1318,44 @@ export default function EstimatesTab() {
                     {/* Items Section */}
                     <div className="space-y-4 pt-4 border-t">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Select>
-                            <SelectTrigger className="w-40 h-10">
-                              <SelectValue placeholder="Add Item" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="item1">Service Item</SelectItem>
-                              <SelectItem value="item2">Product Item</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button variant="outline" size="icon" className="h-10 w-10">
-                            <Plus className="h-4 w-4" />
-                          </Button>
+                        <div className="space-y-2">
+                          <Tabs
+                            value={createCatalogTab}
+                            onValueChange={(value) => {
+                              setCreateCatalogTab(value as 'service' | 'product');
+                              setCreateCatalogSelection('');
+                            }}
+                            className="w-fit"
+                          >
+                            <TabsList className="h-8">
+                              <TabsTrigger value="service" className="text-xs px-3">Services</TabsTrigger>
+                              <TabsTrigger value="product" className="text-xs px-3">Products</TabsTrigger>
+                            </TabsList>
+                          </Tabs>
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={createCatalogSelection}
+                              onValueChange={(value) => {
+                                setCreateCatalogSelection(value);
+                                addCreateCatalogItem(value);
+                              }}
+                            >
+                              <SelectTrigger className="w-56 h-10">
+                                <SelectValue placeholder={`Add ${createCatalogTab === 'service' ? 'service' : 'product'}`} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="custom">Custom Item</SelectItem>
+                                {(createCatalogTab === 'service' ? createServiceCatalog : createProductCatalog).map((catalogItem) => (
+                                  <SelectItem key={catalogItem.id} value={catalogItem.id}>
+                                    {catalogItem.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button variant="outline" size="icon" className="h-10 w-10" onClick={addCreateItem}>
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-600">
                           <span>Show quantity as:</span>
@@ -1103,7 +1380,7 @@ export default function EstimatesTab() {
                           <TableHeader>
                             <TableRow className="bg-slate-50">
                               <TableHead className="w-8"></TableHead>
-                              <TableHead className="text-blue-600 font-medium">Item</TableHead>
+                              <TableHead className="text-blue-600 font-medium">Item Name</TableHead>
                               <TableHead className="text-slate-600">Description</TableHead>
                               <TableHead className="text-slate-600 w-24">Qty</TableHead>
                               <TableHead className="text-slate-600 w-28">Rate</TableHead>
@@ -1113,58 +1390,79 @@ export default function EstimatesTab() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            <TableRow className="border-l-2 border-l-transparent">
-                              <TableCell className="text-xs text-slate-400 font-medium"></TableCell>
-                              <TableCell>
-                                <Textarea 
-                                  placeholder="Description"
-                                  className="min-h-[60px] resize-none text-sm"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Textarea 
-                                  placeholder="Long description"
-                                  className="min-h-[60px] resize-none text-sm"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input 
-                                  type="number"
-                                  defaultValue="1"
-                                  className="text-center h-10"
-                                />
-                                <span className="text-[10px] text-blue-500 block mt-1">Unit</span>
-                              </TableCell>
-                              <TableCell>
-                                <Input 
-                                  type="number"
-                                  placeholder="Rate"
-                                  className="h-10"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Select defaultValue="no-tax">
-                                  <SelectTrigger className="text-xs h-10">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="no-tax">No Tax</SelectItem>
-                                    <SelectItem value="gst-5">GST 5%</SelectItem>
-                                    <SelectItem value="gst-12">GST 12%</SelectItem>
-                                    <SelectItem value="gst-18">GST 18%</SelectItem>
-                                    <SelectItem value="gst-28">GST 28%</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell className="text-right font-semibold">
-                                
-                              </TableCell>
-                              <TableCell>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600">
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
+                            {createItems.map((line, index) => (
+                              <TableRow key={line.id} className="border-l-2 border-l-transparent">
+                                <TableCell className="text-xs text-slate-400 font-medium">{index + 1}</TableCell>
+                                <TableCell className="align-top">
+                                  <Input
+                                    placeholder="Item name"
+                                    value={line.item}
+                                    onChange={(e) => updateCreateItem(line.id, 'item', e.target.value)}
+                                    className="h-10 text-sm"
+                                  />
+                                </TableCell>
+                                <TableCell className="align-top">
+                                  <Textarea
+                                    placeholder="Description of item"
+                                    value={line.description}
+                                    onChange={(e) => updateCreateItem(line.id, 'description', e.target.value)}
+                                    className="min-h-[60px] resize-y text-sm"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    value={line.qty}
+                                    onChange={(e) => updateCreateItem(line.id, 'qty', parseFloat(e.target.value) || 0)}
+                                    className="text-center h-10"
+                                  />
+                                  <span className="text-[10px] text-blue-500 block mt-1">Unit</span>
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    value={line.rate}
+                                    onChange={(e) => updateCreateItem(line.id, 'rate', parseFloat(e.target.value) || 0)}
+                                    placeholder="Rate"
+                                    className="h-10"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Select value={line.tax} onValueChange={(value) => updateCreateItem(line.id, 'tax', value)}>
+                                    <SelectTrigger className="text-xs h-10">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="No Tax">No Tax</SelectItem>
+                                      <SelectItem value="GST 5%">GST 5%</SelectItem>
+                                      <SelectItem value="GST 12%">GST 12%</SelectItem>
+                                      <SelectItem value="GST 18%">GST 18%</SelectItem>
+                                      <SelectItem value="GST 28%">GST 28%</SelectItem>
+                                      <SelectItem value="IGST 18%">IGST 18%</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell className="text-right font-semibold">
+                                  ₹{line.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </TableCell>
+                                <TableCell>
+                                  {index === 0 ? (
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600">
+                                      <Check className="h-4 w-4" />
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-red-600 hover:bg-red-50"
+                                      onClick={() => removeCreateItem(line.id)}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
                           </TableBody>
                         </Table>
                       </div>
@@ -1172,22 +1470,34 @@ export default function EstimatesTab() {
                       {/* Totals Section */}
                       <div className="flex justify-end">
                         <div className="w-96 space-y-3">
-                          <div className="flex justify-between items-center">
-                            <div></div>
-                            <div className="text-right">
-                              <Label className="text-xs text-blue-600">Sub Total:</Label>
-                              <p className="font-semibold">₹0.00</p>
-                            </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-600">Sub Total:</span>
+                            <span className="font-semibold">₹{calculateCreateTotals().subTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                           </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-600">CGST:</span>
+                            <span className="font-semibold">₹{calculateCreateTotals().cgstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-600">SGST:</span>
+                            <span className="font-semibold">₹{calculateCreateTotals().sgstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          {calculateCreateTotals().otherTaxAmount > 0 && (
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-slate-600">Other Tax:</span>
+                              <span className="font-semibold">₹{calculateCreateTotals().otherTaxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                               <Label className="text-sm text-blue-600 font-medium">Discount</Label>
                               <Input 
                                 type="number"
-                                defaultValue="0"
+                                value={createDiscountValue}
+                                onChange={(e) => setCreateDiscountValue(parseFloat(e.target.value) || 0)}
                                 className="w-20 h-8 text-sm"
                               />
-                              <Select defaultValue="percent">
+                              <Select value={createDiscountMode} onValueChange={(value) => setCreateDiscountMode(value as 'percent' | 'fixed')}>
                                 <SelectTrigger className="w-16 h-8 text-xs">
                                   <SelectValue />
                                 </SelectTrigger>
@@ -1197,22 +1507,23 @@ export default function EstimatesTab() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <p className="text-sm text-slate-600">₹0.00</p>
+                            <p className="text-sm text-slate-600">₹{calculateCreateTotals().discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                           </div>
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                               <Label className="text-sm text-blue-600 font-medium">Adjustment</Label>
                               <Input 
                                 type="number"
-                                defaultValue="0"
+                                value={createAdjustment}
+                                onChange={(e) => setCreateAdjustment(parseFloat(e.target.value) || 0)}
                                 className="w-24 h-8 text-sm"
                               />
                             </div>
-                            <p className="text-sm text-slate-600">₹0.00</p>
+                            <p className="text-sm text-slate-600">₹{createAdjustment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                           </div>
                           <div className="flex justify-between items-center pt-3 border-t">
                             <Label className="text-lg font-bold text-blue-600">Total:</Label>
-                            <p className="text-xl font-bold text-green-700">₹0.00</p>
+                            <p className="text-xl font-bold text-green-700">₹{calculateCreateTotals().total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                           </div>
                         </div>
                       </div>
@@ -1234,6 +1545,73 @@ export default function EstimatesTab() {
                         placeholder="Enter terms and conditions..."
                         className="min-h-[80px] resize-none"
                       />
+                    </div>
+
+                    {/* Custom Fields */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-blue-600">Custom Fields</Label>
+                        <Button type="button" variant="outline" size="sm" onClick={addCreateCustomField}>
+                          <Plus className="h-3 w-3 mr-1" />
+                          Add Field
+                        </Button>
+                      </div>
+                      {createCustomFields.length > 0 && (
+                        <div className="space-y-2">
+                          {createCustomFields.map((field) => (
+                            <div key={field.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                              <Input
+                                placeholder="Field label"
+                                value={field.label}
+                                onChange={(e) => updateCreateCustomField(field.id, 'label', e.target.value)}
+                              />
+                              <Input
+                                placeholder="Field value"
+                                value={field.value}
+                                onChange={(e) => updateCreateCustomField(field.id, 'value', e.target.value)}
+                              />
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removeCreateCustomField(field.id)}>
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Custom Sections */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-blue-600">Custom Sections</Label>
+                        <Button type="button" variant="outline" size="sm" onClick={addCreateCustomSection}>
+                          <Plus className="h-3 w-3 mr-1" />
+                          Add Section
+                        </Button>
+                      </div>
+                      {createCustomSections.length > 0 && (
+                        <div className="space-y-3">
+                          {createCustomSections.map((section) => (
+                            <div key={section.id} className="space-y-2 border rounded-lg p-3">
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  placeholder="Section title"
+                                  value={section.title}
+                                  onChange={(e) => updateCreateCustomSection(section.id, 'title', e.target.value)}
+                                />
+                                <Button type="button" variant="ghost" size="icon" onClick={() => removeCreateCustomSection(section.id)}>
+                                  <Trash2 className="h-4 w-4 text-red-600" />
+                                </Button>
+                              </div>
+                              <Textarea
+                                placeholder="Section content"
+                                value={section.content}
+                                onChange={(e) => updateCreateCustomSection(section.id, 'content', e.target.value)}
+                                className="min-h-[90px] resize-none"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Save Button */}

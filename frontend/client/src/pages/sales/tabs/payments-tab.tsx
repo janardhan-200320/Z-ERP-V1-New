@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,7 @@ import { exportToExcel } from '@/lib/exportUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from "@/lib/utils";
+import { BANK_ACCOUNTS_UPDATED_EVENT, getActiveBankAccountOptions } from '@/lib/bank-accounts';
 
 export default function PaymentsTab() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,7 +48,24 @@ export default function PaymentsTab() {
   const [isExporting, setIsExporting] = useState(false);
   const [showReceiptView, setShowReceiptView] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [recordPaymentMode, setRecordPaymentMode] = useState('bank');
+  const [recordBankAccountId, setRecordBankAccountId] = useState('');
+  const [bankAccountOptions, setBankAccountOptions] = useState(() => getActiveBankAccountOptions());
   const { toast } = useToast();
+
+  useEffect(() => {
+    const reloadBankAccounts = () => {
+      setBankAccountOptions(getActiveBankAccountOptions());
+    };
+
+    window.addEventListener(BANK_ACCOUNTS_UPDATED_EVENT, reloadBankAccounts);
+    window.addEventListener('storage', reloadBankAccounts);
+
+    return () => {
+      window.removeEventListener(BANK_ACCOUNTS_UPDATED_EVENT, reloadBankAccounts);
+      window.removeEventListener('storage', reloadBankAccounts);
+    };
+  }, []);
 
   // Mock data
   const [payments, setPayments] = useState([
@@ -243,7 +261,15 @@ export default function PaymentsTab() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="pay-mode">Payment Mode</Label>
-                      <Select>
+                      <Select
+                        value={recordPaymentMode}
+                        onValueChange={(value) => {
+                          setRecordPaymentMode(value);
+                          if (value !== 'bank') {
+                            setRecordBankAccountId('');
+                          }
+                        }}
+                      >
                         <SelectTrigger id="pay-mode">
                           <SelectValue placeholder="Select mode" />
                         </SelectTrigger>
@@ -257,6 +283,30 @@ export default function PaymentsTab() {
                       </Select>
                     </div>
                   </div>
+
+                  {recordPaymentMode === 'bank' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="pay-bank-account">Bank Name</Label>
+                      <Select value={recordBankAccountId} onValueChange={setRecordBankAccountId}>
+                        <SelectTrigger id="pay-bank-account">
+                          <SelectValue placeholder="Select bank account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {bankAccountOptions.length > 0 ? (
+                            bankAccountOptions.map((account) => (
+                              <SelectItem key={account.id} value={account.id}>
+                                {account.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-bank-accounts" disabled>
+                              No active bank accounts found
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {/* Transaction Details */}
                   <div className="grid grid-cols-2 gap-4">

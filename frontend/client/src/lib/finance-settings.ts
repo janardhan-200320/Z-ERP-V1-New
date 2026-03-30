@@ -7,6 +7,10 @@ export type FinanceSettingsData = {
   defaultCurrency: string;
   currencyFormat: string;
   defaultTaxRate: number;
+  cgstTaxOption: string;
+  sgstTaxOption: string;
+  cgstCustomRate: number;
+  sgstCustomRate: number;
   includeTaxInPrices: boolean;
   taxNumber: string;
   invoicePrefix: string;
@@ -18,9 +22,13 @@ export type FinanceSettingsData = {
 };
 
 export const DEFAULT_FINANCE_SETTINGS: FinanceSettingsData = {
-  defaultCurrency: 'usd',
+  defaultCurrency: 'USD',
   currencyFormat: 'symbol',
   defaultTaxRate: 10,
+  cgstTaxOption: '9',
+  sgstTaxOption: '9',
+  cgstCustomRate: 0,
+  sgstCustomRate: 0,
   includeTaxInPrices: false,
   taxNumber: 'US123456789',
   invoicePrefix: 'INV-',
@@ -40,7 +48,12 @@ const normalizeFinanceSettings = (settings: Partial<FinanceSettingsData> | null 
   const merged = { ...DEFAULT_FINANCE_SETTINGS, ...(settings || {}) };
   return {
     ...merged,
+    defaultCurrency: String(merged.defaultCurrency || DEFAULT_FINANCE_SETTINGS.defaultCurrency).toUpperCase(),
     defaultTaxRate: clampRate(Number(merged.defaultTaxRate)),
+    cgstTaxOption: String(merged.cgstTaxOption || DEFAULT_FINANCE_SETTINGS.cgstTaxOption),
+    sgstTaxOption: String(merged.sgstTaxOption || DEFAULT_FINANCE_SETTINGS.sgstTaxOption),
+    cgstCustomRate: clampRate(Number(merged.cgstCustomRate)),
+    sgstCustomRate: clampRate(Number(merged.sgstCustomRate)),
     invoiceStartNumber: Math.max(0, Number(merged.invoiceStartNumber) || DEFAULT_FINANCE_SETTINGS.invoiceStartNumber),
     paymentTermsDays: Math.max(0, Number(merged.paymentTermsDays) || DEFAULT_FINANCE_SETTINGS.paymentTermsDays),
     lateFeePercent: Math.max(0, Number(merged.lateFeePercent) || DEFAULT_FINANCE_SETTINGS.lateFeePercent),

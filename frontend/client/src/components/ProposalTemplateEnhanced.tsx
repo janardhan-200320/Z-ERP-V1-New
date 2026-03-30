@@ -56,6 +56,9 @@ interface ProposalTemplateEnhancedProps {
   customerInfo?: CustomerInfo;
   items?: ProposalItem[];
   subTotal?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  otherTaxAmount?: number;
   discount?: number;
   total?: number;
   terms?: string[];
@@ -94,6 +97,9 @@ export default function ProposalTemplateEnhanced({
   },
   items = [],
   subTotal = 0,
+  cgstAmount = 0,
+  sgstAmount = 0,
+  otherTaxAmount = 0,
   discount = 0,
   total = 0,
   terms = [
@@ -352,6 +358,20 @@ export default function ProposalTemplateEnhanced({
                 <span className="text-sm font-semibold text-slate-700">Sub Total</span>
                 <span className="text-sm font-bold">{currency}{subTotal.toFixed(2)}</span>
               </div>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-sm font-semibold text-slate-700">CGST</span>
+                <span className="text-sm font-bold">{currency}{cgstAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-sm font-semibold text-slate-700">SGST</span>
+                <span className="text-sm font-bold">{currency}{sgstAmount.toFixed(2)}</span>
+              </div>
+              {otherTaxAmount > 0 && (
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                  <span className="text-sm font-semibold text-slate-700">Other Tax</span>
+                  <span className="text-sm font-bold">{currency}{otherTaxAmount.toFixed(2)}</span>
+                </div>
+              )}
               {discount > 0 && (
                 <div className="flex justify-between items-center pb-2 border-b border-slate-200">
                   <span className="text-sm font-semibold text-slate-700">Discount</span>

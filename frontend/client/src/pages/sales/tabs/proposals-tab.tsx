@@ -50,6 +50,7 @@ import ProposalTemplateEnhanced from '@/components/ProposalTemplateEnhanced';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { exportProposalToPDF } from '@/lib/proposal-pdf-generator';
 import { FINANCE_DEFAULT_TAX_VALUE, getFinanceSettings, getFinanceTaxLabel } from '@/lib/finance-settings';
+import { saveProposalForStandaloneView } from '@/lib/proposal-view-storage';
 
 type ProposalLineItem = {
   id: number;
@@ -65,6 +66,15 @@ type TaxBreakdown = {
   cgstPercent: number;
   sgstPercent: number;
   otherPercent: number;
+};
+
+type ProposalTaxSummary = {
+  subTotal: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  otherTaxAmount: number;
+  taxTotal: number;
+  grandTotal: number;
 };
 
 type CatalogItem = {
@@ -111,6 +121,66 @@ const calculateItemAmountWithTax = (item: ProposalLineItem, financeDefaultTaxRat
   const sgst = taxableValue * rates.sgstPercent / 100;
   const otherTax = taxableValue * rates.otherPercent / 100;
   return taxableValue + cgst + sgst + otherTax;
+};
+
+const parseAmount = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.replace(/[^0-9.-]/g, '');
+    const parsed = parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+};
+
+const calculateProposalTaxSummary = (items: any[], financeDefaultTaxRate: number): ProposalTaxSummary => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return {
+      subTotal: 0,
+      cgstAmount: 0,
+      sgstAmount: 0,
+      otherTaxAmount: 0,
+      taxTotal: 0,
+      grandTotal: 0,
+    };
+  }
+
+  const summary = items.reduce(
+    (acc, item) => {
+      const qty = parseAmount(item?.qty) || 1;
+      const rate = parseAmount(item?.rate);
+      const taxable = qty * rate;
+      const rates = getTaxRates(item?.tax || 'No Tax', financeDefaultTaxRate);
+      const cgst = taxable * rates.cgstPercent / 100;
+      const sgst = taxable * rates.sgstPercent / 100;
+      const otherTax = taxable * rates.otherPercent / 100;
+
+      acc.subTotal += taxable;
+      acc.cgstAmount += cgst;
+      acc.sgstAmount += sgst;
+      acc.otherTaxAmount += otherTax;
+      return acc;
+    },
+    {
+      subTotal: 0,
+      cgstAmount: 0,
+      sgstAmount: 0,
+      otherTaxAmount: 0,
+    },
+  );
+
+  const taxTotal = summary.cgstAmount + summary.sgstAmount + summary.otherTaxAmount;
+  const grandTotal = summary.subTotal + taxTotal;
+
+  return {
+    ...summary,
+    taxTotal,
+    grandTotal,
+  };
 };
 
 const inferCatalogType = (description: string): 'product' | 'service' => {
@@ -317,6 +387,16 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   const [editDiscount, setEditDiscount] = useState(0);
   const [editAdjustment, setEditAdjustment] = useState(0);
   const [showQtyAs, setShowQtyAs] = useState<'qty' | 'hours' | 'both'>('qty');
+
+  const selectedProposalTaxSummary = useMemo(() => {
+    const taxSummary = calculateProposalTaxSummary(selectedProposal?.items || [], financeDefaultTaxRate);
+    const parsedTotalAmount = parseAmount(selectedProposal?.totalAmount);
+
+    return {
+      ...taxSummary,
+      grandTotal: parsedTotalAmount > 0 ? parsedTotalAmount : taxSummary.grandTotal,
+    };
+  }, [selectedProposal, financeDefaultTaxRate]);
 
   // Edit Template Fields
   const [editProposalTitle, setEditProposalTitle] = useState('');
@@ -897,9 +977,21 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   };
 
   const handleAction = (action: string, prop: any) => {
+    if (action === 'view') {
+      saveProposalForStandaloneView(prop);
+      const targetUrl = `${window.location.origin}/proposal-view/${encodeURIComponent(prop.id)}`;
+      const openedTab = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+
+      if (!openedTab) {
+        // Fallback when popup is blocked.
+        setSelectedProposal(prop);
+        setIsViewOpen(true);
+      }
+      return;
+    }
+
     setSelectedProposal(prop);
-    if (action === 'view') setIsViewOpen(true);
-    else if (action === 'edit') setIsEditOpen(true);
+    if (action === 'edit') setIsEditOpen(true);
     else if (action === 'send') {
       toast({
         title: "Proposal Sent",
@@ -2181,9 +2273,12 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           phone: '+1 234 567 890'
                         }}
                         items={selectedProposal.items || []}
-                        subTotal={parseFloat(selectedProposal.totalAmount?.replace(/[$,]/g, '') || '0')}
+                        subTotal={selectedProposalTaxSummary.subTotal}
+                        cgstAmount={selectedProposalTaxSummary.cgstAmount}
+                        sgstAmount={selectedProposalTaxSummary.sgstAmount}
+                        otherTaxAmount={selectedProposalTaxSummary.otherTaxAmount}
                         discount={0}
-                        total={parseFloat(selectedProposal.totalAmount?.replace(/[$,]/g, '') || '0')}
+                        total={selectedProposalTaxSummary.grandTotal}
                         terms={[
                           'Payment terms: 50% upfront, 50% upon completion',
                           'All deliverables are subject to client approval',
@@ -2214,6 +2309,10 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         status={selectedProposal.status}
                         customer={selectedProposal.customer}
                         totalAmount={selectedProposal.totalAmount}
+                        subTotal={selectedProposalTaxSummary.subTotal}
+                        cgstAmount={selectedProposalTaxSummary.cgstAmount}
+                        sgstAmount={selectedProposalTaxSummary.sgstAmount}
+                        otherTaxAmount={selectedProposalTaxSummary.otherTaxAmount}
                         validUntil={selectedProposal.validUntil}
                       />
                     )}
@@ -2248,6 +2347,37 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         <p className="text-slate-600 leading-relaxed">
                           {selectedProposal?.overview || `This proposal covers the ${selectedProposal?.subject} for ${selectedProposal?.customer}. The project aims to deliver high-quality results within the specified timeframe and budget.`}
                         </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 p-6 bg-white">
+                        <h4 className="font-bold flex items-center gap-2 mb-4">
+                          <Building2 className="h-4 w-4 text-indigo-600" />
+                          Tax Details
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <span className="text-slate-600">Sub Total</span>
+                            <span className="font-semibold">Rs {selectedProposalTaxSummary.subTotal.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <span className="text-slate-600">CGST</span>
+                            <span className="font-semibold">Rs {selectedProposalTaxSummary.cgstAmount.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <span className="text-slate-600">SGST</span>
+                            <span className="font-semibold">Rs {selectedProposalTaxSummary.sgstAmount.toFixed(2)}</span>
+                          </div>
+                          {selectedProposalTaxSummary.otherTaxAmount > 0 && (
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                              <span className="text-slate-600">Other Tax</span>
+                              <span className="font-semibold">Rs {selectedProposalTaxSummary.otherTaxAmount.toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between pt-2">
+                            <span className="font-bold text-slate-900">Total Amount</span>
+                            <span className="font-bold text-emerald-600">Rs {selectedProposalTaxSummary.grandTotal.toFixed(2)}</span>
+                          </div>
+                        </div>
                       </div>
 
                       {selectedProposal?.scopeOfWork && selectedProposal.scopeOfWork.length > 0 && (

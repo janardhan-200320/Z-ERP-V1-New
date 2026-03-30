@@ -22,13 +22,12 @@ import HRMAssets from "@/pages/hrm/hrm-assets";
 import HRMPerformance from "@/pages/hrm/hrm-performance";
 import HRMLetters from "@/pages/hrm/hrm-letters";
 import HRMTravelExpense from "@/pages/hrm/hrm-travel-expense";
-import HRMAutomation from "@/pages/hrm/hrm-automation";
-import HRMWorkflows from "@/pages/hrm/hrm-workflows";
 import HRMAnnouncements from "@/pages/hrm/hrm-announcements";
 import HRMPublicHolidays from "@/pages/hrm/hrm-public-holidays";
 
 // Sales Module Pages
 import SalesDashboard from "@/pages/sales/sales-dashboard";
+import ProposalViewPage from "@/pages/sales/proposal-view-page";
 
 // Accounts Module Pages
 import AccountsModule from "@/pages/accounts/index";
@@ -59,12 +58,6 @@ import AdminSetup from "@/pages/admin/AdminSetup";
 
 // Contacts Module
 // ContactsList removed
-
-// Setup Module
-import StaffSetup from "@/pages/setup/StaffSetup";
-import GroupsPage from "@/pages/setup/groups";
-import PermissionsPage from "@/pages/setup/permissions";
-import RolesPage from "@/pages/setup/roles";
 
 // Customer Groups
 import CustomerGroups from "@/pages/customers/customer-groups";
@@ -118,6 +111,9 @@ function AppRouter() {
       
       {/* Roots and Modules */}
       <Route path="/" component={DashboardOverview} />
+
+      {/* Standalone Proposal View */}
+      <Route path="/proposal-view/:id" component={ProposalViewPage} />
       
       {/* Accounts Module Routes - Delegate all /accounts paths */}
       <Route path="/accounts/*" component={AccountsModule} />
@@ -136,8 +132,6 @@ function AppRouter() {
       <Route path="/hrm/performance" component={HRMPerformance} />
       <Route path="/hrm/letters" component={HRMLetters} />
       <Route path="/hrm/travel-expense" component={HRMTravelExpense} />
-      <Route path="/hrm/automation" component={HRMAutomation} />
-      <Route path="/hrm/workflows" component={HRMWorkflows} />
       <Route path="/hrm/announcements" component={HRMAnnouncements} />
       <Route path="/hrm/public-holidays" component={HRMPublicHolidays} />
       <Route path="/hrm/*" component={HRMDashboard} />
@@ -168,13 +162,6 @@ function AppRouter() {
       {/* Organizations Module */}
       <Route path="/organizations/*" component={OrganizationsManagement} />
       <Route path="/organizations" component={OrganizationsManagement} />
-      
-      {/* Setup Module */}
-      <Route path="/dashboard/setup/groups" component={GroupsPage} />
-      <Route path="/dashboard/setup/roles" component={RolesPage} />
-      <Route path="/dashboard/setup/permissions" component={PermissionsPage} />
-      <Route path="/dashboard/setup/*" component={StaffSetup} />
-      <Route path="/dashboard/setup" component={StaffSetup} />
       
       {/* Subscription Management Module */}
       <Route path="/subscriptions/*" component={SubscriptionManagement} />
@@ -207,6 +194,10 @@ function AppRouter() {
       <Route path="/admin" component={AdminSetup} />
       
       {/* Settings Module */}
+      <Route path="/dashboard/settings/general" component={GeneralSettings} />
+      <Route path="/dashboard/settings/esign" component={ESignSettings} />
+      <Route path="/dashboard/settings/finance" component={FinanceSettings} />
+      <Route path="/dashboard/settings/leads" component={LeadsSettings} />
       <Route path="/dashboard/settings/*" component={SettingsDashboard} />
       <Route path="/dashboard/settings" component={SettingsDashboard} />
       

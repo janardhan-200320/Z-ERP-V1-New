@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plus, 
   Download, 
@@ -26,7 +27,6 @@ import {
   Send,
   Building2,
   Calendar,
-  CreditCard,
   CheckCircle2,
   Clock,
   AlertCircle,
@@ -54,6 +54,54 @@ import autoTable from 'jspdf-autotable';
 import { cn } from "@/lib/utils";
 import { downloadSalesInvoicePDF, printSalesInvoicePDF, InvoiceData } from "@/lib/sales-invoice-pdf";
 import QRCode from 'qrcode';
+import {
+  FINANCE_DEFAULT_TAX_VALUE,
+  getFinanceSettings,
+  getFinanceTaxLabel,
+  parseTaxPercentage,
+} from '@/lib/finance-settings';
+
+const calculateInvoiceItemAmountWithTax = (
+  item: { qty: number; rate: number; tax: string },
+  financeDefaultTaxRate: number,
+): number => {
+  const taxable = item.qty * item.rate;
+  const taxPercent = parseTaxPercentage(item.tax, financeDefaultTaxRate);
+  return taxable + (taxable * taxPercent / 100);
+};
+
+type CatalogItem = {
+  id: string;
+  type: 'product' | 'service';
+  name: string;
+  description: string;
+  defaultRate: number;
+  defaultTax: string;
+};
+
+const inferCatalogType = (name: string): 'product' | 'service' => {
+  const normalized = name.toLowerCase();
+  const serviceKeywords = ['service', 'consulting', 'development', 'support', 'training', 'design', 'implementation'];
+  return serviceKeywords.some((keyword) => normalized.includes(keyword)) ? 'service' : 'product';
+};
+
+const getInvoiceTaxBreakdown = (taxLabel: string, financeDefaultTaxRate: number) => {
+  const rate = parseTaxPercentage(taxLabel, financeDefaultTaxRate);
+
+  if (taxLabel === FINANCE_DEFAULT_TAX_VALUE || (taxLabel.includes('GST') && !taxLabel.includes('IGST'))) {
+    return {
+      cgstPercent: rate / 2,
+      sgstPercent: rate / 2,
+      otherPercent: 0,
+    };
+  }
+
+  return {
+    cgstPercent: 0,
+    sgstPercent: 0,
+    otherPercent: rate,
+  };
+};
 
 export default function InvoicesTab() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,6 +113,8 @@ export default function InvoicesTab() {
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
+  const [financeDefaultTaxRate, setFinanceDefaultTaxRate] = useState(() => getFinanceSettings().defaultTaxRate);
+  const financeDefaultTaxLabel = useMemo(() => getFinanceTaxLabel(financeDefaultTaxRate), [financeDefaultTaxRate]);
   const { toast } = useToast();
 
   // Generate QR code when invoice is selected
@@ -85,11 +135,13 @@ export default function InvoicesTab() {
 
   // Invoice items state
   const [invoiceItems, setInvoiceItems] = useState([
-    { id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: 'No Tax', amount: 0 }
+    { id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: FINANCE_DEFAULT_TAX_VALUE, amount: 0 }
   ]);
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState('%');
   const [adjustment, setAdjustment] = useState(0);
+  const [selectedCatalogItem, setSelectedCatalogItem] = useState<string>('');
+  const [activeCatalogTab, setActiveCatalogTab] = useState<'service' | 'product'>('service');
 
   // Mock data - Updated to match screenshot
   const [invoices, setInvoices] = useState([
@@ -107,10 +159,86 @@ export default function InvoicesTab() {
   // Calculate totals
   const calculateTotals = () => {
     const subTotal = invoiceItems.reduce((sum, item) => sum + (item.qty * item.rate), 0);
+    const cgstAmount = invoiceItems.reduce((sum, item) => {
+      const taxable = item.qty * item.rate;
+      const rates = getInvoiceTaxBreakdown(item.tax, financeDefaultTaxRate);
+      return sum + (taxable * rates.cgstPercent / 100);
+    }, 0);
+    const sgstAmount = invoiceItems.reduce((sum, item) => {
+      const taxable = item.qty * item.rate;
+      const rates = getInvoiceTaxBreakdown(item.tax, financeDefaultTaxRate);
+      return sum + (taxable * rates.sgstPercent / 100);
+    }, 0);
+    const otherTaxAmount = invoiceItems.reduce((sum, item) => {
+      const taxable = item.qty * item.rate;
+      const rates = getInvoiceTaxBreakdown(item.tax, financeDefaultTaxRate);
+      return sum + (taxable * rates.otherPercent / 100);
+    }, 0);
+    const taxAmount = cgstAmount + sgstAmount + otherTaxAmount;
     const discountAmount = discountType === '%' ? (subTotal * discount / 100) : discount;
-    const total = subTotal - discountAmount + adjustment;
-    return { subTotal, discountAmount, total };
+    const total = subTotal + taxAmount - discountAmount + adjustment;
+    return { subTotal, cgstAmount, sgstAmount, otherTaxAmount, taxAmount, discountAmount, total };
   };
+
+  const itemCatalog = useMemo<CatalogItem[]>(() => {
+    const baseCatalog: CatalogItem[] = [
+      {
+        id: 'svc-consulting',
+        type: 'service',
+        name: 'Consulting Service',
+        description: 'Professional consulting and advisory support.',
+        defaultRate: 5000,
+        defaultTax: FINANCE_DEFAULT_TAX_VALUE,
+      },
+      {
+        id: 'svc-development',
+        type: 'service',
+        name: 'Development Service',
+        description: 'Custom development and implementation work.',
+        defaultRate: 12000,
+        defaultTax: FINANCE_DEFAULT_TAX_VALUE,
+      },
+      {
+        id: 'prd-license',
+        type: 'product',
+        name: 'Software License',
+        description: 'Software product license subscription.',
+        defaultRate: 10000,
+        defaultTax: FINANCE_DEFAULT_TAX_VALUE,
+      },
+      {
+        id: 'prd-maintenance',
+        type: 'product',
+        name: 'Maintenance Pack',
+        description: 'Annual maintenance and update package.',
+        defaultRate: 3000,
+        defaultTax: FINANCE_DEFAULT_TAX_VALUE,
+      },
+    ];
+
+    const derived = invoiceItems
+      .filter((item) => item.description.trim())
+      .map((item) => ({
+        id: `existing-${item.id}`,
+        type: inferCatalogType(item.description),
+        name: item.description,
+        description: item.longDescription || 'Description of item',
+        defaultRate: item.rate || 0,
+        defaultTax: item.tax || FINANCE_DEFAULT_TAX_VALUE,
+      }));
+
+    return [...baseCatalog, ...derived];
+  }, [invoiceItems]);
+
+  const serviceCatalogItems = useMemo(
+    () => itemCatalog.filter((catalogItem) => catalogItem.type === 'service'),
+    [itemCatalog],
+  );
+
+  const productCatalogItems = useMemo(
+    () => itemCatalog.filter((catalogItem) => catalogItem.type === 'product'),
+    [itemCatalog],
+  );
 
   const addInvoiceItem = () => {
     setInvoiceItems([...invoiceItems, { 
@@ -119,9 +247,34 @@ export default function InvoicesTab() {
       longDescription: '', 
       qty: 1, 
       rate: 0, 
-      tax: 'No Tax', 
+      tax: FINANCE_DEFAULT_TAX_VALUE,
       amount: 0 
     }]);
+  };
+
+  const addCatalogItem = (catalogItemId: string) => {
+    if (catalogItemId === 'custom') {
+      addInvoiceItem();
+      setSelectedCatalogItem('');
+      return;
+    }
+
+    const selectedItem = itemCatalog.find((item) => item.id === catalogItemId);
+    if (!selectedItem) return;
+
+    const newItem = {
+      id: invoiceItems.length + 1,
+      description: selectedItem.name,
+      longDescription: selectedItem.description,
+      qty: 1,
+      rate: selectedItem.defaultRate,
+      tax: selectedItem.defaultTax,
+      amount: 0,
+    };
+
+    newItem.amount = calculateInvoiceItemAmountWithTax(newItem, financeDefaultTaxRate);
+    setInvoiceItems([...invoiceItems, newItem]);
+    setSelectedCatalogItem('');
   };
 
   const removeInvoiceItem = (id: number) => {
@@ -132,14 +285,35 @@ export default function InvoicesTab() {
     setInvoiceItems(invoiceItems.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
-        if (field === 'qty' || field === 'rate') {
-          updated.amount = updated.qty * updated.rate;
+        if (field === 'qty' || field === 'rate' || field === 'tax') {
+          updated.amount = calculateInvoiceItemAmountWithTax(updated, financeDefaultTaxRate);
         }
         return updated;
       }
       return item;
     }));
   };
+
+  useEffect(() => {
+    const reloadFinanceSettings = () => {
+      setFinanceDefaultTaxRate(getFinanceSettings().defaultTaxRate);
+    };
+
+    window.addEventListener('financeSettingsUpdated', reloadFinanceSettings);
+    window.addEventListener('storage', reloadFinanceSettings);
+
+    return () => {
+      window.removeEventListener('financeSettingsUpdated', reloadFinanceSettings);
+      window.removeEventListener('storage', reloadFinanceSettings);
+    };
+  }, []);
+
+  useEffect(() => {
+    setInvoiceItems((prev) => prev.map((item) => ({
+      ...item,
+      amount: calculateInvoiceItemAmountWithTax(item, financeDefaultTaxRate),
+    })));
+  }, [financeDefaultTaxRate]);
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter(inv => {
@@ -360,10 +534,6 @@ export default function InvoicesTab() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-note" className="text-sm">Admin Note</Label>
-                    <Textarea id="admin-note" placeholder="Not visible to customer" rows={2} className="resize-none text-sm" />
-                  </div>
                 </div>
               </div>
 
@@ -385,17 +555,43 @@ export default function InvoicesTab() {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Tabs
+                    value={activeCatalogTab}
+                    onValueChange={(value) => {
+                      setActiveCatalogTab(value as 'service' | 'product');
+                      setSelectedCatalogItem('');
+                    }}
+                    className="w-fit"
+                  >
+                    <TabsList className="h-8">
+                      <TabsTrigger value="service" className="text-xs px-3">Services</TabsTrigger>
+                      <TabsTrigger value="product" className="text-xs px-3">Products</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={selectedCatalogItem}
+                      onValueChange={(value) => {
+                        setSelectedCatalogItem(value);
+                        addCatalogItem(value);
+                      }}
+                    >
+                      <SelectTrigger className="w-64 h-10">
+                        <SelectValue placeholder={`Add ${activeCatalogTab === 'service' ? 'service' : 'product'}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="custom">Custom Item</SelectItem>
+                        {(activeCatalogTab === 'service' ? serviceCatalogItems : productCatalogItems).map((catalogItem) => (
+                          <SelectItem key={catalogItem.id} value={catalogItem.id}>
+                            {catalogItem.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
-                  <Select>
-                    <SelectTrigger className="w-56 h-10">
-                      <SelectValue placeholder="Add items" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="custom">Custom Item</SelectItem>
-                      <SelectItem value="consulting">Consulting Service</SelectItem>
-                      <SelectItem value="development">Development Service</SelectItem>
-                    </SelectContent>
-                  </Select>
                   <Button size="sm" variant="outline" onClick={addInvoiceItem} className="h-10">
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -411,7 +607,7 @@ export default function InvoicesTab() {
                     <TableHeader className="bg-slate-50">
                       <TableRow>
                         <TableHead className="w-8"></TableHead>
-                        <TableHead className="w-32">Item</TableHead>
+                        <TableHead className="w-40">Item Name</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead className="w-24">Qty</TableHead>
                         <TableHead className="w-28">Rate</TableHead>
@@ -424,20 +620,20 @@ export default function InvoicesTab() {
                       {invoiceItems.map((item) => (
                         <TableRow key={item.id} className="hover:bg-slate-50/50">
                           <TableCell></TableCell>
-                          <TableCell>
+                          <TableCell className="align-top">
                             <Input
-                              placeholder="Description"
+                              placeholder="Item name"
                               value={item.description}
                               onChange={(e) => updateInvoiceItem(item.id, 'description', e.target.value)}
                               className="h-9 text-sm"
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="align-top">
                             <Textarea
-                              placeholder="Long description"
+                              placeholder="Description of item"
                               value={item.longDescription}
                               onChange={(e) => updateInvoiceItem(item.id, 'longDescription', e.target.value)}
-                              className="min-h-[60px] resize-none text-sm"
+                              className="min-h-[60px] resize-y text-sm"
                               rows={2}
                             />
                             <Button variant="link" size="sm" className="h-6 px-0 text-xs text-blue-600 mt-1">
@@ -471,6 +667,7 @@ export default function InvoicesTab() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
+                                <SelectItem value={FINANCE_DEFAULT_TAX_VALUE}>{financeDefaultTaxLabel}</SelectItem>
                                 <SelectItem value="No Tax">No Tax</SelectItem>
                                 <SelectItem value="GST 18%">GST 18%</SelectItem>
                                 <SelectItem value="VAT 10%">VAT 10%</SelectItem>
@@ -515,6 +712,20 @@ export default function InvoicesTab() {
                     <span className="text-slate-600">Sub Total :</span>
                     <span className="font-semibold">${calculateTotals().subTotal.toFixed(2)}</span>
                   </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600">CGST :</span>
+                    <span className="font-semibold">${calculateTotals().cgstAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600">SGST :</span>
+                    <span className="font-semibold">${calculateTotals().sgstAmount.toFixed(2)}</span>
+                  </div>
+                  {calculateTotals().otherTaxAmount > 0 && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-600">Other Tax :</span>
+                      <span className="font-semibold">${calculateTotals().otherTaxAmount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center gap-3">
                     <span className="text-slate-600 text-sm">Discount</span>
                     <div className="flex items-center gap-2">
@@ -579,6 +790,56 @@ export default function InvoicesTab() {
                   className="resize-none text-sm"
                 />
               </div>
+
+              {/* Bank Details */}
+              <div className="space-y-3 pt-2">
+                <h4 className="text-sm font-semibold">Bank Details</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="bank-account-holder" className="text-sm">
+                      <span className="text-red-500">*</span> Account Holder Name
+                    </Label>
+                    <Input id="bank-account-holder" placeholder="Enter account holder name" className="h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bank-name" className="text-sm">
+                      <span className="text-red-500">*</span> Bank Name
+                    </Label>
+                    <Input id="bank-name" placeholder="Enter bank name" className="h-10" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="bank-account-number" className="text-sm">
+                      <span className="text-red-500">*</span> Account Number
+                    </Label>
+                    <Input id="bank-account-number" placeholder="Enter account number" className="h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bank-ifsc" className="text-sm">
+                      <span className="text-red-500">*</span> IFSC / SWIFT Code
+                    </Label>
+                    <Input id="bank-ifsc" placeholder="Enter IFSC or SWIFT code" className="h-10" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Signature Upload */}
+              <div className="space-y-3 pt-2">
+                <h4 className="text-sm font-semibold">Signature</h4>
+                <div className="space-y-2">
+                  <Label htmlFor="signature-file" className="text-sm">
+                    <span className="text-red-500">*</span> Upload Signature
+                  </Label>
+                  <Input
+                    id="signature-file"
+                    type="file"
+                    accept="image/*,.pdf,.doc,.docx"
+                    className="h-10"
+                  />
+                  <p className="text-xs text-slate-500">Accepted formats: image, PDF, DOC, DOCX</p>
+                </div>
+              </div>
             </div>
 
             {/* Footer Actions */}
@@ -610,24 +871,6 @@ export default function InvoicesTab() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              <CreditCard className="h-4 w-4" />
-              Batch Payments
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Batch Payments</DialogTitle>
-              <DialogDescription>Process multiple payments at once</DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <p className="text-sm text-slate-600">Batch payment processing functionality will be available here.</p>
             </div>
           </DialogContent>
         </Dialog>
@@ -1265,6 +1508,7 @@ export default function InvoicesTab() {
                                                   <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
+                                                  <SelectItem value={FINANCE_DEFAULT_TAX_VALUE}>{financeDefaultTaxLabel}</SelectItem>
                                                   <SelectItem value="No Tax">No Tax (0%)</SelectItem>
                                                   <SelectItem value="GST 18%">GST 18%</SelectItem>
                                                   <SelectItem value="GST 9%">GST 9%</SelectItem>
@@ -1339,6 +1583,20 @@ export default function InvoicesTab() {
                                           <span className="text-sm font-semibold text-slate-700">Sub Total:</span>
                                           <span className="font-bold text-slate-900 font-mono">${calculateTotals().subTotal.toFixed(2)}</span>
                                         </div>
+                                        <div className="flex justify-between items-center pb-3 border-b border-slate-300">
+                                          <span className="text-sm font-semibold text-slate-700">CGST:</span>
+                                          <span className="font-bold text-slate-900 font-mono">${calculateTotals().cgstAmount.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pb-3 border-b border-slate-300">
+                                          <span className="text-sm font-semibold text-slate-700">SGST:</span>
+                                          <span className="font-bold text-slate-900 font-mono">${calculateTotals().sgstAmount.toFixed(2)}</span>
+                                        </div>
+                                        {calculateTotals().otherTaxAmount > 0 && (
+                                          <div className="flex justify-between items-center pb-3 border-b border-slate-300">
+                                            <span className="text-sm font-semibold text-slate-700">Other Tax:</span>
+                                            <span className="font-bold text-slate-900 font-mono">${calculateTotals().otherTaxAmount.toFixed(2)}</span>
+                                          </div>
+                                        )}
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">Discount:</span>
                                           <span className="font-bold text-red-600 font-mono">-${calculateTotals().discountAmount.toFixed(2)}</span>

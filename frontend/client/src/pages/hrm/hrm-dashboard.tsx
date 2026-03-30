@@ -19,7 +19,6 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
-  GitBranch,
   Package,
   Megaphone
 } from 'lucide-react';
@@ -120,15 +119,6 @@ export default function HRMDashboard() {
       color: 'text-pink-600',
       bgColor: 'bg-pink-50',
       accent: 'border-pink-200'
-    },
-    {
-      icon: GitBranch,
-      title: 'Automation',
-      description: 'Multi-stage approval processes and business logic',
-      route: '/hrm/workflows',
-      color: 'text-indigo-600',
-      bgColor: 'bg-indigo-50',
-      accent: 'border-indigo-200'
     },
     {
       icon: Megaphone,

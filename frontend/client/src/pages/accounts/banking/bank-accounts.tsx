@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,28 +51,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
-
-type BankAccount = {
-  id: string;
-  bankName: string;
-  accountHolderName: string;
-  accountType: string;
-  accountNumber: string;
-  routingNumber: string;
-  swiftBic?: string;
-  iban?: string;
-  balance: number;
-  currency: string;
-  status: 'active' | 'inactive' | 'closed';
-  isPrimary: boolean;
-  openingDate: string;
-  branch: string;
-  contactPerson?: string;
-  contactPhone?: string;
-  minBalance?: number;
-  lastReconciledDate?: string;
-  description?: string;
-};
+import { getBankAccounts, saveBankAccounts, type BankAccount } from '@/lib/bank-accounts';
 
 export default function BankAccounts() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -87,81 +66,14 @@ export default function BankAccounts() {
     openingDate: new Date().toISOString().split('T')[0]
   });
 
-  // Mock data
-  const [accounts, setAccounts] = useState<BankAccount[]>([
-    {
-      id: 'ACC-001',
-      bankName: 'Chase Bank',
-      accountHolderName: 'Zedunix ERP Corp',
-      accountType: 'Current Account',
-      accountNumber: '****5678',
-      routingNumber: '021000021',
-      swiftBic: 'CHASUS33',
-      iban: 'US33CHAS12345678',
-      balance: 458000.50,
-      currency: 'INR',
-      status: 'active',
-      isPrimary: true,
-      openingDate: '2024-01-15',
-      branch: 'New York Main Branch',
-      contactPerson: 'John Smith',
-      contactPhone: '+1 (555) 123-4567',
-      minBalance: 5000,
-      lastReconciledDate: '2024-12-01'
-    },
-    {
-      id: 'ACC-002',
-      bankName: 'Bank of America',
-      accountHolderName: 'Zedunix ERP Corp',
-      accountType: 'Savings Account',
-      accountNumber: '****1234',
-      routingNumber: '026009593',
-      swiftBic: 'BOFAUS66',
-      balance: 1250000.75,
-      currency: 'INR',
-      status: 'active',
-      isPrimary: false,
-      openingDate: '2024-03-22',
-      branch: 'Manhattan Branch',
-      contactPerson: 'Emily Davis',
-      contactPhone: '+1 (555) 987-6543',
-      minBalance: 25000,
-      lastReconciledDate: '2024-11-28'
-    },
-    {
-      id: 'ACC-003',
-      bankName: 'Wells Fargo',
-      accountHolderName: 'Zedunix ERP Corp',
-      accountType: 'Current Account',
-      accountNumber: '****9012',
-      routingNumber: '121000248',
-      balance: 750000.00,
-      currency: 'INR',
-      status: 'active',
-      isPrimary: false,
-      openingDate: '2024-06-10',
-      branch: 'Brooklyn Branch',
-      lastReconciledDate: '2024-12-05'
-    },
-    {
-      id: 'ACC-004',
-      bankName: 'Citibank',
-      accountHolderName: 'Zedunix ERP Corp',
-      accountType: 'Credit Card',
-      accountNumber: '****3456',
-      routingNumber: '021000089',
-      balance: -12500.25,
-      currency: 'INR',
-      status: 'inactive',
-      isPrimary: false,
-      openingDate: '2023-11-05',
-      branch: 'Downtown Branch',
-      minBalance: 0
-    }
-  ]);
+  const [accounts, setAccounts] = useState<BankAccount[]>(() => getBankAccounts());
 
   const { toast } = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    saveBankAccounts(accounts);
+  }, [accounts]);
 
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
   const activeAccounts = accounts.filter(acc => acc.status === 'active').length;

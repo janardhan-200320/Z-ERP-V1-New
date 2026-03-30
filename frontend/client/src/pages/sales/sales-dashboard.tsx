@@ -57,7 +57,6 @@ import EstimatesTab from './tabs/estimates-tab';
 import InvoicesTab from './tabs/invoices-tab';
 import PaymentsTab from './tabs/payments-tab';
 import CreditNotesTab from './tabs/credit-notes-tab';
-import BatchPaymentsTab from './tabs/batch-payments-tab';
 
 // Mock data for charts
 const revenueData = [
@@ -92,7 +91,6 @@ export default function SalesDashboard() {
     else if (location.includes('/sales/invoices')) setActiveTab('invoices');
     else if (location.includes('/sales/payment-slips') || location.includes('/sales/payments')) setActiveTab('payments');
     else if (location.includes('/sales/credit-notes')) setActiveTab('credit-notes');
-    else if (location.includes('/sales/batch-payments')) setActiveTab('batch-payments');
   }, [location]);
 
   const handleTabChange = (value: string) => {
@@ -103,7 +101,6 @@ export default function SalesDashboard() {
     else if (value === 'invoices') navigate('/sales/invoices');
     else if (value === 'payments') navigate('/sales/payments');
     else if (value === 'credit-notes') navigate('/sales/credit-notes');
-    else if (value === 'batch-payments') navigate('/sales/batch-payments');
   };
 
   const handleExportData = (type: 'excel' | 'pdf') => {
@@ -354,7 +351,6 @@ export default function SalesDashboard() {
                 <TabsTrigger value="invoices" className="px-4 py-2 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Invoices</TabsTrigger>
                 <TabsTrigger value="payments" className="px-4 py-2 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Payments</TabsTrigger>
                 <TabsTrigger value="credit-notes" className="px-4 py-2 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Credit Notes</TabsTrigger>
-                <TabsTrigger value="batch-payments" className="px-4 py-2 rounded-xl data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-all font-semibold">Batch Payments</TabsTrigger>
               </TabsList>
               
             </div>
@@ -386,10 +382,6 @@ export default function SalesDashboard() {
 
                 <TabsContent value="credit-notes" className="m-0 focus-visible:ring-0">
                   <CreditNotesTab />
-                </TabsContent>
-
-                <TabsContent value="batch-payments" className="m-0 focus-visible:ring-0">
-                  <BatchPaymentsTab />
                 </TabsContent>
               </motion.div>
             </AnimatePresence>

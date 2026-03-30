@@ -49,6 +49,8 @@ import ProposalTemplate from '@/components/ProposalTemplate';
 import ProposalTemplateEnhanced from '@/components/ProposalTemplateEnhanced';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { exportProposalToPDF } from '@/lib/proposal-pdf-generator';
+import { FINANCE_DEFAULT_TAX_VALUE, getFinanceSettings, getFinanceTaxLabel } from '@/lib/finance-settings';
+import { saveProposalForStandaloneView } from '@/lib/proposal-view-storage';
 
 type ProposalLineItem = {
   id: number;
@@ -64,6 +66,15 @@ type TaxBreakdown = {
   cgstPercent: number;
   sgstPercent: number;
   otherPercent: number;
+};
+
+type ProposalTaxSummary = {
+  subTotal: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  otherTaxAmount: number;
+  taxTotal: number;
+  grandTotal: number;
 };
 
 type CatalogItem = {
@@ -91,15 +102,85 @@ const TAX_RATES: Record<string, TaxBreakdown> = {
   'Sales Tax 8%': { cgstPercent: 0, sgstPercent: 0, otherPercent: 8 },
 };
 
-const getTaxRates = (taxLabel: string): TaxBreakdown => TAX_RATES[taxLabel] ?? TAX_RATES['No Tax'];
+const getTaxRates = (taxLabel: string, financeDefaultTaxRate: number): TaxBreakdown => {
+  if (taxLabel === FINANCE_DEFAULT_TAX_VALUE) {
+    return {
+      cgstPercent: financeDefaultTaxRate / 2,
+      sgstPercent: financeDefaultTaxRate / 2,
+      otherPercent: 0,
+    };
+  }
 
-const calculateItemAmountWithTax = (item: ProposalLineItem): number => {
+  return TAX_RATES[taxLabel] ?? TAX_RATES['No Tax'];
+};
+
+const calculateItemAmountWithTax = (item: ProposalLineItem, financeDefaultTaxRate: number): number => {
   const taxableValue = item.qty * item.rate;
-  const rates = getTaxRates(item.tax);
+  const rates = getTaxRates(item.tax, financeDefaultTaxRate);
   const cgst = taxableValue * rates.cgstPercent / 100;
   const sgst = taxableValue * rates.sgstPercent / 100;
   const otherTax = taxableValue * rates.otherPercent / 100;
   return taxableValue + cgst + sgst + otherTax;
+};
+
+const parseAmount = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.replace(/[^0-9.-]/g, '');
+    const parsed = parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+};
+
+const calculateProposalTaxSummary = (items: any[], financeDefaultTaxRate: number): ProposalTaxSummary => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return {
+      subTotal: 0,
+      cgstAmount: 0,
+      sgstAmount: 0,
+      otherTaxAmount: 0,
+      taxTotal: 0,
+      grandTotal: 0,
+    };
+  }
+
+  const summary = items.reduce(
+    (acc, item) => {
+      const qty = parseAmount(item?.qty) || 1;
+      const rate = parseAmount(item?.rate);
+      const taxable = qty * rate;
+      const rates = getTaxRates(item?.tax || 'No Tax', financeDefaultTaxRate);
+      const cgst = taxable * rates.cgstPercent / 100;
+      const sgst = taxable * rates.sgstPercent / 100;
+      const otherTax = taxable * rates.otherPercent / 100;
+
+      acc.subTotal += taxable;
+      acc.cgstAmount += cgst;
+      acc.sgstAmount += sgst;
+      acc.otherTaxAmount += otherTax;
+      return acc;
+    },
+    {
+      subTotal: 0,
+      cgstAmount: 0,
+      sgstAmount: 0,
+      otherTaxAmount: 0,
+    },
+  );
+
+  const taxTotal = summary.cgstAmount + summary.sgstAmount + summary.otherTaxAmount;
+  const grandTotal = summary.subTotal + taxTotal;
+
+  return {
+    ...summary,
+    taxTotal,
+    grandTotal,
+  };
 };
 
 const inferCatalogType = (description: string): 'product' | 'service' => {
@@ -115,6 +196,11 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   const [isExporting, setIsExporting] = useState(false);
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const { toast } = useToast();
+  const [financeDefaultTaxRate, setFinanceDefaultTaxRate] = useState(() => getFinanceSettings().defaultTaxRate);
+  const financeDefaultTaxLabel = useMemo(
+    () => getFinanceTaxLabel(financeDefaultTaxRate),
+    [financeDefaultTaxRate],
+  );
 
   // Mock data
   const [proposals, setProposals] = useState([
@@ -257,6 +343,20 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     }
   }, [proposalsData]);
 
+  useEffect(() => {
+    const reloadFinanceSettings = () => {
+      setFinanceDefaultTaxRate(getFinanceSettings().defaultTaxRate);
+    };
+
+    window.addEventListener('financeSettingsUpdated', reloadFinanceSettings);
+    window.addEventListener('storage', reloadFinanceSettings);
+
+    return () => {
+      window.removeEventListener('financeSettingsUpdated', reloadFinanceSettings);
+      window.removeEventListener('storage', reloadFinanceSettings);
+    };
+  }, []);
+
   const [selectedProposal, setSelectedProposal] = useState<any>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -280,12 +380,23 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   const [editClientNote, setEditClientNote] = useState('');
   const [editTerms, setEditTerms] = useState('');
   const [editItems, setEditItems] = useState<ProposalLineItem[]>([
-    { id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: 'No Tax', amount: 0 }
+    { id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: FINANCE_DEFAULT_TAX_VALUE, amount: 0 }
   ]);
   const [selectedEditCatalogItem, setSelectedEditCatalogItem] = useState<string>('');
+  const [activeEditCatalogTab, setActiveEditCatalogTab] = useState<'service' | 'product'>('service');
   const [editDiscount, setEditDiscount] = useState(0);
   const [editAdjustment, setEditAdjustment] = useState(0);
   const [showQtyAs, setShowQtyAs] = useState<'qty' | 'hours' | 'both'>('qty');
+
+  const selectedProposalTaxSummary = useMemo(() => {
+    const taxSummary = calculateProposalTaxSummary(selectedProposal?.items || [], financeDefaultTaxRate);
+    const parsedTotalAmount = parseAmount(selectedProposal?.totalAmount);
+
+    return {
+      ...taxSummary,
+      grandTotal: parsedTotalAmount > 0 ? parsedTotalAmount : taxSummary.grandTotal,
+    };
+  }, [selectedProposal, financeDefaultTaxRate]);
 
   // Edit Template Fields
   const [editProposalTitle, setEditProposalTitle] = useState('');
@@ -333,7 +444,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     if (proposal.items && proposal.items.length > 0) {
       setEditItems(proposal.items);
     } else {
-      setEditItems([{ id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: 'No Tax', amount: 0 }]);
+      setEditItems([{ id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: FINANCE_DEFAULT_TAX_VALUE, amount: 0 }]);
     }
     
     setEditDiscount(0);
@@ -376,15 +487,15 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     const subTotal = editItems.reduce((sum, item) => sum + (item.qty * item.rate), 0);
     const cgstAmount = editItems.reduce((sum, item) => {
       const taxable = item.qty * item.rate;
-      return sum + (taxable * getTaxRates(item.tax).cgstPercent / 100);
+      return sum + (taxable * getTaxRates(item.tax, financeDefaultTaxRate).cgstPercent / 100);
     }, 0);
     const sgstAmount = editItems.reduce((sum, item) => {
       const taxable = item.qty * item.rate;
-      return sum + (taxable * getTaxRates(item.tax).sgstPercent / 100);
+      return sum + (taxable * getTaxRates(item.tax, financeDefaultTaxRate).sgstPercent / 100);
     }, 0);
     const otherTaxAmount = editItems.reduce((sum, item) => {
       const taxable = item.qty * item.rate;
-      return sum + (taxable * getTaxRates(item.tax).otherPercent / 100);
+      return sum + (taxable * getTaxRates(item.tax, financeDefaultTaxRate).otherPercent / 100);
     }, 0);
     const taxTotal = cgstAmount + sgstAmount + otherTaxAmount;
     const discountAmount = editDiscountType === 'percent' ? (subTotal * editDiscount / 100) : editDiscount;
@@ -399,7 +510,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       longDescription: '', 
       qty: 1, 
       rate: 0, 
-      tax: 'No Tax', 
+      tax: FINANCE_DEFAULT_TAX_VALUE,
       amount: 0 
     }]);
   };
@@ -424,7 +535,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       amount: 0,
     };
 
-    newItem.amount = calculateItemAmountWithTax(newItem);
+    newItem.amount = calculateItemAmountWithTax(newItem, financeDefaultTaxRate);
     setEditItems([...editItems, newItem]);
     setSelectedEditCatalogItem('');
   };
@@ -440,7 +551,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       if (item.id === id) {
         const updated = { ...item, [field]: value };
         if (field === 'qty' || field === 'rate' || field === 'tax') {
-          updated.amount = calculateItemAmountWithTax(updated);
+          updated.amount = calculateItemAmountWithTax(updated, financeDefaultTaxRate);
         }
         return updated;
       }
@@ -451,9 +562,10 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   // New Proposal Form State
   const [allowComments, setAllowComments] = useState(false);
   const [proposalItems, setProposalItems] = useState<ProposalLineItem[]>([
-    { id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: 'No Tax', amount: 0 }
+    { id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: FINANCE_DEFAULT_TAX_VALUE, amount: 0 }
   ]);
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<string>('');
+  const [activeCatalogTab, setActiveCatalogTab] = useState<'service' | 'product'>('service');
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState('%');
   const [adjustment, setAdjustment] = useState(0);
@@ -633,15 +745,15 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     const subTotal = proposalItems.reduce((sum, item) => sum + (item.qty * item.rate), 0);
     const cgstAmount = proposalItems.reduce((sum, item) => {
       const taxable = item.qty * item.rate;
-      return sum + (taxable * getTaxRates(item.tax).cgstPercent / 100);
+      return sum + (taxable * getTaxRates(item.tax, financeDefaultTaxRate).cgstPercent / 100);
     }, 0);
     const sgstAmount = proposalItems.reduce((sum, item) => {
       const taxable = item.qty * item.rate;
-      return sum + (taxable * getTaxRates(item.tax).sgstPercent / 100);
+      return sum + (taxable * getTaxRates(item.tax, financeDefaultTaxRate).sgstPercent / 100);
     }, 0);
     const otherTaxAmount = proposalItems.reduce((sum, item) => {
       const taxable = item.qty * item.rate;
-      return sum + (taxable * getTaxRates(item.tax).otherPercent / 100);
+      return sum + (taxable * getTaxRates(item.tax, financeDefaultTaxRate).otherPercent / 100);
     }, 0);
     const taxTotal = cgstAmount + sgstAmount + otherTaxAmount;
     const discountAmount = discountType === '%' ? (subTotal * discount / 100) : discount;
@@ -656,7 +768,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       longDescription: '', 
       qty: 1, 
       rate: 0, 
-      tax: 'No Tax', 
+      tax: FINANCE_DEFAULT_TAX_VALUE,
       amount: 0 
     }]);
   };
@@ -681,7 +793,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       amount: 0,
     };
 
-    newItem.amount = calculateItemAmountWithTax(newItem);
+    newItem.amount = calculateItemAmountWithTax(newItem, financeDefaultTaxRate);
     setProposalItems([...proposalItems, newItem]);
     setSelectedCatalogItem('');
   };
@@ -695,13 +807,25 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       if (item.id === id) {
         const updated = { ...item, [field]: value };
         if (field === 'qty' || field === 'rate' || field === 'tax') {
-          updated.amount = calculateItemAmountWithTax(updated);
+          updated.amount = calculateItemAmountWithTax(updated, financeDefaultTaxRate);
         }
         return updated;
       }
       return item;
     }));
   };
+
+  useEffect(() => {
+    setProposalItems((prev) => prev.map((item) => ({
+      ...item,
+      amount: calculateItemAmountWithTax(item, financeDefaultTaxRate),
+    })));
+
+    setEditItems((prev) => prev.map((item) => ({
+      ...item,
+      amount: calculateItemAmountWithTax(item, financeDefaultTaxRate),
+    })));
+  }, [financeDefaultTaxRate]);
 
   // Scope of Work Management
   const addScopeItem = () => {
@@ -786,7 +910,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
           description: item.description,
           longDescription: item.longDescription || '',
           defaultRate: item.rate,
-          defaultTax: 'GST 18%',
+          defaultTax: FINANCE_DEFAULT_TAX_VALUE,
         });
       });
     });
@@ -798,7 +922,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
         description: 'Consulting Service',
         longDescription: 'Professional consulting and advisory services.',
         defaultRate: 5000,
-        defaultTax: 'GST 18%',
+        defaultTax: FINANCE_DEFAULT_TAX_VALUE,
       },
       {
         id: 'catalog-fallback-product',
@@ -806,7 +930,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
         description: 'Software License',
         longDescription: 'Software subscription or perpetual license.',
         defaultRate: 10000,
-        defaultTax: 'GST 18%',
+        defaultTax: FINANCE_DEFAULT_TAX_VALUE,
       },
     ];
 
@@ -819,6 +943,16 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
 
     return Array.from(deduped.values()).sort((a, b) => a.description.localeCompare(b.description));
   }, [proposals]);
+
+  const serviceCatalogItems = useMemo(
+    () => itemCatalog.filter((catalogItem) => catalogItem.type === 'service'),
+    [itemCatalog],
+  );
+
+  const productCatalogItems = useMemo(
+    () => itemCatalog.filter((catalogItem) => catalogItem.type === 'product'),
+    [itemCatalog],
+  );
 
   const handleExport = (type: 'excel' | 'pdf') => {
     setIsExporting(true);
@@ -843,9 +977,21 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   };
 
   const handleAction = (action: string, prop: any) => {
+    if (action === 'view') {
+      saveProposalForStandaloneView(prop);
+      const targetUrl = `${window.location.origin}/proposal-view/${encodeURIComponent(prop.id)}`;
+      const openedTab = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+
+      if (!openedTab) {
+        // Fallback when popup is blocked.
+        setSelectedProposal(prop);
+        setIsViewOpen(true);
+      }
+      return;
+    }
+
     setSelectedProposal(prop);
-    if (action === 'view') setIsViewOpen(true);
-    else if (action === 'edit') setIsEditOpen(true);
+    if (action === 'edit') setIsEditOpen(true);
     else if (action === 'send') {
       toast({
         title: "Proposal Sent",
@@ -853,6 +999,40 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       });
       setProposals(prev => prev.map(p => p.id === prop.id ? { ...p, status: 'sent' } : p));
     }
+  };
+
+  const isProposalExpired = (proposal: any): boolean => {
+    if (!proposal?.validUntil) return false;
+
+    const expiryDate = new Date(proposal.validUntil);
+    if (Number.isNaN(expiryDate.getTime())) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    expiryDate.setHours(0, 0, 0, 0);
+
+    return expiryDate < today;
+  };
+
+  const handleAcceptProposal = (proposal: any) => {
+    if (!proposal) return;
+
+    if (isProposalExpired(proposal)) {
+      toast({
+        title: 'Proposal Expired',
+        description: `Proposal ${proposal.id} cannot be accepted because it is expired.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setProposals(prev => prev.map(p => p.id === proposal.id ? { ...p, status: 'accepted' } : p));
+    setSelectedProposal((prev: any) => prev ? { ...prev, status: 'accepted' } : prev);
+
+    toast({
+      title: 'Proposal Accepted',
+      description: `Proposal ${proposal.id} has been marked as accepted.`,
+    });
   };
 
   const handleExportProposalPDF = (proposal: any) => {
@@ -969,7 +1149,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                     <Building2 className="h-5 w-5 text-blue-600" />
                     Basic Information
                   </h3>
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-[1.45fr_0.85fr] gap-6">
                     {/* Left Column */}
                     <div className="space-y-4">
                       <div className="space-y-2">
@@ -1009,36 +1189,21 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="currency" className="text-sm font-medium text-slate-700">
-                            <span className="text-red-500">*</span> Currency
-                          </Label>
-                          <Select defaultValue="usd">
-                            <SelectTrigger id="currency" className="h-10 bg-white border-slate-300">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="usd">INR ₹</SelectItem>
-                              <SelectItem value="eur">EUR €</SelectItem>
-                              <SelectItem value="gbp">GBP £</SelectItem>
-                              <SelectItem value="inr">INR ₹</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="discount-type" className="text-sm font-medium text-slate-700">Discount Type</Label>
-                          <Select defaultValue="no-discount" onValueChange={(val) => setDiscountType(val === 'percent' ? '%' : '$')}>
-                            <SelectTrigger id="discount-type" className="h-10 bg-white border-slate-300">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="no-discount">No discount</SelectItem>
-                              <SelectItem value="percent">Percent (%)</SelectItem>
-                              <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="currency" className="text-sm font-medium text-slate-700">
+                          <span className="text-red-500">*</span> Currency
+                        </Label>
+                        <Select defaultValue="usd">
+                          <SelectTrigger id="currency" className="h-10 bg-white border-slate-300">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="usd">USD $</SelectItem>
+                            <SelectItem value="eur">EUR €</SelectItem>
+                            <SelectItem value="gbp">GBP £</SelectItem>
+                            <SelectItem value="inr">INR ₹</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div className="space-y-2">
@@ -1135,7 +1300,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                       <div className="space-y-2">
                         <Label htmlFor="status" className="text-sm font-medium text-slate-700">Status</Label>
                         <Select defaultValue="draft">
-                          <SelectTrigger id="status" className="h-10 bg-white border-slate-300">
+                          <SelectTrigger id="status" className="h-10 w-full max-w-[240px] bg-white border-slate-300">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1164,9 +1329,9 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
 
                       <div className="space-y-2">
                         <Label htmlFor="to" className="text-sm font-medium text-slate-700">
-                          <span className="text-red-500">*</span> To
+                          <span className="text-red-500">*</span> Recipient Name (Customer Name)
                         </Label>
-                        <Input id="to" placeholder="Recipient name" className="h-10 bg-white border-slate-300" />
+                        <Input id="to" placeholder="Recipient name (Customer name)" className="h-10 bg-white border-slate-300" />
                       </div>
 
                       <div className="space-y-2">
@@ -1479,29 +1644,44 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Select
-                      value={selectedCatalogItem}
+                  <div className="space-y-2">
+                    <Tabs
+                      value={activeCatalogTab}
                       onValueChange={(value) => {
-                        setSelectedCatalogItem(value);
-                        addCatalogItem(value, itemCatalog);
+                        setActiveCatalogTab(value as 'service' | 'product');
+                        setSelectedCatalogItem('');
                       }}
+                      className="w-fit"
                     >
-                      <SelectTrigger className="w-48 h-10 bg-white border-slate-300">
-                        <SelectValue placeholder="Select product or service" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="custom">Custom Item</SelectItem>
-                        {itemCatalog.map((catalogItem) => (
-                          <SelectItem key={catalogItem.id} value={catalogItem.id}>
-                            {catalogItem.type === 'product' ? 'Product' : 'Service'} - {catalogItem.description}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button size="sm" variant="outline" onClick={addProposalItem} className="bg-white hover:bg-orange-50 border-orange-300">
-                      <Plus className="h-4 w-4" />
-                    </Button>
+                      <TabsList className="h-8">
+                        <TabsTrigger value="service" className="text-xs px-3">Services</TabsTrigger>
+                        <TabsTrigger value="product" className="text-xs px-3">Products</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={selectedCatalogItem}
+                        onValueChange={(value) => {
+                          setSelectedCatalogItem(value);
+                          addCatalogItem(value, itemCatalog);
+                        }}
+                      >
+                        <SelectTrigger className="w-64 h-10 bg-white border-slate-300">
+                          <SelectValue placeholder={`Select ${activeCatalogTab === 'service' ? 'service' : 'product'}`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="custom">Custom Item</SelectItem>
+                          {(activeCatalogTab === 'service' ? serviceCatalogItems : productCatalogItems).map((catalogItem) => (
+                            <SelectItem key={catalogItem.id} value={catalogItem.id}>
+                              {catalogItem.description}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" variant="outline" onClick={addProposalItem} className="bg-white hover:bg-orange-50 border-orange-300">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Items Table */}
@@ -1522,28 +1702,29 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                       <TableBody>
                         {proposalItems.map((item, index) => (
                           <TableRow key={item.id}>
-                            <TableCell></TableCell>
-                            <TableCell>
-                              <Input 
+                            <TableCell className="align-top"></TableCell>
+                            <TableCell className="align-top">
+                              <Textarea
                                 placeholder="Description"
                                 value={item.description}
                                 onChange={(e) => updateProposalItem(item.id, 'description', e.target.value)}
-                                className="h-9"
+                                className="min-h-[60px] resize-y text-sm"
+                                rows={2}
                               />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="align-top">
                               <Textarea
                                 placeholder="Long description"
                                 value={item.longDescription}
                                 onChange={(e) => updateProposalItem(item.id, 'longDescription', e.target.value)}
-                                className="min-h-[60px] resize-none text-sm"
+                                className="min-h-[60px] resize-y text-sm"
                                 rows={2}
                               />
                               <Button variant="link" size="sm" className="h-6 px-0 text-xs text-blue-600">
                                 Link
                               </Button>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="align-top">
                               <Input
                                 type="number"
                                 value={item.qty}
@@ -1552,7 +1733,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 min="0"
                               />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="align-top">
                               <Input
                                 type="number"
                                 placeholder="Rate"
@@ -1563,12 +1744,13 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 step="0.01"
                               />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="align-top">
                               <Select value={item.tax} onValueChange={(val) => updateProposalItem(item.id, 'tax', val)}>
                                 <SelectTrigger className="h-9">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
+                                  <SelectItem value={FINANCE_DEFAULT_TAX_VALUE}>{financeDefaultTaxLabel}</SelectItem>
                                   <SelectItem value="No Tax">No Tax</SelectItem>
                                   <SelectItem value="GST 5%">GST 5% (CGST 2.5% + SGST 2.5%)</SelectItem>
                                   <SelectItem value="GST 12%">GST 12% (CGST 6% + SGST 6%)</SelectItem>
@@ -1579,10 +1761,10 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 </SelectContent>
                               </Select>
                             </TableCell>
-                            <TableCell className="text-right font-medium">
+                            <TableCell className="align-top text-right font-medium pt-3">
                               ${item.amount.toFixed(2)}
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="align-top">
                               {proposalItems.length > 1 && (
                                 <Button
                                   variant="ghost"
@@ -1999,11 +2181,17 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
             <ScrollArea className="max-h-[95vh]">
               <div className="p-6">
                 <DialogHeader className="mb-6">
+                  {/** Accept action is disabled when proposal is expired. */}
+                  {(() => {
+                    const proposalExpired = isProposalExpired(selectedProposal);
+                    const proposalAccepted = selectedProposal?.status === 'accepted';
+
+                    return (
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <DialogTitle className="text-2xl font-bold">Proposal {selectedProposal?.id}</DialogTitle>
-                      <Badge className={selectedProposal ? statusConfig[selectedProposal.status].class : ""}>
-                        {selectedProposal?.status.toUpperCase()}
+                      <Badge className={selectedProposal ? (statusConfig[selectedProposal.status]?.class || statusConfig.draft.class) : ""}>
+                        {selectedProposal?.status?.toUpperCase()}
                       </Badge>
                     </div>
                     <div className="flex gap-2">
@@ -2017,6 +2205,14 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         <Download className="h-4 w-4 mr-2" />
                         Download PDF
                       </Button>
+                      <Button
+                        className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-100 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+                        disabled={proposalExpired || proposalAccepted}
+                        onClick={() => handleAcceptProposal(selectedProposal)}
+                      >
+                        <Check className="h-4 w-4 mr-2" />
+                        {proposalExpired ? 'Expired' : proposalAccepted ? 'Accepted' : 'Accept'}
+                      </Button>
                       <Button 
                         className="bg-indigo-600 text-white shadow-lg shadow-indigo-100" 
                         onClick={() => {
@@ -2029,6 +2225,8 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                       </Button>
                     </div>
                   </div>
+                    );
+                  })()}
                 </DialogHeader>
 
                 {/* Tabs for different views */}
@@ -2075,9 +2273,12 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           phone: '+1 234 567 890'
                         }}
                         items={selectedProposal.items || []}
-                        subTotal={parseFloat(selectedProposal.totalAmount?.replace(/[$,]/g, '') || '0')}
+                        subTotal={selectedProposalTaxSummary.subTotal}
+                        cgstAmount={selectedProposalTaxSummary.cgstAmount}
+                        sgstAmount={selectedProposalTaxSummary.sgstAmount}
+                        otherTaxAmount={selectedProposalTaxSummary.otherTaxAmount}
                         discount={0}
-                        total={parseFloat(selectedProposal.totalAmount?.replace(/[$,]/g, '') || '0')}
+                        total={selectedProposalTaxSummary.grandTotal}
                         terms={[
                           'Payment terms: 50% upfront, 50% upon completion',
                           'All deliverables are subject to client approval',
@@ -2108,6 +2309,10 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         status={selectedProposal.status}
                         customer={selectedProposal.customer}
                         totalAmount={selectedProposal.totalAmount}
+                        subTotal={selectedProposalTaxSummary.subTotal}
+                        cgstAmount={selectedProposalTaxSummary.cgstAmount}
+                        sgstAmount={selectedProposalTaxSummary.sgstAmount}
+                        otherTaxAmount={selectedProposalTaxSummary.otherTaxAmount}
                         validUntil={selectedProposal.validUntil}
                       />
                     )}
@@ -2142,6 +2347,37 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         <p className="text-slate-600 leading-relaxed">
                           {selectedProposal?.overview || `This proposal covers the ${selectedProposal?.subject} for ${selectedProposal?.customer}. The project aims to deliver high-quality results within the specified timeframe and budget.`}
                         </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 p-6 bg-white">
+                        <h4 className="font-bold flex items-center gap-2 mb-4">
+                          <Building2 className="h-4 w-4 text-indigo-600" />
+                          Tax Details
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <span className="text-slate-600">Sub Total</span>
+                            <span className="font-semibold">Rs {selectedProposalTaxSummary.subTotal.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <span className="text-slate-600">CGST</span>
+                            <span className="font-semibold">Rs {selectedProposalTaxSummary.cgstAmount.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <span className="text-slate-600">SGST</span>
+                            <span className="font-semibold">Rs {selectedProposalTaxSummary.sgstAmount.toFixed(2)}</span>
+                          </div>
+                          {selectedProposalTaxSummary.otherTaxAmount > 0 && (
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                              <span className="text-slate-600">Other Tax</span>
+                              <span className="font-semibold">Rs {selectedProposalTaxSummary.otherTaxAmount.toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between pt-2">
+                            <span className="font-bold text-slate-900">Total Amount</span>
+                            <span className="font-bold text-emerald-600">Rs {selectedProposalTaxSummary.grandTotal.toFixed(2)}</span>
+                          </div>
+                        </div>
                       </div>
 
                       {selectedProposal?.scopeOfWork && selectedProposal.scopeOfWork.length > 0 && (
@@ -2575,6 +2811,19 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                 <div className="space-y-4 pt-4 border-t">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
+                      <Tabs
+                        value={activeEditCatalogTab}
+                        onValueChange={(value) => {
+                          setActiveEditCatalogTab(value as 'service' | 'product');
+                          setSelectedEditCatalogItem('');
+                        }}
+                        className="w-fit"
+                      >
+                        <TabsList className="h-8">
+                          <TabsTrigger value="service" className="text-xs px-3">Services</TabsTrigger>
+                          <TabsTrigger value="product" className="text-xs px-3">Products</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
                       <Select
                         value={selectedEditCatalogItem}
                         onValueChange={(value) => {
@@ -2582,14 +2831,14 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           addEditCatalogItem(value, itemCatalog);
                         }}
                       >
-                        <SelectTrigger className="w-32 h-9">
-                          <SelectValue placeholder="Select Item" />
+                        <SelectTrigger className="w-52 h-9">
+                          <SelectValue placeholder={`Select ${activeEditCatalogTab === 'service' ? 'service' : 'product'}`} />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="custom">Custom Item</SelectItem>
-                          {itemCatalog.map((catalogItem) => (
+                          {(activeEditCatalogTab === 'service' ? serviceCatalogItems : productCatalogItems).map((catalogItem) => (
                             <SelectItem key={catalogItem.id} value={catalogItem.id}>
-                              {catalogItem.type === 'product' ? 'Product' : 'Service'} - {catalogItem.description}
+                              {catalogItem.description}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -2651,24 +2900,24 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                       <TableBody>
                         {editItems.map((item, index) => (
                           <TableRow key={item.id} className="hover:bg-slate-50/50">
-                            <TableCell className="text-center">
+                            <TableCell className="text-center align-top pt-6">
                               <div className="w-3 h-3 rounded-full border-2 border-slate-300"></div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="align-top">
                               <Textarea
                                 placeholder="Description"
                                 value={item.description}
                                 onChange={(e) => updateEditItem(item.id, 'description', e.target.value)}
-                                className="min-h-[60px] resize-none text-sm border-dashed"
+                                className="min-h-[60px] resize-y text-sm border-dashed"
                                 rows={2}
                               />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="align-top">
                               <Textarea
                                 placeholder="Long description"
                                 value={item.longDescription}
                                 onChange={(e) => updateEditItem(item.id, 'longDescription', e.target.value)}
-                                className="min-h-[60px] resize-none text-sm border-dashed"
+                                className="min-h-[60px] resize-y text-sm border-dashed"
                                 rows={2}
                               />
                               <button className="text-xs text-blue-600 hover:underline mt-1 flex items-center gap-1">
@@ -2676,7 +2925,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 Link
                               </button>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="align-top">
                               <Input
                                 type="number"
                                 value={item.qty}
@@ -2685,7 +2934,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 min="0"
                               />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="align-top">
                               <Input
                                 type="number"
                                 placeholder="Rate"
@@ -2696,12 +2945,13 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 step="0.01"
                               />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="align-top">
                               <Select value={item.tax} onValueChange={(val) => updateEditItem(item.id, 'tax', val)}>
                                 <SelectTrigger className="h-9 text-sm">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
+                                  <SelectItem value={FINANCE_DEFAULT_TAX_VALUE}>{financeDefaultTaxLabel}</SelectItem>
                                   <SelectItem value="No Tax">No Tax</SelectItem>
                                   <SelectItem value="GST 5%">GST 5% (CGST 2.5% + SGST 2.5%)</SelectItem>
                                   <SelectItem value="GST 12%">GST 12% (CGST 6% + SGST 6%)</SelectItem>
@@ -2711,10 +2961,10 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 </SelectContent>
                               </Select>
                             </TableCell>
-                            <TableCell className="text-right font-medium text-sm">
+                            <TableCell className="align-top text-right font-medium text-sm pt-3">
                               ${item.amount.toFixed(2)}
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="align-top">
                               <div className="flex items-center gap-1">
                                 <Button
                                   variant="ghost"

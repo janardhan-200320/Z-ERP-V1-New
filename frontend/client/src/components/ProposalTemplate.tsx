@@ -27,6 +27,10 @@ interface ProposalTemplateProps {
   status?: string;
   customer?: string;
   totalAmount?: string;
+  subTotal?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  otherTaxAmount?: number;
   validUntil?: string;
 }
 
@@ -42,6 +46,10 @@ export default function ProposalTemplate({
   status,
   customer,
   totalAmount,
+  subTotal = 0,
+  cgstAmount = 0,
+  sgstAmount = 0,
+  otherTaxAmount = 0,
   validUntil,
 }: ProposalTemplateProps) {
   
@@ -166,7 +174,7 @@ export default function ProposalTemplate({
         )}
 
         {/* Additional Information */}
-        {(customer || totalAmount || validUntil) && (
+        {(customer || totalAmount || validUntil || subTotal > 0 || cgstAmount > 0 || sgstAmount > 0 || otherTaxAmount > 0) && (
           <div className="mt-12 pt-8 border-t-2 border-slate-200">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {customer && (
@@ -188,6 +196,32 @@ export default function ProposalTemplate({
                 </div>
               )}
             </div>
+
+            {(subTotal > 0 || cgstAmount > 0 || sgstAmount > 0 || otherTaxAmount > 0) && (
+              <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Tax Details</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600">Sub Total</span>
+                    <span className="font-semibold">Rs {subTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600">CGST</span>
+                    <span className="font-semibold">Rs {cgstAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600">SGST</span>
+                    <span className="font-semibold">Rs {sgstAmount.toFixed(2)}</span>
+                  </div>
+                  {otherTaxAmount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600">Other Tax</span>
+                      <span className="font-semibold">Rs {otherTaxAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

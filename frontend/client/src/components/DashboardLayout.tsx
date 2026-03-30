@@ -371,20 +371,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     { name: 'Profile', icon: Users, path: '/profile' },
     
     { name: 'Subscription', icon: CreditCard, path: '/subscriptions' },
-    { 
-      name: 'Setup', 
-      icon: Settings, 
-      path: '/dashboard/setup/staff',
-      hasSubmenu: true,
-      submenuKey: 'setup',
-      submenu: [
-        { name: 'Staff', path: '/dashboard/setup/staff' },
-        { name: 'Groups', path: '/dashboard/setup/groups' },
-        { name: 'Roles', path: '/dashboard/setup/roles' },
-        { name: 'Permissions', path: '/dashboard/setup/permissions' },
-        
-      ]
-    },
     {
       name: 'Admin',
       icon: Settings,
@@ -417,7 +403,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     payables: false,
     vendors: false,
     admin: false,
-    setup: false,
     customers: false,
     'team-space': false,
     settings: false,

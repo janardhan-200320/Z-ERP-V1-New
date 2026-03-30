@@ -54,6 +54,21 @@ import autoTable from 'jspdf-autotable';
 import { cn } from "@/lib/utils";
 import { downloadSalesInvoicePDF, printSalesInvoicePDF, InvoiceData } from "@/lib/sales-invoice-pdf";
 import QRCode from 'qrcode';
+import {
+  FINANCE_DEFAULT_TAX_VALUE,
+  getFinanceSettings,
+  getFinanceTaxLabel,
+  parseTaxPercentage,
+} from '@/lib/finance-settings';
+
+const calculateInvoiceItemAmountWithTax = (
+  item: { qty: number; rate: number; tax: string },
+  financeDefaultTaxRate: number,
+): number => {
+  const taxable = item.qty * item.rate;
+  const taxPercent = parseTaxPercentage(item.tax, financeDefaultTaxRate);
+  return taxable + (taxable * taxPercent / 100);
+};
 
 export default function InvoicesTab() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,6 +80,8 @@ export default function InvoicesTab() {
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
+  const [financeDefaultTaxRate, setFinanceDefaultTaxRate] = useState(() => getFinanceSettings().defaultTaxRate);
+  const financeDefaultTaxLabel = useMemo(() => getFinanceTaxLabel(financeDefaultTaxRate), [financeDefaultTaxRate]);
   const { toast } = useToast();
 
   // Generate QR code when invoice is selected
@@ -85,7 +102,7 @@ export default function InvoicesTab() {
 
   // Invoice items state
   const [invoiceItems, setInvoiceItems] = useState([
-    { id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: 'No Tax', amount: 0 }
+    { id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: FINANCE_DEFAULT_TAX_VALUE, amount: 0 }
   ]);
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState('%');
@@ -107,9 +124,14 @@ export default function InvoicesTab() {
   // Calculate totals
   const calculateTotals = () => {
     const subTotal = invoiceItems.reduce((sum, item) => sum + (item.qty * item.rate), 0);
+    const taxAmount = invoiceItems.reduce((sum, item) => {
+      const taxable = item.qty * item.rate;
+      const taxPercent = parseTaxPercentage(item.tax, financeDefaultTaxRate);
+      return sum + (taxable * taxPercent / 100);
+    }, 0);
     const discountAmount = discountType === '%' ? (subTotal * discount / 100) : discount;
-    const total = subTotal - discountAmount + adjustment;
-    return { subTotal, discountAmount, total };
+    const total = subTotal + taxAmount - discountAmount + adjustment;
+    return { subTotal, taxAmount, discountAmount, total };
   };
 
   const addInvoiceItem = () => {
@@ -119,7 +141,7 @@ export default function InvoicesTab() {
       longDescription: '', 
       qty: 1, 
       rate: 0, 
-      tax: 'No Tax', 
+      tax: FINANCE_DEFAULT_TAX_VALUE,
       amount: 0 
     }]);
   };
@@ -132,14 +154,35 @@ export default function InvoicesTab() {
     setInvoiceItems(invoiceItems.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
-        if (field === 'qty' || field === 'rate') {
-          updated.amount = updated.qty * updated.rate;
+        if (field === 'qty' || field === 'rate' || field === 'tax') {
+          updated.amount = calculateInvoiceItemAmountWithTax(updated, financeDefaultTaxRate);
         }
         return updated;
       }
       return item;
     }));
   };
+
+  useEffect(() => {
+    const reloadFinanceSettings = () => {
+      setFinanceDefaultTaxRate(getFinanceSettings().defaultTaxRate);
+    };
+
+    window.addEventListener('financeSettingsUpdated', reloadFinanceSettings);
+    window.addEventListener('storage', reloadFinanceSettings);
+
+    return () => {
+      window.removeEventListener('financeSettingsUpdated', reloadFinanceSettings);
+      window.removeEventListener('storage', reloadFinanceSettings);
+    };
+  }, []);
+
+  useEffect(() => {
+    setInvoiceItems((prev) => prev.map((item) => ({
+      ...item,
+      amount: calculateInvoiceItemAmountWithTax(item, financeDefaultTaxRate),
+    })));
+  }, [financeDefaultTaxRate]);
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter(inv => {
@@ -471,6 +514,7 @@ export default function InvoicesTab() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
+                                <SelectItem value={FINANCE_DEFAULT_TAX_VALUE}>{financeDefaultTaxLabel}</SelectItem>
                                 <SelectItem value="No Tax">No Tax</SelectItem>
                                 <SelectItem value="GST 18%">GST 18%</SelectItem>
                                 <SelectItem value="VAT 10%">VAT 10%</SelectItem>
@@ -514,6 +558,10 @@ export default function InvoicesTab() {
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">Sub Total :</span>
                     <span className="font-semibold">${calculateTotals().subTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600">Tax :</span>
+                    <span className="font-semibold">${calculateTotals().taxAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center gap-3">
                     <span className="text-slate-600 text-sm">Discount</span>
@@ -1265,6 +1313,7 @@ export default function InvoicesTab() {
                                                   <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
+                                                  <SelectItem value={FINANCE_DEFAULT_TAX_VALUE}>{financeDefaultTaxLabel}</SelectItem>
                                                   <SelectItem value="No Tax">No Tax (0%)</SelectItem>
                                                   <SelectItem value="GST 18%">GST 18%</SelectItem>
                                                   <SelectItem value="GST 9%">GST 9%</SelectItem>
@@ -1338,6 +1387,10 @@ export default function InvoicesTab() {
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">Sub Total:</span>
                                           <span className="font-bold text-slate-900 font-mono">${calculateTotals().subTotal.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pb-3 border-b border-slate-300">
+                                          <span className="text-sm font-semibold text-slate-700">Tax:</span>
+                                          <span className="font-bold text-slate-900 font-mono">${calculateTotals().taxAmount.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">Discount:</span>

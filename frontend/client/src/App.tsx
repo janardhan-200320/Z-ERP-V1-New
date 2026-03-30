@@ -22,8 +22,6 @@ import HRMAssets from "@/pages/hrm/hrm-assets";
 import HRMPerformance from "@/pages/hrm/hrm-performance";
 import HRMLetters from "@/pages/hrm/hrm-letters";
 import HRMTravelExpense from "@/pages/hrm/hrm-travel-expense";
-import HRMAutomation from "@/pages/hrm/hrm-automation";
-import HRMWorkflows from "@/pages/hrm/hrm-workflows";
 import HRMAnnouncements from "@/pages/hrm/hrm-announcements";
 import HRMPublicHolidays from "@/pages/hrm/hrm-public-holidays";
 
@@ -135,8 +133,6 @@ function AppRouter() {
       <Route path="/hrm/performance" component={HRMPerformance} />
       <Route path="/hrm/letters" component={HRMLetters} />
       <Route path="/hrm/travel-expense" component={HRMTravelExpense} />
-      <Route path="/hrm/automation" component={HRMAutomation} />
-      <Route path="/hrm/workflows" component={HRMWorkflows} />
       <Route path="/hrm/announcements" component={HRMAnnouncements} />
       <Route path="/hrm/public-holidays" component={HRMPublicHolidays} />
       <Route path="/hrm/*" component={HRMDashboard} />
@@ -205,6 +201,10 @@ function AppRouter() {
       <Route path="/admin" component={AdminSetup} />
       
       {/* Settings Module */}
+      <Route path="/dashboard/settings/general" component={GeneralSettings} />
+      <Route path="/dashboard/settings/esign" component={ESignSettings} />
+      <Route path="/dashboard/settings/finance" component={FinanceSettings} />
+      <Route path="/dashboard/settings/leads" component={LeadsSettings} />
       <Route path="/dashboard/settings/*" component={SettingsDashboard} />
       <Route path="/dashboard/settings" component={SettingsDashboard} />
       

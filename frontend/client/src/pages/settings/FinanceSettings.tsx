@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Save, DollarSign, CreditCard } from "lucide-react";
+import { Save, DollarSign } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,9 +9,17 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
+import { getFinanceSettings, saveFinanceSettings } from "@/lib/finance-settings";
 
 export default function FinanceSettings() {
   const { toast } = useToast();
+  const [settings, setSettings] = useState(() => getFinanceSettings());
+
+  const handleSave = () => {
+    const saved = saveFinanceSettings(settings);
+    setSettings(saved);
+    toast({ title: "Settings Saved", description: "Finance settings have been updated successfully." });
+  };
 
   return (
     <DashboardLayout>
@@ -32,7 +40,10 @@ export default function FinanceSettings() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="default-currency">Default Currency</Label>
-                <Select defaultValue="usd">
+                <Select
+                  value={settings.defaultCurrency}
+                  onValueChange={(value) => setSettings((prev) => ({ ...prev, defaultCurrency: value }))}
+                >
                   <SelectTrigger id="default-currency">
                     <SelectValue />
                   </SelectTrigger>
@@ -46,7 +57,10 @@ export default function FinanceSettings() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="currency-format">Currency Display Format</Label>
-                <Select defaultValue="symbol">
+                <Select
+                  value={settings.currencyFormat}
+                  onValueChange={(value) => setSettings((prev) => ({ ...prev, currencyFormat: value }))}
+                >
                   <SelectTrigger id="currency-format">
                     <SelectValue />
                   </SelectTrigger>
@@ -62,20 +76,27 @@ export default function FinanceSettings() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="default-tax">Default Tax Rate</Label>
-                <Select defaultValue="standard">
-                  <SelectTrigger id="default-tax">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard (10%)</SelectItem>
-                    <SelectItem value="reduced">Reduced (5%)</SelectItem>
-                    <SelectItem value="exempt">Tax Exempt (0%)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Input
+                    id="default-tax"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={settings.defaultTaxRate}
+                    onChange={(e) => setSettings((prev) => ({ ...prev, defaultTaxRate: Number(e.target.value) || 0 }))}
+                  />
+                  <div className="h-10 min-w-10 rounded-md border bg-muted px-3 text-sm flex items-center justify-center">%</div>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="tax-number">Tax ID / VAT Number</Label>
-                <Input id="tax-number" placeholder="Enter Tax ID" defaultValue="US123456789" />
+                <Input
+                  id="tax-number"
+                  placeholder="Enter Tax ID"
+                  value={settings.taxNumber}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, taxNumber: e.target.value }))}
+                />
               </div>
             </div>
             <div className="flex items-center justify-between py-2">
@@ -83,7 +104,10 @@ export default function FinanceSettings() {
                 <Label>Include Tax in Prices</Label>
                 <p className="text-sm text-muted-foreground">Show prices with tax included</p>
               </div>
-              <Switch />
+              <Switch
+                checked={settings.includeTaxInPrices}
+                onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, includeTaxInPrices: checked }))}
+              />
             </div>
           </CardContent>
         </Card>
@@ -97,17 +121,31 @@ export default function FinanceSettings() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="invoice-prefix">Invoice Number Prefix</Label>
-                <Input id="invoice-prefix" placeholder="INV-" defaultValue="INV-" />
+                <Input
+                  id="invoice-prefix"
+                  placeholder="INV-"
+                  value={settings.invoicePrefix}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, invoicePrefix: e.target.value }))}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="invoice-start">Starting Invoice Number</Label>
-                <Input id="invoice-start" type="number" placeholder="1000" defaultValue="1000" />
+                <Input
+                  id="invoice-start"
+                  type="number"
+                  placeholder="1000"
+                  value={settings.invoiceStartNumber}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, invoiceStartNumber: Number(e.target.value) || 0 }))}
+                />
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="payment-terms">Default Payment Terms (Days)</Label>
-                <Select defaultValue="30">
+                <Select
+                  value={String(settings.paymentTermsDays)}
+                  onValueChange={(value) => setSettings((prev) => ({ ...prev, paymentTermsDays: Number(value) || 0 }))}
+                >
                   <SelectTrigger id="payment-terms">
                     <SelectValue />
                   </SelectTrigger>
@@ -121,7 +159,13 @@ export default function FinanceSettings() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="late-fee">Late Payment Fee (%)</Label>
-                <Input id="late-fee" type="number" placeholder="5" defaultValue="5" />
+                <Input
+                  id="late-fee"
+                  type="number"
+                  placeholder="5"
+                  value={settings.lateFeePercent}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, lateFeePercent: Number(e.target.value) || 0 }))}
+                />
               </div>
             </div>
             <Separator />
@@ -130,67 +174,26 @@ export default function FinanceSettings() {
                 <Label>Auto-Generate Invoice Numbers</Label>
                 <p className="text-sm text-muted-foreground">Automatically increment invoice numbers</p>
               </div>
-              <Switch defaultChecked />
+              <Switch
+                checked={settings.autoGenerateInvoiceNumbers}
+                onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, autoGenerateInvoiceNumbers: checked }))}
+              />
             </div>
             <div className="flex items-center justify-between py-2">
               <div className="space-y-0.5">
                 <Label>Send Payment Reminders</Label>
                 <p className="text-sm text-muted-foreground">Email reminders for overdue invoices</p>
               </div>
-              <Switch defaultChecked />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Payment Gateway Settings</CardTitle>
-            </div>
-            <CardDescription>Configure online payment integrations</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="payment-gateway">Primary Payment Gateway</Label>
-              <Select defaultValue="stripe">
-                <SelectTrigger id="payment-gateway">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="stripe">Stripe</SelectItem>
-                  <SelectItem value="paypal">PayPal</SelectItem>
-                  <SelectItem value="square">Square</SelectItem>
-                  <SelectItem value="authorize">Authorize.Net</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="gateway-key">API Key</Label>
-                <Input id="gateway-key" type="password" placeholder="Enter API Key" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gateway-secret">Secret Key</Label>
-                <Input id="gateway-secret" type="password" placeholder="Enter Secret Key" />
-              </div>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <div className="space-y-0.5">
-                <Label>Enable Online Payments</Label>
-                <p className="text-sm text-muted-foreground">Allow customers to pay invoices online</p>
-              </div>
-              <Switch defaultChecked />
+              <Switch
+                checked={settings.sendPaymentReminders}
+                onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, sendPaymentReminders: checked }))}
+              />
             </div>
           </CardContent>
         </Card>
 
         <div className="flex justify-end">
-          <Button
-            onClick={() => {
-              toast({ title: "Settings Saved", description: "Finance settings have been updated successfully." });
-            }}
-          >
+          <Button onClick={handleSave}>
             <Save className="mr-2 h-4 w-4" />
             Save Changes
           </Button>

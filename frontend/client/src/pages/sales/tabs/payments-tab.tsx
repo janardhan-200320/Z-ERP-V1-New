@@ -24,6 +24,7 @@ import {
   Building2,
   Calendar,
   DollarSign,
+  Send,
   FileSpreadsheet,
   FileText
 } from 'lucide-react';
@@ -45,6 +46,7 @@ export default function PaymentsTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isExporting, setIsExporting] = useState(false);
+  const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
   const [showReceiptView, setShowReceiptView] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const { toast } = useToast();
@@ -134,6 +136,16 @@ export default function PaymentsTab() {
     failed: { label: 'Failed', class: 'bg-rose-100 text-rose-700 border-rose-200' }
   };
 
+  const handlePaymentAction = (action: 'record' | 'send') => {
+    const title = action === 'send' ? 'Saved & Sent' : 'Payment Recorded';
+    const description = action === 'send'
+      ? 'Payment saved and receipt has been sent.'
+      : 'Payment entry has been saved successfully.';
+
+    toast({ title, description });
+    setIsRecordPaymentOpen(false);
+  };
+
   return (
     <>
       <Card>
@@ -189,21 +201,21 @@ export default function PaymentsTab() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Dialog>
+            <Dialog open={isRecordPaymentOpen} onOpenChange={setIsRecordPaymentOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="h-9 bg-blue-600 hover:bg-blue-700 shadow-sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Record Payment
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
+              <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-hidden p-0">
+                <DialogHeader className="px-6 pt-6 pb-2">
                   <DialogTitle>Record Payment</DialogTitle>
                   <DialogDescription>Enter payment details</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
+                <div className="space-y-4 px-6 py-4 overflow-y-auto">
                   {/* Payment Info */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="pay-number">Payment Number</Label>
                       <Input id="pay-number" placeholder="PAY-001" />
@@ -215,7 +227,7 @@ export default function PaymentsTab() {
                   </div>
 
                   {/* Invoice & Customer */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="pay-invoice">Invoice</Label>
                       <Select>
@@ -236,7 +248,7 @@ export default function PaymentsTab() {
                   </div>
 
                   {/* Amount & Mode */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="pay-amount">Amount Paid</Label>
                       <Input id="pay-amount" type="number" placeholder="0.00" />
@@ -259,7 +271,7 @@ export default function PaymentsTab() {
                   </div>
 
                   {/* Transaction Details */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="pay-txn">Transaction ID</Label>
                       <Input id="pay-txn" placeholder="TXN-2026-001" />
@@ -292,9 +304,13 @@ export default function PaymentsTab() {
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline">Cancel</Button>
-                  <Button>
+                <div className="sticky bottom-0 border-t bg-white px-6 py-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsRecordPaymentOpen(false)}>Cancel</Button>
+                  <Button className="w-full sm:w-auto bg-black text-white hover:bg-black/90" onClick={() => handlePaymentAction('send')}>
+                    <Send className="h-4 w-4 mr-2" />
+                    Save & Send
+                  </Button>
+                  <Button className="w-full sm:w-auto" onClick={() => handlePaymentAction('record')}>
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Record Payment
                   </Button>

@@ -1753,10 +1753,10 @@ export default function DashboardOverview() {
                             {...props as any}
                             className={`
                               ${props.className}
-                              ${hasEvents || isSunday ? 'font-semibold ring-1 ring-offset-1 transition-colors duration-200 rounded-md' : ''}
-                              ${hasHolidayStyle ? 'bg-red-500 text-white ring-red-400 hover:bg-red-600 shadow-sm shadow-red-300/70' : ''}
-                              ${!hasHolidayStyle && hasMeeting ? 'bg-purple-100 text-purple-800 ring-purple-300 hover:bg-purple-200' : ''}
-                              ${!hasHolidayStyle && !hasMeeting && hasRegularEvent ? 'bg-blue-100 text-blue-800 ring-blue-300 hover:bg-blue-200' : ''}
+                              ${hasEvents || isSunday ? 'inline-flex h-8 w-8 items-center justify-center p-0 font-semibold transition-colors duration-200 rounded-md' : ''}
+                              ${hasHolidayStyle ? 'bg-red-400 text-white hover:bg-red-500 shadow-sm shadow-red-200/70' : ''}
+                              ${!hasHolidayStyle && hasMeeting ? 'bg-purple-100 text-purple-800 hover:bg-purple-200' : ''}
+                              ${!hasHolidayStyle && !hasMeeting && hasRegularEvent ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' : ''}
                             `}
                           >
                             {date.getDate()}

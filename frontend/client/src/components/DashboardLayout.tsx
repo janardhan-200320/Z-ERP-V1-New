@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   Briefcase,
   Package,
+  BookOpen,
   MessageCircle,
   MessageSquareMore,
   CreditCard,
@@ -342,6 +343,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
         { name: 'Settings', path: '/accounts/settings' },
       ]
     },
+    { name: 'Flip Book', icon: BookOpen, path: '/team-space/flip-books' },
     { name: 'Recruitment', icon: UserPlus, path: '/recruitment' },
     {
       name: 'Customers',
@@ -355,7 +357,16 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     },
 { name: 'Vendors', icon: Briefcase, path: '/vendors' },
 
-    { name: 'Team Space', icon: MessageSquareMore, path: '/team-space' },
+    {
+      name: 'Team Space',
+      icon: MessageSquareMore,
+      path: '/team-space',
+      hasSubmenu: true,
+      submenuKey: 'team-space',
+      submenu: [
+        { name: 'Dashboard', path: '/team-space' },
+      ]
+    },
 
     { name: 'Profile', icon: Users, path: '/profile' },
     
@@ -620,6 +631,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     { name: 'Leads', path: '/leads', category: 'Sales', keywords: 'prospects opportunities pipeline' },
     { name: 'Admin Setup', path: '/admin', category: 'Admin', keywords: 'configuration permissions users' },
     { name: 'Team Space', path: '/team-space', category: 'Communication', keywords: 'team collaboration meetings calls chats files' },
+    { name: 'Flip Book', path: '/team-space/flip-books', category: 'Communication', keywords: 'flip book pdf documents reader pages' },
     { name: 'Profile', path: '/profile', category: 'Profile', keywords: 'account settings preferences' },
   ], []);
 

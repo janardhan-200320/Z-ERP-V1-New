@@ -88,6 +88,7 @@ import ContractTypes from "@/pages/contracts/contract-types";
 
 // Team Space Module
 import TeamSpaceDashboard from "@/pages/team-space/team-space-dashboard";
+import FlipBookLibraryPage from "@/pages/team-space/flip-book-library";
 
 // Settings Module
 import SettingsDashboard from "@/pages/settings/SettingsDashboard";
@@ -196,6 +197,7 @@ function AppRouter() {
       <Route path="/leads" component={LeadsWorkflow} />
       
       {/* Team Space Module */}
+      <Route path="/team-space/flip-books" component={FlipBookLibraryPage} />
       <Route path="/team-space/*" component={TeamSpaceDashboard} />
       <Route path="/team-space" component={TeamSpaceDashboard} />
       

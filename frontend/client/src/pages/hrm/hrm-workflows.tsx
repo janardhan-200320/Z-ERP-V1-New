@@ -85,7 +85,7 @@ export default function HRMWorkflows() {
       category: 'Finance',
       status: 'Active',
       stages: 2,
-      approvers: ['Finance Controller', 'CEO (if > $5000)'],
+      approvers: ['Finance Controller', 'CEO (if > ₹5000)'],
       description: 'Automated routing for travel and operational expenses.',
       lastModified: '1 week ago',
       executions: 128

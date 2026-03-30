@@ -74,7 +74,7 @@ export default function AccountsDashboard() {
               <Landmark className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-700">$2,458,000</div>
+              <div className="text-2xl font-bold text-blue-700">₹2,458,000</div>
               <p className="text-xs text-slate-600 mt-1">Across 8 accounts</p>
             </CardContent>
           </Card>
@@ -85,8 +85,8 @@ export default function AccountsDashboard() {
               <ArrowDownCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-700">$485,000</div>
-              <p className="text-xs text-red-600 mt-1">$128K overdue</p>
+              <div className="text-2xl font-bold text-green-700">₹485,000</div>
+              <p className="text-xs text-red-600 mt-1">₹128K overdue</p>
             </CardContent>
           </Card>
 
@@ -96,8 +96,8 @@ export default function AccountsDashboard() {
               <ArrowUpCircle className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-700">$325,000</div>
-              <p className="text-xs text-orange-600 mt-1">$85K due this week</p>
+              <div className="text-2xl font-bold text-red-700">₹325,000</div>
+              <p className="text-xs text-orange-600 mt-1">₹85K due this week</p>
             </CardContent>
           </Card>
 
@@ -107,7 +107,7 @@ export default function AccountsDashboard() {
               <TrendingUp className="h-4 w-4 text-emerald-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-emerald-700">+$160,000</div>
+              <div className="text-2xl font-bold text-emerald-700">+₹160,000</div>
               <p className="text-xs text-slate-600 mt-1">This month</p>
             </CardContent>
           </Card>

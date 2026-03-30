@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -2191,28 +2191,6 @@ export default function LeadsModule() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">Lead Score Range</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={scoreRange[0]}
-                        onChange={(e) => setScoreRange([parseInt(e.target.value) || 0, scoreRange[1]])}
-                        className="w-20"
-                      />
-                      <span>-</span>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={scoreRange[1]}
-                        onChange={(e) => setScoreRange([scoreRange[0], parseInt(e.target.value) || 100])}
-                        className="w-20"
-                      />
-                    </div>
-                  </div>
                 </div>
 
                 {/* Active Filters */}
@@ -2303,15 +2281,6 @@ export default function LeadsModule() {
                         <Badge variant="outline" className={getPriorityColor(lead.priority)}>
                           {lead.priority}
                         </Badge>
-                      </div>
-
-                      {/* Score */}
-                      <div className="flex flex-row md:flex-col items-start md:items-center justify-center min-w-[80px] gap-2 md:gap-0">
-                        <div className={`text-2xl font-bold ${getScoreColor(lead.leadScore || 0)} mb-1`}>
-                          {lead.leadScore}
-                        </div>
-                        <Progress value={lead.leadScore} className="h-2 w-16 mb-1" />
-                        <p className="text-xs text-gray-500">Score</p>
                       </div>
 
                       {/* Value */}
@@ -2482,18 +2451,6 @@ export default function LeadsModule() {
                                       </div>
                                     )}
 
-                                    {lead.leadScore !== undefined && (
-                                      <div className="mb-2">
-                                        <div className="flex items-center justify-between text-xs mb-1">
-                                          <span className="text-gray-600">Score</span>
-                                          <span className={`font-semibold ${getScoreColor(lead.leadScore)}`}>
-                                            {lead.leadScore}/100
-                                          </span>
-                                        </div>
-                                        <Progress value={lead.leadScore} className="h-1.5" />
-                                      </div>
-                                    )}
-
                                     <div className="flex items-center justify-between pt-2 border-t">
                                       <div className="flex items-center gap-1">
                                         <Avatar className="w-5 h-5">
@@ -2581,18 +2538,6 @@ export default function LeadsModule() {
                         </div>
                       )}
                     </div>
-
-                    {lead.leadScore !== undefined && (
-                      <div className="mt-3">
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-gray-600">Lead Score</span>
-                          <span className={`font-semibold ${getScoreColor(lead.leadScore)}`}>
-                            {lead.leadScore}/100
-                          </span>
-                        </div>
-                        <Progress value={lead.leadScore} className="h-2" />
-                      </div>
-                    )}
 
                     <Separator className="my-3" />
 
@@ -2830,25 +2775,6 @@ export default function LeadsModule() {
             <ScrollArea className="h-[calc(95vh-280px)] sm:h-[calc(92vh-280px)] px-4 sm:px-6 overflow-y-auto">
               <div className="space-y-4 sm:space-y-6 py-4 sm:py-6 pb-8">
                 
-                {/* Quick Guide Alert */}
-                {(!formData.name || !formData.source) && (
-                  <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-300 rounded-xl p-4 sm:p-5 flex items-start gap-3 shadow-md animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                      <Sparkles className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-blue-900 text-sm sm:text-base mb-2 flex items-center gap-2">
-                        Quick Start Guide
-                        <Badge className="bg-blue-600 text-white text-xs">Required</Badge>
-                      </h4>
-                      <p className="text-xs sm:text-sm text-blue-800 leading-relaxed">
-                        To create a lead, you must fill in: <strong className="text-blue-900">Full Name</strong> and <strong className="text-blue-900">Lead Source</strong>. 
-                        All other fields are optional but help you track leads better!
-                      </p>
-                    </div>
-                  </div>
-                )}
-
                 {/* Basic Information Section */}
                 <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50/50 to-white shadow-lg">
                   <CardHeader className="pb-4 bg-gradient-to-r from-blue-100/50 to-purple-100/50">
@@ -3206,7 +3132,7 @@ export default function LeadsModule() {
                           Expected Deal Value
                           {formData.leadValue && formData.leadValue > 0 && (
                             <Badge variant="secondary" className="text-xs">
-                              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(formData.leadValue)}
+                              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(formData.leadValue)}
                             </Badge>
                           )}
                         </Label>
@@ -3220,36 +3146,6 @@ export default function LeadsModule() {
                             placeholder="50000"
                             className="pl-9 border-gray-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all"
                           />
-                        </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="leadScore" className="flex items-center gap-2">
-                          Lead Score
-                          {formData.leadScore !== undefined && (
-                            <Badge 
-                              variant="secondary" 
-                              className={`text-xs ${
-                                formData.leadScore >= 80 ? 'bg-green-100 text-green-700' :
-                                formData.leadScore >= 60 ? 'bg-yellow-100 text-yellow-700' :
-                                formData.leadScore >= 40 ? 'bg-orange-100 text-orange-700' :
-                                'bg-red-100 text-red-700'
-                              }`}
-                            >
-                              {formData.leadScore}/100
-                            </Badge>
-                          )}
-                        </Label>
-                        <div className="space-y-2 mt-1.5">
-                          <Input
-                            id="leadScore"
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={formData.leadScore || 50}
-                            onChange={(e) => setFormData(prev => ({ ...prev, leadScore: Number(e.target.value) }))}
-                            className="w-full"
-                          />
-                          <Progress value={formData.leadScore || 50} className="h-2" />
                         </div>
                       </div>
                     </div>
@@ -3311,7 +3207,7 @@ export default function LeadsModule() {
                           Budget Range
                           {formData.budget && formData.budget > 0 && (
                             <Badge variant="secondary" className="text-xs bg-cyan-100 text-cyan-700">
-                              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(formData.budget)}
+                              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(formData.budget)}
                             </Badge>
                           )}
                         </Label>
@@ -4618,36 +4514,6 @@ Generated: ${new Date().toLocaleString()}
                     </div>
                   )}
                   
-                  <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
-                    <Badge className={`${getStatusColor(lead.status)} text-white capitalize`}>
-                      {lead.status}
-                    </Badge>
-                    {lead.priority && (
-                      <Badge variant="outline" className={`${
-                        lead.priority === 'high' ? 'border-red-500 text-red-700' :
-                        lead.priority === 'medium' ? 'border-yellow-500 text-yellow-700' :
-                        'border-gray-500 text-gray-700'
-                      }`}>
-                        {lead.priority === 'high' && '🔴'}
-                        {lead.priority === 'medium' && '🟡'}
-                        {lead.priority === 'low' && '⚪'}
-                        {' '}{lead.priority}
-                      </Badge>
-                    )}
-                    {lead.temperature === "hot" && (
-                      <Badge className="bg-red-100 text-red-700">
-                        <Flame className="w-3 h-3 mr-1" />
-                        Hot Lead
-                      </Badge>
-                    )}
-                    {lead.temperature === "warm" && (
-                      <Badge className="bg-yellow-100 text-yellow-700">
-                        <TrendingUp className="w-3 h-3 mr-1" />
-                        Warm
-                      </Badge>
-                    )}
-                  </div>
-
                   {/* Quick Actions */}
                   <div className="flex gap-2 mb-4">
                     {onEdit && (
@@ -4682,38 +4548,8 @@ Generated: ${new Date().toLocaleString()}
                     )}
                   </div>
 
-                  {/* Lead Score */}
-                  {lead.leadScore !== undefined && (
-                    <div className="bg-white rounded-xl p-4 mb-4 shadow-md border-2 border-gray-100">
-                      <div className="flex items-center justify-center gap-3 mb-2">
-                        <div className={`text-3xl sm:text-4xl font-bold ${getScoreColor(lead.leadScore)}`}>
-                          {lead.leadScore}
-                        </div>
-                        <div className="text-left">
-                          <p className="text-xs text-gray-500 font-semibold">Lead Score</p>
-                          <p className="text-xs text-gray-400">out of 100</p>
-                        </div>
-                      </div>
-                      <Progress value={lead.leadScore} className="h-2.5" />
-                      <p className="text-xs text-center mt-2 text-gray-500">
-                        {lead.leadScore >= 80 ? '🎯 Excellent' :
-                         lead.leadScore >= 60 ? '✅ Good' :
-                         lead.leadScore >= 40 ? '⚠️ Fair' : '📉 Needs attention'}
-                      </p>
-                    </div>
-                  )}
-
                   {/* Contact Buttons */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full hover:bg-blue-50 hover:border-blue-500 hover:text-blue-700 transition-all"
-                      onClick={(e) => { e.stopPropagation(); onCall?.(lead); }}
-                    >
-                      <Phone className="w-4 h-4 mr-2" />
-                      Call
-                    </Button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
                     <Button 
                       variant="outline" 
                       size="sm" 

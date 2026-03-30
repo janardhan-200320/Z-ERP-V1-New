@@ -7,16 +7,16 @@ import { Plus, Calendar, Repeat } from 'lucide-react';
 
 export default function RecurringTransactionsModule() {
   const recurring = [
-    { id: '1', name: 'Monthly Rent Payment', amount: '$15,000', frequency: 'Monthly', nextRun: '2026-02-01', type: 'expense', active: true },
-    { id: '2', name: 'SaaS Subscription Income', amount: '$5,000', frequency: 'Monthly', nextRun: '2026-02-01', type: 'income', active: true },
-    { id: '3', name: 'Quarterly Tax Payment', amount: '$45,000', frequency: 'Quarterly', nextRun: '2026-04-01', type: 'expense', active: true },
-    { id: '4', name: 'Annual License Fee', amount: '$12,000', frequency: 'Yearly', nextRun: '2027-01-01', type: 'expense', active: false }
+    { id: '1', name: 'Monthly Rent Payment', amount: '₹15,000', frequency: 'Monthly', nextRun: '2026-02-01', type: 'expense', active: true },
+    { id: '2', name: 'SaaS Subscription Income', amount: '₹5,000', frequency: 'Monthly', nextRun: '2026-02-01', type: 'income', active: true },
+    { id: '3', name: 'Quarterly Tax Payment', amount: '₹45,000', frequency: 'Quarterly', nextRun: '2026-04-01', type: 'expense', active: true },
+    { id: '4', name: 'Annual License Fee', amount: '₹12,000', frequency: 'Yearly', nextRun: '2027-01-01', type: 'expense', active: false }
   ];
 
   const history = [
-    { date: '2026-01-01', name: 'Monthly Rent Payment', status: 'success', reference: 'REC-001', amount: '$15,000' },
-    { date: '2026-01-01', name: 'SaaS Subscription Income', status: 'success', reference: 'REC-002', amount: '$5,000' },
-    { date: '2025-12-01', name: 'Monthly Rent Payment', status: 'success', reference: 'REC-003', amount: '$15,000' }
+    { date: '2026-01-01', name: 'Monthly Rent Payment', status: 'success', reference: 'REC-001', amount: '₹15,000' },
+    { date: '2026-01-01', name: 'SaaS Subscription Income', status: 'success', reference: 'REC-002', amount: '₹5,000' },
+    { date: '2025-12-01', name: 'Monthly Rent Payment', status: 'success', reference: 'REC-003', amount: '₹15,000' }
   ];
 
   return (

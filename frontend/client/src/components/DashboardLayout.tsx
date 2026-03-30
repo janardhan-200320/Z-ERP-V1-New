@@ -999,7 +999,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-slate-100">
+    <div className="relative flex h-screen overflow-hidden bg-slate-100 text-slate-900">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <motion.div
           animate={{ opacity: [0.5, 1, 0.5], scale: [1, 1.03, 1] }}
@@ -1020,9 +1020,9 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       {renderMobileSidebar()}
 
       <div className="relative flex flex-1 flex-col overflow-hidden">
-        <header className="relative z-20 border-b border-slate-200 bg-white/90 px-4 py-4 shadow-sm backdrop-blur-xl sm:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+        <header className="relative z-20 border-b border-slate-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl sm:px-6 lg:px-8">
+          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               {/* Sidebar Toggle Button */}
               <motion.button
                 whileTap={{ scale: 0.95 }}
@@ -1051,7 +1051,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
               </div>
             </div>
 
-            <div className="hidden md:flex items-center gap-2 sm:gap-3 flex-1 max-w-2xl">
+            <div className="hidden md:flex flex-1 items-center gap-2 sm:gap-3 max-w-2xl">
               {/* Global Search Bar */}
               <div className="relative flex-1 max-w-xl">
                 <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1126,9 +1126,11 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
           </div>
         </header>
 
-        <main className="relative flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8" style={{ overflowX: 'hidden' }}>
+        <main className="relative flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
           <div className="mx-auto w-full max-w-7xl">
-            {children}
+            <div className="space-y-6 pb-2">
+              {children}
+            </div>
           </div>
         </main>
       </div>
@@ -1615,7 +1617,14 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
             </div>
           </ScrollArea>
           <div className="p-3 border-t">
-            <Button variant="outline" className="w-full text-sm">
+            <Button
+              variant="outline"
+              className="w-full text-sm"
+              onClick={() => {
+                setNotificationOpen(false);
+                navigate('/subscriptions');
+              }}
+            >
               View All Notifications
             </Button>
           </div>

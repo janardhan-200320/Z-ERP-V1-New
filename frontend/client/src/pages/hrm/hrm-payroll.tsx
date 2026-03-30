@@ -1093,7 +1093,7 @@ export default function HRMPayroll() {
                         setTimeout(() => {
                           toast({
                             title: "Analysis Ready",
-                            description: "Total YTD: $1,116,946 | Avg: $558,473/month",
+                            description: "Total YTD: ₹1,116,946 | Avg: ₹558,473/month",
                           });
                         }, 1000);
                       }}
@@ -1107,8 +1107,8 @@ export default function HRMPayroll() {
                       onClick={() => {
                         const monthlyData = [
                           ['Month', 'Amount', 'Employees', 'Status'],
-                          ['January 2026', '$548,230', '142', 'Paid'],
-                          ['February 2026', '$568,716', '145', 'Current'],
+                          ['January 2026', '₹548,230', '142', 'Paid'],
+                          ['February 2026', '₹568,716', '145', 'Current'],
                         ];
                         toast({
                           title: "Export Complete",
@@ -1125,7 +1125,7 @@ export default function HRMPayroll() {
                       onClick={() => {
                         toast({
                           title: "Forecast Generated",
-                          description: "Projected annual payroll: $6,701,676 based on current trends",
+                          description: "Projected annual payroll: ₹6,701,676 based on current trends",
                         });
                       }}
                     >
@@ -1138,7 +1138,7 @@ export default function HRMPayroll() {
                       onClick={() => {
                         toast({
                           title: "Comparison Report",
-                          description: "Comparing February vs January: +3.7% increase ($20,486)",
+                          description: "Comparing February vs January: +3.7% increase (₹20,486)",
                         });
                       }}
                     >
@@ -1729,7 +1729,7 @@ export default function HRMPayroll() {
                   </div>
                   <div className="bg-indigo-50 p-4 rounded-lg">
                     <div className="text-sm text-indigo-600 font-medium">Total Impact on Payroll</div>
-                    <div className="text-2xl font-bold text-indigo-700 mt-1">+$15,000</div>
+                    <div className="text-2xl font-bold text-indigo-700 mt-1">+₹15,000</div>
                   </div>
                 </div>
               </CardContent>
@@ -1778,7 +1778,7 @@ export default function HRMPayroll() {
                           ${payrollSummary.totalProfTax.toLocaleString()}
                         </div>
                         <div className="text-sm text-purple-600">Professional Tax</div>
-                        <div className="text-xs text-purple-500 mt-1">Fixed: $200/emp</div>
+                        <div className="text-xs text-purple-500 mt-1">Fixed: ₹200/emp</div>
                       </div>
                     </div>
 
@@ -2193,7 +2193,7 @@ export default function HRMPayroll() {
             {/* Current and New Salary */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="current-salary">Current Salary ($)</Label>
+                <Label htmlFor="current-salary">Current Salary (₹)</Label>
                 <Input
                   id="current-salary"
                   type="number"
@@ -2204,7 +2204,7 @@ export default function HRMPayroll() {
                 <p className="text-xs text-slate-500">Current monthly salary</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-salary">New Salary ($)</Label>
+                <Label htmlFor="new-salary">New Salary (₹)</Label>
                 <Input
                   id="new-salary"
                   type="number"
@@ -2223,7 +2223,7 @@ export default function HRMPayroll() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-slate-600">Additional Amount</p>
-                  <p className="text-xl font-bold text-green-700">$5,000</p>
+                  <p className="text-xl font-bold text-green-700">₹5,000</p>
                 </div>
               </div>
             </div>
@@ -2389,7 +2389,7 @@ export default function HRMPayroll() {
                         ✓ Total Gross Salary: ${payrollSummary.totalGross.toLocaleString()}
                       </div>
                       <div className="text-xs text-slate-500">
-                        Example: John Smith - Base: $75,000 + Allowances: $15,000 = $90,000
+                        Example: John Smith - Base: ₹75,000 + Allowances: ₹15,000 = ₹90,000
                       </div>
                     </div>
                   )}

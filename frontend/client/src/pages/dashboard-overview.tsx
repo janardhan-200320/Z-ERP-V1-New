@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -366,32 +366,49 @@ export default function DashboardOverview() {
     low: { label: 'Low', class: 'bg-slate-100 text-slate-700 border-slate-200' }
   };
 
-  const baseCalendarEvents = [
-    { date: new Date(2026, 2, 12), type: 'event', title: 'Team Meeting', time: '10:00 AM', description: 'Q1 Strategy Review' },
-    { date: new Date(2026, 2, 18), type: 'meeting', title: 'Client Call', time: '2:00 PM', description: 'Project Discussion with ABC Corp' },
-    { date: new Date(2026, 2, 20), type: 'event', title: 'Project Review', time: '11:30 AM', description: 'Sprint Demo & Retrospective' },
-    { date: new Date(2026, 2, 22), type: 'meeting', title: 'Stakeholder Meeting', time: '3:00 PM', description: 'Quarterly Business Review' },
-    { date: new Date(2026, 2, 25), type: 'event', title: 'Training Session', time: '9:00 AM', description: 'New Platform Features' },
-    { date: new Date(2026, 2, 28), type: 'meeting', title: 'Monthly Review', time: '4:00 PM', description: 'Team Performance & Goals' }
-  ];
+  const baseCalendarEvents = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const createFutureDate = (daysFromToday: number) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() + daysFromToday);
+      return date;
+    };
+
+    return [
+      { date: createFutureDate(1), type: 'event', title: 'Team Meeting', time: '10:00 AM', description: 'Q1 Strategy Review' },
+      { date: createFutureDate(3), type: 'meeting', title: 'Client Call', time: '2:00 PM', description: 'Project Discussion with ABC Corp' },
+      { date: createFutureDate(5), type: 'event', title: 'Project Review', time: '11:30 AM', description: 'Sprint Demo & Retrospective' },
+      { date: createFutureDate(8), type: 'meeting', title: 'Stakeholder Meeting', time: '3:00 PM', description: 'Quarterly Business Review' },
+      { date: createFutureDate(12), type: 'event', title: 'Training Session', time: '9:00 AM', description: 'New Platform Features' },
+      { date: createFutureDate(16), type: 'meeting', title: 'Monthly Review', time: '4:00 PM', description: 'Team Performance & Goals' }
+    ];
+  }, []);
 
   const calendarEvents = useMemo(() => {
     const holidayEvents = publicHolidays.map((holiday) => ({
       date: new Date(`${holiday.date}T00:00:00`),
       type: 'holiday',
+      source: 'publicHoliday',
       title: holiday.name,
       time: 'All Day',
       description: holiday.description || 'Office Closed',
     }));
 
     return [...baseCalendarEvents, ...holidayEvents].sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [publicHolidays]);
+  }, [baseCalendarEvents, publicHolidays]);
 
-  // Get upcoming events (future dates only)
-  const upcomingEvents = calendarEvents
-    .filter(event => event.date >= new Date())
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .slice(0, 5);
+  // Get upcoming events from today onwards
+  const upcomingEvents = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    return calendarEvents
+      .filter(event => event.date >= startOfToday)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .slice(0, 6);
+  }, [calendarEvents]);
 
   // Check if a date has events
   const hasEvent = (date: Date) => {
@@ -414,6 +431,33 @@ export default function DashboardOverview() {
       day: 'numeric', 
       year: 'numeric' 
     });
+  };
+
+  const getRelativeEventLabel = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const eventDate = new Date(date);
+    eventDate.setHours(0, 0, 0, 0);
+
+    const diffInDays = Math.round((eventDate.getTime() - today.getTime()) / 86400000);
+
+    if (diffInDays === 0) return 'Today';
+    if (diffInDays === 1) return 'Tomorrow';
+    if (diffInDays > 1 && diffInDays < 7) return `In ${diffInDays} days`;
+    return eventDate.toLocaleDateString('en-US', { weekday: 'short' });
+  };
+
+  const getRelativeEventBadgeClass = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const eventDate = new Date(date);
+    eventDate.setHours(0, 0, 0, 0);
+
+    const diffInDays = Math.round((eventDate.getTime() - today.getTime()) / 86400000);
+
+    if (diffInDays <= 1) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    if (diffInDays <= 3) return 'bg-amber-100 text-amber-700 border-amber-200';
+    return 'bg-slate-100 text-slate-700 border-slate-200';
   };
 
   // Get event type styling
@@ -486,7 +530,7 @@ export default function DashboardOverview() {
                       className="text-slate-600 p-0 h-auto text-sm hover:text-slate-700 transition-colors"
                       onClick={() => setIsOptionsOpen(false)}
                     >
-                      <span className="mr-1">←</span> Back
+                      <span className="mr-1">&larr;</span> Back
                       </Button>
                     </div>
                   </div>
@@ -586,11 +630,11 @@ export default function DashboardOverview() {
 
       <div className="flex flex-col h-full bg-slate-50/30">
         <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-0 pb-6 pt-2">
-          <Card className="border-blue-100 bg-gradient-to-r from-blue-50 via-indigo-50 to-white">
+          <Card className="border-emerald-300 bg-gradient-to-r from-emerald-200 via-green-200 to-white">
             <CardHeader className="pb-2">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-slate-900">
-                  <Megaphone className="h-5 w-5 text-blue-600" />
+                  <Megaphone className="h-5 w-5 text-emerald-800" />
                   Announcements
                 </CardTitle>
                 <Button size="sm" variant="outline" onClick={() => setLocation('/hrm/announcements')}>
@@ -601,7 +645,7 @@ export default function DashboardOverview() {
             </CardHeader>
             <CardContent className="pt-0">
               {announcements.length === 0 ? (
-                <div className="rounded-md border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-500">
+                <div className="rounded-md border border-dashed border-emerald-400 bg-emerald-200 p-3 text-sm text-emerald-900">
                   No active announcements right now.
                 </div>
               ) : (
@@ -726,7 +770,7 @@ export default function DashboardOverview() {
             )}
           </div>
 
-        {/* 3️⃣ PERFORMANCE HIGHLIGHT CARDS - Responsive Grid */}
+        {/* 3ï¸âƒ£ PERFORMANCE HIGHLIGHT CARDS - Responsive Grid */}
         {widgets.performanceHighlights && (
         <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {performanceHighlights.map((highlight, index) => (
@@ -745,7 +789,7 @@ export default function DashboardOverview() {
         </div>
         )}
 
-        {/* 4️⃣ REVENUE OVERVIEW - Responsive */}
+        {/* 4ï¸âƒ£ REVENUE OVERVIEW - Responsive */}
         {widgets.revenueOverview && (
         <Card>
           <CardHeader className="px-4 sm:px-6">
@@ -799,7 +843,7 @@ export default function DashboardOverview() {
         </Card>
         )}
 
-        {/* 5️⃣ ANALYTICS GRID - Responsive */}
+        {/* 5ï¸âƒ£ ANALYTICS GRID - Responsive */}
         {widgets.projectAnalytics && (
         <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
           {/* Sales Pipeline */}
@@ -852,7 +896,7 @@ export default function DashboardOverview() {
         </div>
         )}
 
-        {/* 6️⃣ ANALYTICS GRID WITH CHARTS - Responsive 3-Column Grid */}
+        {/* 6ï¸âƒ£ ANALYTICS GRID WITH CHARTS - Responsive 3-Column Grid */}
         <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {/* Project Status */}
           <Card className="hover:shadow-md transition-all duration-300">
@@ -986,7 +1030,7 @@ export default function DashboardOverview() {
           </Card>
         </div>
 
-        {/* 7️⃣ PAYMENT RECEIPTS & MRR - Responsive 2-Column Grid */}
+        {/* 7ï¸âƒ£ PAYMENT RECEIPTS & MRR - Responsive 2-Column Grid */}
         {widgets.paymentReceipts && (
         <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
           {/* Payment Receipts */}
@@ -998,7 +1042,7 @@ export default function DashboardOverview() {
                   <CardTitle className="text-base sm:text-lg">Payment Receipts</CardTitle>
                 </div>
                 <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200 text-xs">
-                  $283K Received
+                  ₹283K Received
                 </Badge>
               </div>
             </CardHeader>
@@ -1051,7 +1095,7 @@ export default function DashboardOverview() {
         </div>
         )}
 
-        {/* 8️⃣ OUTSTANDING INVOICES & ACTIVITY/INSIGHTS/CONTRACTS - Fully Responsive */}
+        {/* 8ï¸âƒ£ OUTSTANDING INVOICES & ACTIVITY/INSIGHTS/CONTRACTS - Fully Responsive */}
         <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
           {/* Contracts Expiring Soon - Compact Alert Card */}
           {widgets.contractsExpiring && (
@@ -1221,7 +1265,7 @@ export default function DashboardOverview() {
               <div className="space-y-3 sm:space-y-4">
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl sm:text-3xl font-bold text-slate-900">$94.5K</span>
+                    <span className="text-2xl sm:text-3xl font-bold text-slate-900">₹94.5K</span>
                     <span className="text-xs sm:text-sm font-medium text-green-600 flex items-center gap-1">
                       <ArrowUp className="h-3 w-3" />
                       +12.5%
@@ -1254,7 +1298,7 @@ export default function DashboardOverview() {
           )}
         </div>
 
-        {/* 9️⃣ QUICK ACTIONS & SYSTEM HEALTH - Responsive Grid */}
+        {/* 9ï¸âƒ£ QUICK ACTIONS & SYSTEM HEALTH - Responsive Grid */}
         <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
           {/* Quick Actions Summary */}
           {widgets.quickActions && (
@@ -1360,7 +1404,7 @@ export default function DashboardOverview() {
           )}
         </div>
 
-        {/* 🔟 TOP PERFORMERS & FINANCIAL GOALS - Responsive Grid */}
+        {/* ðŸ”Ÿ TOP PERFORMERS & FINANCIAL GOALS - Responsive Grid */}
         <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
           {/* Top Performers */}
           {widgets.topPerformers && (
@@ -1482,7 +1526,7 @@ export default function DashboardOverview() {
           )}
         </div>
 
-        {/* 1️⃣1️⃣ PROJECT TIMELINE - Responsive */}
+        {/* 1ï¸âƒ£1ï¸âƒ£ PROJECT TIMELINE - Responsive */}
         {widgets.projectTimeline && (
         <Card className="border-l-4 border-l-indigo-500 hover:shadow-md transition-all duration-300">
           <CardHeader className="p-4 sm:p-6 bg-gradient-to-r from-indigo-50/50 to-purple-50/50">
@@ -1555,7 +1599,7 @@ export default function DashboardOverview() {
         </Card>
         )}
 
-        {/* 1️⃣2️⃣ TASK TABLE - Fully Responsive */}
+        {/* 1ï¸âƒ£2ï¸âƒ£ TASK TABLE - Fully Responsive */}
         {widgets.taskTable && (
         <Card>
           <CardHeader className="p-4 sm:p-6">
@@ -1656,7 +1700,7 @@ export default function DashboardOverview() {
         </Card>
         )}
 
-        {/* 1️⃣3️⃣ ENHANCED CALENDAR SECTION - Fully Responsive */}
+        {/* 1ï¸âƒ£3ï¸âƒ£ ENHANCED CALENDAR SECTION - Fully Responsive */}
         {widgets.calendar && (
         <Card className="overflow-hidden border-0 shadow-xl shadow-slate-200/50">
           <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600 p-4 sm:p-6">
@@ -1670,10 +1714,6 @@ export default function DashboardOverview() {
                   View and manage your scheduled events and meetings
                 </CardDescription>
               </div>
-              <Button className="bg-white/20 hover:bg-white/30 text-white border-white/40 backdrop-blur-sm text-sm w-full sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Event
-              </Button>
             </div>
           </div>
           
@@ -1699,7 +1739,13 @@ export default function DashboardOverview() {
                     Day: ({ date, ...props }) => {
                       const events = getEventsForDate(date);
                       const hasEvents = events.length > 0;
-                      const hasHoliday = events.some(event => event.type === 'holiday');
+                      const isSunday = date.getDay() === 0;
+                      const hasMeeting = events.some(event => event.type === 'meeting');
+                      const hasHoliday = events.some(
+                        event => event.type === 'holiday' || event.source === 'publicHoliday'
+                      );
+                      const hasHolidayStyle = hasHoliday || isSunday;
+                      const hasRegularEvent = events.some(event => event.type === 'event');
                       
                       return (
                         <div className="relative">
@@ -1707,22 +1753,14 @@ export default function DashboardOverview() {
                             {...props as any}
                             className={`
                               ${props.className}
-                              ${hasEvents ? 'font-semibold' : ''}
-                              ${hasHoliday ? 'bg-red-500 text-white hover:bg-red-600 rounded-md' : ''}
+                              ${hasEvents || isSunday ? 'font-semibold ring-1 ring-offset-1 transition-colors duration-200 rounded-md' : ''}
+                              ${hasHolidayStyle ? 'bg-red-500 text-white ring-red-400 hover:bg-red-600 shadow-sm shadow-red-300/70' : ''}
+                              ${!hasHolidayStyle && hasMeeting ? 'bg-purple-100 text-purple-800 ring-purple-300 hover:bg-purple-200' : ''}
+                              ${!hasHolidayStyle && !hasMeeting && hasRegularEvent ? 'bg-blue-100 text-blue-800 ring-blue-300 hover:bg-blue-200' : ''}
                             `}
                           >
                             {date.getDate()}
                           </button>
-                          {hasEvents && !hasHoliday && (
-                            <div className="absolute bottom-0.5 sm:bottom-1 left-1/2 transform -translate-x-1/2 flex gap-0.5">
-                              {events.slice(0, 3).map((event, idx) => (
-                                <div
-                                  key={idx}
-                                  className={`h-0.5 w-0.5 sm:h-1 sm:w-1 rounded-full ${getEventStyle(event.type).dot}`}
-                                />
-                              ))}
-                            </div>
-                          )}
                         </div>
                       );
                     }
@@ -1790,12 +1828,20 @@ export default function DashboardOverview() {
                                     {event.description}
                                   </p>
                                 </div>
-                                <Badge 
-                                  variant="outline" 
-                                  className={`${style.badge} text-xs whitespace-nowrap ml-2 flex-shrink-0`}
-                                >
-                                  {event.type === 'event' ? '📅' : event.type === 'holiday' ? '🎉' : '💼'}
-                                </Badge>
+                                <div className="ml-2 flex flex-col items-end gap-1.5 flex-shrink-0">
+                                  <Badge
+                                    variant="outline"
+                                    className={`${style.badge} text-xs whitespace-nowrap`}
+                                  >
+                                    {event.type === 'event' ? 'Event' : event.type === 'holiday' ? 'Holiday' : 'Meeting'}
+                                  </Badge>
+                                  <Badge
+                                    variant="outline"
+                                    className={`${getRelativeEventBadgeClass(event.date)} text-[10px] sm:text-xs whitespace-nowrap`}
+                                  >
+                                    {getRelativeEventLabel(event.date)}
+                                  </Badge>
+                                </div>
                               </div>
                               
                               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs">
@@ -1838,3 +1884,4 @@ export default function DashboardOverview() {
     </DashboardLayout>
   );
 }
+

@@ -63,8 +63,8 @@ export default function Insurance() {
       policyType: 'Health Insurance',
       provider: 'XYZ Insurance Co.',
       policyNumber: 'HI-2025-001',
-      coverage: '$50,000',
-      premium: '$200/month',
+      coverage: '₹50,000',
+      premium: '₹200/month',
       status: 'active',
       startDate: '2025-01-01',
       endDate: '2025-12-31',
@@ -77,8 +77,8 @@ export default function Insurance() {
       policyType: 'Life Insurance',
       provider: 'ABC Life Insurance',
       policyNumber: 'LI-2025-002',
-      coverage: '$100,000',
-      premium: '$150/month',
+      coverage: '₹100,000',
+      premium: '₹150/month',
       status: 'active',
       startDate: '2025-01-01',
       endDate: '2025-12-31',
@@ -91,8 +91,8 @@ export default function Insurance() {
       policyType: 'Health Insurance',
       provider: 'XYZ Insurance Co.',
       policyNumber: 'HI-2025-003',
-      coverage: '$50,000',
-      premium: '$200/month',
+      coverage: '₹50,000',
+      premium: '₹200/month',
       status: 'pending',
       startDate: '2025-06-15',
       endDate: '2026-06-14',
@@ -107,11 +107,11 @@ export default function Insurance() {
       employee: 'Emily Davis',
       empId: 'EMP004',
       policyType: 'Health Insurance',
-      claimAmount: '$2,500',
+      claimAmount: '₹2,500',
       claimDate: '2025-06-10',
       description: 'Medical treatment - Emergency',
       status: 'approved',
-      approvedAmount: '$2,500',
+      approvedAmount: '₹2,500',
       avatar: 'ED'
     },
     {
@@ -119,7 +119,7 @@ export default function Insurance() {
       employee: 'Alex Wilson',
       empId: 'EMP005',
       policyType: 'Health Insurance',
-      claimAmount: '$1,200',
+      claimAmount: '₹1,200',
       claimDate: '2025-06-12',
       description: 'Dental treatment',
       status: 'pending',
@@ -131,11 +131,11 @@ export default function Insurance() {
       employee: 'Lisa Anderson',
       empId: 'EMP006',
       policyType: 'Health Insurance',
-      claimAmount: '$800',
+      claimAmount: '₹800',
       claimDate: '2025-06-05',
       description: 'Eye checkup and glasses',
       status: 'rejected',
-      approvedAmount: '$0',
+      approvedAmount: '₹0',
       avatar: 'LA'
     }
   ]);
@@ -186,7 +186,7 @@ export default function Insurance() {
 
   const handleClaimAction = (claimId: string, status: 'approved' | 'rejected') => {
     setClaims(claims.map(c => 
-      c.id === claimId ? { ...c, status, approvedAmount: status === 'approved' ? c.claimAmount : '$0' } : c
+      c.id === claimId ? { ...c, status, approvedAmount: status === 'approved' ? c.claimAmount : '₹0' } : c
     ));
     toast({ 
       title: `Claim ${status.charAt(0).toUpperCase() + status.slice(1)}`,
@@ -316,11 +316,11 @@ export default function Insurance() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="coverage">Coverage Amount</Label>
-                      <Input id="coverage" placeholder="$50,000" />
+                      <Input id="coverage" placeholder="₹50,000" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="premium">Premium</Label>
-                      <Input id="premium" placeholder="$200/month" />
+                      <Input id="premium" placeholder="₹200/month" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -536,7 +536,7 @@ export default function Insurance() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="claim-amount">Claim Amount</Label>
-                        <Input id="claim-amount" placeholder="$2,500" />
+                        <Input id="claim-amount" placeholder="₹2,500" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="claim-description">Description</Label>
@@ -647,11 +647,11 @@ export default function Insurance() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">Total Coverage</span>
-                      <span className="font-semibold">$9.25M</span>
+                      <span className="font-semibold">₹9.25M</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">Monthly Premium</span>
-                      <span className="font-semibold">$37K</span>
+                      <span className="font-semibold">₹37K</span>
                     </div>
                   </div>
                 </CardContent>
@@ -672,11 +672,11 @@ export default function Insurance() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">Total Coverage</span>
-                      <span className="font-semibold">$15M</span>
+                      <span className="font-semibold">₹15M</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">Monthly Premium</span>
-                      <span className="font-semibold">$22.5K</span>
+                      <span className="font-semibold">₹22.5K</span>
                     </div>
                   </div>
                 </CardContent>
@@ -697,11 +697,11 @@ export default function Insurance() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">Total Coverage</span>
-                      <span className="font-semibold">$6M</span>
+                      <span className="font-semibold">₹6M</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">Monthly Premium</span>
-                      <span className="font-semibold">$12K</span>
+                      <span className="font-semibold">₹12K</span>
                     </div>
                   </div>
                 </CardContent>

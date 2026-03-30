@@ -81,8 +81,8 @@ export default function HRMAssets() {
       model: 'MacBook Pro M3 Max',
       serialNumber: 'C02YK3QGJG5H',
       purchaseDate: '2025-01-15',
-      purchaseValue: '$3,499',
-      currentValue: '$3,150',
+      purchaseValue: '₹3,499',
+      currentValue: '₹3,150',
       depreciation: '10%',
       assignedTo: 'John Smith',
       empId: 'EMP001',
@@ -94,7 +94,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2028-01-15',
       lastMaintenance: '2025-05-10',
       nextMaintenance: '2025-11-10',
-      insuranceValue: '$3,500',
+      insuranceValue: '₹3,500',
       avatar: 'JS'
     },
     {
@@ -106,8 +106,8 @@ export default function HRMAssets() {
       model: 'iPhone 15 Pro 256GB',
       serialNumber: 'F17YH9X1Q2M3',
       purchaseDate: '2024-10-20',
-      purchaseValue: '$1,199',
-      currentValue: '$950',
+      purchaseValue: '₹1,199',
+      currentValue: '₹950',
       depreciation: '21%',
       assignedTo: 'Sarah Johnson',
       empId: 'EMP002',
@@ -119,7 +119,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2025-10-20',
       lastMaintenance: '2025-04-15',
       nextMaintenance: '2025-10-15',
-      insuranceValue: '$1,200',
+      insuranceValue: '₹1,200',
       avatar: 'SJ'
     },
     {
@@ -131,8 +131,8 @@ export default function HRMAssets() {
       model: 'U3223QE',
       serialNumber: 'CN0H7YK213T7',
       purchaseDate: '2024-08-10',
-      purchaseValue: '$899',
-      currentValue: '$720',
+      purchaseValue: '₹899',
+      currentValue: '₹720',
       depreciation: '20%',
       assignedTo: 'Mike Brown',
       empId: 'EMP003',
@@ -144,7 +144,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2027-08-10',
       lastMaintenance: '2025-02-20',
       nextMaintenance: '2025-08-20',
-      insuranceValue: '$900',
+      insuranceValue: '₹900',
       avatar: 'MB'
     },
     {
@@ -156,8 +156,8 @@ export default function HRMAssets() {
       model: 'Camry LE 2024',
       serialNumber: '4T1B11HK5RU123456',
       purchaseDate: '2024-03-01',
-      purchaseValue: '$28,500',
-      currentValue: '$25,650',
+      purchaseValue: '₹28,500',
+      currentValue: '₹25,650',
       depreciation: '10%',
       assignedTo: 'Emily Davis',
       empId: 'EMP004',
@@ -169,7 +169,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2027-03-01',
       lastMaintenance: '2025-12-15',
       nextMaintenance: '2026-06-15',
-      insuranceValue: '$30,000',
+      insuranceValue: '₹30,000',
       avatar: 'ED'
     },
     {
@@ -181,8 +181,8 @@ export default function HRMAssets() {
       model: 'LaserJet Pro M404dn',
       serialNumber: 'VNBCH12345',
       purchaseDate: '2023-11-20',
-      purchaseValue: '$349',
-      currentValue: '$210',
+      purchaseValue: '₹349',
+      currentValue: '₹210',
       depreciation: '40%',
       assignedTo: 'Unassigned',
       empId: '-',
@@ -194,7 +194,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2025-11-20',
       lastMaintenance: '2025-05-01',
       nextMaintenance: '2025-11-01',
-      insuranceValue: '$350',
+      insuranceValue: '₹350',
       avatar: 'UN'
     },
     {
@@ -206,8 +206,8 @@ export default function HRMAssets() {
       model: 'Aeron Remastered Size B',
       serialNumber: 'HM-AE-2024-8821',
       purchaseDate: '2024-05-10',
-      purchaseValue: '$1,395',
-      currentValue: '$1,255',
+      purchaseValue: '₹1,395',
+      currentValue: '₹1,255',
       depreciation: '10%',
       assignedTo: 'Alex Wilson',
       empId: 'EMP005',
@@ -219,7 +219,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2036-05-10',
       lastMaintenance: '2025-11-01',
       nextMaintenance: '2026-05-01',
-      insuranceValue: '$1,400',
+      insuranceValue: '₹1,400',
       avatar: 'AW'
     },
     {
@@ -231,8 +231,8 @@ export default function HRMAssets() {
       model: 'ThinkPad X1 Carbon Gen 11',
       serialNumber: 'PF3HQMR5',
       purchaseDate: '2024-09-01',
-      purchaseValue: '$2,199',
-      currentValue: '$1,760',
+      purchaseValue: '₹2,199',
+      currentValue: '₹1,760',
       depreciation: '20%',
       assignedTo: 'David Martinez',
       empId: 'EMP006',
@@ -244,7 +244,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2027-09-01',
       lastMaintenance: '2025-03-15',
       nextMaintenance: '2025-09-15',
-      insuranceValue: '$2,200',
+      insuranceValue: '₹2,200',
       avatar: 'DM'
     },
     {
@@ -256,8 +256,8 @@ export default function HRMAssets() {
       model: 'Surface Pro 9 i7 16GB',
       serialNumber: 'MSF-SP9-2024-4521',
       purchaseDate: '2024-07-15',
-      purchaseValue: '$1,599',
-      currentValue: '$1,279',
+      purchaseValue: '₹1,599',
+      currentValue: '₹1,279',
       depreciation: '20%',
       assignedTo: 'Lisa Anderson',
       empId: 'EMP007',
@@ -269,7 +269,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2026-07-15',
       lastMaintenance: '2025-01-10',
       nextMaintenance: '2025-07-10',
-      insuranceValue: '$1,600',
+      insuranceValue: '₹1,600',
       avatar: 'LA'
     },
     {
@@ -281,8 +281,8 @@ export default function HRMAssets() {
       model: 'Rally Camera',
       serialNumber: 'LOG-RC-8899-2024',
       purchaseDate: '2024-02-10',
-      purchaseValue: '$1,299',
-      currentValue: '$1,040',
+      purchaseValue: '₹1,299',
+      currentValue: '₹1,040',
       depreciation: '20%',
       assignedTo: 'Unassigned',
       empId: '-',
@@ -294,7 +294,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2026-02-10',
       lastMaintenance: '2025-08-01',
       nextMaintenance: '2026-02-01',
-      insuranceValue: '$1,300',
+      insuranceValue: '₹1,300',
       avatar: 'UN'
     },
     {
@@ -306,8 +306,8 @@ export default function HRMAssets() {
       model: 'Series 7 Electric',
       serialNumber: 'SC-S7-2024-6632',
       purchaseDate: '2024-04-20',
-      purchaseValue: '$1,850',
-      currentValue: '$1,665',
+      purchaseValue: '₹1,850',
+      currentValue: '₹1,665',
       depreciation: '10%',
       assignedTo: 'Robert Chen',
       empId: 'EMP008',
@@ -319,7 +319,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2034-04-20',
       lastMaintenance: '2025-10-15',
       nextMaintenance: '2026-04-15',
-      insuranceValue: '$1,850',
+      insuranceValue: '₹1,850',
       avatar: 'RC'
     },
     {
@@ -331,8 +331,8 @@ export default function HRMAssets() {
       model: 'Galaxy S24 Ultra 512GB',
       serialNumber: 'R58NA1BQZRP',
       purchaseDate: '2024-12-01',
-      purchaseValue: '$1,299',
-      currentValue: '$1,169',
+      purchaseValue: '₹1,299',
+      currentValue: '₹1,169',
       depreciation: '10%',
       assignedTo: 'Unassigned',
       empId: '-',
@@ -344,7 +344,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2025-12-01',
       lastMaintenance: '-',
       nextMaintenance: '2025-06-01',
-      insuranceValue: '$1,300',
+      insuranceValue: '₹1,300',
       avatar: 'UN'
     },
     {
@@ -356,8 +356,8 @@ export default function HRMAssets() {
       model: 'MacBook Air M2',
       serialNumber: 'C02XR2KWJGH6',
       purchaseDate: '2023-06-10',
-      purchaseValue: '$1,499',
-      currentValue: '$450',
+      purchaseValue: '₹1,499',
+      currentValue: '₹450',
       depreciation: '70%',
       assignedTo: 'Unassigned',
       empId: '-',
@@ -369,7 +369,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2024-06-10',
       lastMaintenance: '2025-12-20',
       nextMaintenance: 'Pending Repair',
-      insuranceValue: '$1,500',
+      insuranceValue: '₹1,500',
       avatar: 'UN'
     },
     {
@@ -381,8 +381,8 @@ export default function HRMAssets() {
       model: 'Standard Employee ID',
       serialNumber: 'ID-2025-001',
       purchaseDate: '2025-01-20',
-      purchaseValue: '$25',
-      currentValue: '$25',
+      purchaseValue: '₹25',
+      currentValue: '₹25',
       depreciation: '0%',
       assignedTo: 'John Smith',
       empId: 'EMP001',
@@ -394,7 +394,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2027-01-20',
       lastMaintenance: '-',
       nextMaintenance: '2026-01-20',
-      insuranceValue: '$25',
+      insuranceValue: '₹25',
       avatar: 'JS'
     },
     {
@@ -406,8 +406,8 @@ export default function HRMAssets() {
       model: 'Standard Employee ID',
       serialNumber: 'ID-2025-002',
       purchaseDate: '2025-01-20',
-      purchaseValue: '$25',
-      currentValue: '$25',
+      purchaseValue: '₹25',
+      currentValue: '₹25',
       depreciation: '0%',
       assignedTo: 'Sarah Johnson',
       empId: 'EMP002',
@@ -419,7 +419,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2027-01-20',
       lastMaintenance: '-',
       nextMaintenance: '2026-01-20',
-      insuranceValue: '$25',
+      insuranceValue: '₹25',
       avatar: 'SJ'
     },
     {
@@ -431,8 +431,8 @@ export default function HRMAssets() {
       model: 'Proximity Card',
       serialNumber: 'ACC-2025-003',
       purchaseDate: '2024-08-15',
-      purchaseValue: '$15',
-      currentValue: '$15',
+      purchaseValue: '₹15',
+      currentValue: '₹15',
       depreciation: '0%',
       assignedTo: 'Mike Brown',
       empId: 'EMP003',
@@ -444,7 +444,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2026-08-15',
       lastMaintenance: '-',
       nextMaintenance: '2026-02-15',
-      insuranceValue: '$15',
+      insuranceValue: '₹15',
       avatar: 'MB'
     },
     {
@@ -456,8 +456,8 @@ export default function HRMAssets() {
       model: 'Parking Permit Card',
       serialNumber: 'PARK-2025-004',
       purchaseDate: '2024-03-05',
-      purchaseValue: '$10',
-      currentValue: '$10',
+      purchaseValue: '₹10',
+      currentValue: '₹10',
       depreciation: '0%',
       assignedTo: 'Emily Davis',
       empId: 'EMP004',
@@ -469,7 +469,7 @@ export default function HRMAssets() {
       warrantyExpiry: '2026-03-05',
       lastMaintenance: '-',
       nextMaintenance: '2026-03-05',
-      insuranceValue: '$10',
+      insuranceValue: '₹10',
       avatar: 'ED'
     }
   ]);
@@ -595,11 +595,11 @@ export default function HRMAssets() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="purchase-value">Purchase Value ($)</Label>
+                      <Label htmlFor="purchase-value">Purchase Value (₹)</Label>
                       <Input id="purchase-value" type="number" placeholder="3499" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="current-value">Current Value ($)</Label>
+                      <Label htmlFor="current-value">Current Value (₹)</Label>
                       <Input id="current-value" type="number" placeholder="3150" />
                     </div>
                   </div>

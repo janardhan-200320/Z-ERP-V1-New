@@ -121,7 +121,7 @@ export default function SalesDashboard() {
         doc.text("Sales Dashboard Revenue Report", 14, 15);
         autoTable(doc, {
           startY: 25,
-          head: [['Month', 'Revenue ($)', 'Target ($)']],
+          head: [['Month', 'Revenue (₹)', 'Target (₹)']],
           body: revenueData.map(d => [d.name, d.revenue, d.target]),
         });
         doc.save(`Sales_Report_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -211,10 +211,10 @@ export default function SalesDashboard() {
         {/* Enhanced Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { title: 'Total Revenue', value: '$842,000', change: '+12.5%', trend: 'up', icon: Wallet, color: 'indigo' },
+            { title: 'Total Revenue', value: '₹842,000', change: '+12.5%', trend: 'up', icon: Wallet, color: 'indigo' },
             { title: 'Open Proposals', value: '42', change: '+3', trend: 'up', icon: FileText, color: 'blue' },
             { title: 'Conversion Rate', value: '24.2%', change: '-2.1%', trend: 'down', icon: TrendingUp, color: 'emerald' },
-            { title: 'Average Deal Size', value: '$12.4k', change: '+0.8%', trend: 'up', icon: Receipt, color: 'amber' },
+            { title: 'Average Deal Size', value: '₹12.4k', change: '+0.8%', trend: 'up', icon: Receipt, color: 'amber' },
           ].map((stat, i) => (
             <motion.div
               key={stat.title}

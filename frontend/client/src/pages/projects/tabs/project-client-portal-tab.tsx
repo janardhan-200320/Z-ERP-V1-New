@@ -506,7 +506,7 @@ export default function ProjectClientPortalTab({ projectId }: ProjectClientPorta
         </TabsContent>
 
         <TabsContent value="proposals">
-          <ProposalsTab />
+          <ProposalsTab hideCreateProposalButton />
         </TabsContent>
 
         <TabsContent value="invoices">

@@ -20,7 +20,7 @@ export default function AuditTrailModule() {
       action: 'Created',
       resource: 'Transaction TXN-001',
       oldValue: '-',
-      newValue: 'Amount: $45,000',
+      newValue: 'Amount: ₹45,000',
       status: 'success',
       ip: '192.168.1.100'
     },
@@ -55,7 +55,7 @@ export default function AuditTrailModule() {
       module: 'Banking',
       action: 'Deleted',
       resource: 'Transaction TXN-099',
-      oldValue: 'Amount: $500',
+      oldValue: 'Amount: ₹500',
       newValue: '-',
       status: 'warning',
       ip: '192.168.1.103'

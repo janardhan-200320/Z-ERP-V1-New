@@ -8,11 +8,11 @@ import { Plus, Search, Filter, Download, CreditCard, CheckCircle, XCircle } from
 
 export default function ChequeManagementModule() {
   const cheques = [
-    { id: 'CHQ-001', chequeNumber: '100001', bank: 'Chase Bank', party: 'Acme Corp', amount: '$45,000', chequeDate: '2026-01-20', status: 'issued', type: 'outgoing' },
-    { id: 'CHQ-002', chequeNumber: '200015', bank: 'Bank of America', party: 'TechStart Inc', amount: '$25,000', chequeDate: '2026-01-18', status: 'deposited', type: 'incoming' },
-    { id: 'CHQ-003', chequeNumber: '100002', bank: 'Chase Bank', party: 'Office Supplies', amount: '$5,000', chequeDate: '2026-02-15', status: 'pdc', type: 'outgoing' },
-    { id: 'CHQ-004', chequeNumber: '300012', bank: 'Wells Fargo', party: 'GlobalTech', amount: '$85,000', chequeDate: '2026-01-15', status: 'cleared', type: 'incoming' },
-    { id: 'CHQ-005', chequeNumber: '100003', bank: 'Chase Bank', party: 'Vendor XYZ', amount: '$12,000', chequeDate: '2026-01-10', status: 'bounced', type: 'outgoing' }
+    { id: 'CHQ-001', chequeNumber: '100001', bank: 'Chase Bank', party: 'Acme Corp', amount: '₹45,000', chequeDate: '2026-01-20', status: 'issued', type: 'outgoing' },
+    { id: 'CHQ-002', chequeNumber: '200015', bank: 'Bank of America', party: 'TechStart Inc', amount: '₹25,000', chequeDate: '2026-01-18', status: 'deposited', type: 'incoming' },
+    { id: 'CHQ-003', chequeNumber: '100002', bank: 'Chase Bank', party: 'Office Supplies', amount: '₹5,000', chequeDate: '2026-02-15', status: 'pdc', type: 'outgoing' },
+    { id: 'CHQ-004', chequeNumber: '300012', bank: 'Wells Fargo', party: 'GlobalTech', amount: '₹85,000', chequeDate: '2026-01-15', status: 'cleared', type: 'incoming' },
+    { id: 'CHQ-005', chequeNumber: '100003', bank: 'Chase Bank', party: 'Vendor XYZ', amount: '₹12,000', chequeDate: '2026-01-10', status: 'bounced', type: 'outgoing' }
   ];
 
   const statusConfig: Record<string, { label: string; class: string }> = {

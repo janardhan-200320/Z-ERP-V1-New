@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
+import FormDescriptionUpload from '@/components/ui/form-description-upload';
 
 type IncomeEntry = {
   id: string;
@@ -51,6 +52,7 @@ export default function Income() {
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [viewedIncome, setViewedIncome] = useState<IncomeEntry | null>(null);
+  const [incomeAttachmentFile, setIncomeAttachmentFile] = useState<File | null>(null);
 
   // Filter state
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -120,6 +122,10 @@ export default function Income() {
       return;
     }
 
+    const existingAttachmentCount = incomeForm.id
+      ? incomes.find((inc) => inc.id === incomeForm.id)?.attachments ?? 0
+      : 0;
+
     const newEntry: IncomeEntry = {
       id: incomeForm.id || `INC-00${incomes.length + 1}`,
       date: incomeForm.date || new Date().toISOString().split('T')[0],
@@ -130,7 +136,8 @@ export default function Income() {
       status: incomeForm.status as any || 'received',
       customer: incomeForm.customer,
       reference: incomeForm.reference,
-      project: incomeForm.project
+      project: incomeForm.project,
+      attachments: incomeAttachmentFile ? 1 : (existingAttachmentCount || undefined)
     };
 
     if (incomeForm.id) {
@@ -156,6 +163,7 @@ export default function Income() {
       customer: '',
       reference: ''
     });
+    setIncomeAttachmentFile(null);
   };
 
   const handleDelete = (id: string) => {
@@ -266,16 +274,6 @@ export default function Income() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-xs font-black text-slate-400 uppercase tracking-widest">Transaction Memo *</Label>
-                    <Textarea 
-                      placeholder="What is this income for? e.g. Payment for Invoice #001" 
-                      value={incomeForm.description}
-                      onChange={e => setIncomeForm({...incomeForm, description: e.target.value})}
-                      className="min-h-[100px] border-slate-200 rounded-xl resize-none"
-                    />
-                  </div>
-
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label className="text-xs font-black text-slate-400 uppercase tracking-widest">Payer / Customer</Label>
@@ -333,6 +331,18 @@ export default function Income() {
                       </Select>
                     </div>
                   </div>
+
+                  <FormDescriptionUpload
+                    descriptionLabel="Transaction Memo"
+                    descriptionPlaceholder="What is this income for? e.g. Payment for Invoice #001"
+                    descriptionValue={incomeForm.description || ''}
+                    onDescriptionChange={(value) => setIncomeForm({ ...incomeForm, description: value })}
+                    descriptionRequired
+                    uploadLabel="Income Attachment"
+                    uploadedFile={incomeAttachmentFile}
+                    onUploadedFileChange={setIncomeAttachmentFile}
+                    helperText="Attach invoice or receipt (PDF, JPG, PNG, WEBP)"
+                  />
                 </div>
               </ScrollArea>
 
@@ -572,6 +582,7 @@ export default function Income() {
                         <DropdownMenuItem 
                           onClick={() => {
                             setIncomeForm(income);
+                            setIncomeAttachmentFile(null);
                             setIsAddDialogOpen(true);
                           }}
                           className="gap-2 px-3 py-2 cursor-pointer font-bold text-slate-600 focus:bg-blue-50 focus:text-blue-700"

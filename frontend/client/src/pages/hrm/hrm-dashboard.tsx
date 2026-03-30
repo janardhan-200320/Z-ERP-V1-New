@@ -44,7 +44,7 @@ export default function HRMDashboard() {
     { title: 'Total Employees', value: '248', icon: Users, color: 'text-blue-600', bgColor: 'bg-blue-50', gradient: 'from-blue-500/10 to-indigo-500/10' },
     { title: 'Active Now', value: '235', icon: UserCheck, color: 'text-emerald-600', bgColor: 'bg-emerald-50', gradient: 'from-emerald-500/10 to-teal-500/10' },
     { title: 'On Leave', value: '12', icon: Calendar, color: 'text-amber-600', bgColor: 'bg-amber-50', gradient: 'from-amber-500/10 to-orange-500/10' },
-    { title: 'Payroll', value: '$485K', icon: DollarSign, color: 'text-violet-600', bgColor: 'bg-violet-50', gradient: 'from-violet-500/10 to-purple-500/10' },
+    { title: 'Payroll', value: '₹485K', icon: DollarSign, color: 'text-violet-600', bgColor: 'bg-violet-50', gradient: 'from-violet-500/10 to-purple-500/10' },
     { title: 'Pending', value: '18', icon: AlertCircle, color: 'text-rose-600', bgColor: 'bg-rose-50', gradient: 'from-rose-500/10 to-pink-500/10' }
   ];
 

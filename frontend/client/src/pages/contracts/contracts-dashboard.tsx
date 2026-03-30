@@ -32,7 +32,7 @@ export default function ContractsDashboard() {
     },
     {
       title: "Total Contract Value",
-      value: "$8.5M",
+      value: "₹8.5M",
       description: "active portfolio",
       icon: DollarSign,
       color: "text-green-600",

@@ -51,7 +51,7 @@ export default function FinanceSettings() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="symbol">$1,234.56</SelectItem>
+                    <SelectItem value="symbol">₹1,234.56</SelectItem>
                     <SelectItem value="code">USD 1,234.56</SelectItem>
                     <SelectItem value="name">1,234.56 Dollar</SelectItem>
                   </SelectContent>

@@ -93,15 +93,15 @@ export default function InvoicesTab() {
 
   // Mock data - Updated to match screenshot
   const [invoices, setInvoices] = useState([
-    { id: 'INV-000010', amount: '$1,200.00', totalTax: '$0.00', date: '2026-01-13', customer: '', project: '', tags: '', dueDate: '2026-02-12', status: 'unpaid' },
-    { id: 'INV-000014', amount: '$1,000.00', totalTax: '$0.00', date: '2025-10-22', customer: 'Jack', project: '', tags: '', dueDate: '2025-11-21', status: 'unpaid' },
+    { id: 'INV-000010', amount: '₹1,200.00', totalTax: '₹0.00', date: '2026-01-13', customer: '', project: '', tags: '', dueDate: '2026-02-12', status: 'unpaid' },
+    { id: 'INV-000014', amount: '₹1,000.00', totalTax: '₹0.00', date: '2025-10-22', customer: 'Jack', project: '', tags: '', dueDate: '2025-11-21', status: 'unpaid' },
     { id: 'INV-000013', amount: '826.00', totalTax: '126.00', date: '2025-09-12', customer: 'Sarmad', project: '', tags: '', dueDate: '2025-09-19', status: 'unpaid' },
     { id: 'INV-000012', amount: '8.26', totalTax: '1.26', date: '2025-09-12', customer: 'Sarmad', project: '', tags: '', dueDate: '2025-09-19', status: 'unpaid' },
     { id: 'INV-000011', amount: '826.00', totalTax: '126.00', date: '2025-09-12', customer: 'Sarmad', project: '', tags: '', dueDate: '2025-09-19', status: 'unpaid' },
     { id: 'INV-000010', amount: '826.00', totalTax: '126.00', date: '2025-09-12', customer: 'Sarmad', project: '', tags: '', dueDate: '2025-09-19', status: 'unpaid' },
-    { id: 'INV-000009', amount: '$1,000.00', totalTax: '$0.00', date: '2025-09-08', customer: 'jack', project: '', tags: '', dueDate: '2025-10-08', status: 'unpaid' },
-    { id: 'INV-000009', amount: '$100,000.00', totalTax: '$0.00', date: '2025-11-07', customer: 'Greeen Dot', project: '', tags: '', dueDate: '2025-12-07', status: 'unpaid' },
-    { id: 'INV-000008', amount: '$1,000.00', totalTax: '$0.00', date: '2025-09-15', customer: 'Greeen Dot', project: '', tags: '', dueDate: '2025-10-15', status: 'unpaid' },
+    { id: 'INV-000009', amount: '₹1,000.00', totalTax: '₹0.00', date: '2025-09-08', customer: 'jack', project: '', tags: '', dueDate: '2025-10-08', status: 'unpaid' },
+    { id: 'INV-000009', amount: '₹100,000.00', totalTax: '₹0.00', date: '2025-11-07', customer: 'Greeen Dot', project: '', tags: '', dueDate: '2025-12-07', status: 'unpaid' },
+    { id: 'INV-000008', amount: '₹1,000.00', totalTax: '₹0.00', date: '2025-09-15', customer: 'Greeen Dot', project: '', tags: '', dueDate: '2025-10-15', status: 'unpaid' },
   ]);
 
   // Calculate totals
@@ -201,7 +201,7 @@ export default function InvoicesTab() {
                   <span className="font-medium">Invoices Available for Merging</span>
                   <div className="flex items-center gap-2">
                     <span className="text-blue-600">INV-000009</span>
-                    <span className="text-slate-400">$100,00.00</span>
+                    <span className="text-slate-400">₹100,00.00</span>
                   </div>
                   <label className="flex items-center gap-2">
                     <input type="checkbox" className="rounded" />
@@ -306,7 +306,7 @@ export default function InvoicesTab() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="usd">USD $</SelectItem>
+                        <SelectItem value="usd">INR ₹</SelectItem>
                         <SelectItem value="eur">EUR €</SelectItem>
                         <SelectItem value="gbp">GBP £</SelectItem>
                       </SelectContent>
@@ -354,7 +354,7 @@ export default function InvoicesTab() {
                         <SelectContent>
                           <SelectItem value="no-discount">No discount</SelectItem>
                           <SelectItem value="percent">Percent (%)</SelectItem>
-                          <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
+                          <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1170,7 +1170,7 @@ export default function InvoicesTab() {
                                               <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                              <SelectItem value="usd">USD ($)</SelectItem>
+                                              <SelectItem value="usd">INR (₹)</SelectItem>
                                               <SelectItem value="eur">EUR (€)</SelectItem>
                                               <SelectItem value="inr">INR (₹)</SelectItem>
                                             </SelectContent>
@@ -1309,7 +1309,7 @@ export default function InvoicesTab() {
                                               </SelectTrigger>
                                               <SelectContent>
                                                 <SelectItem value="%">Percentage (%)</SelectItem>
-                                                <SelectItem value="$">Fixed Amount ($)</SelectItem>
+                                                <SelectItem value="₹">Fixed Amount (₹)</SelectItem>
                                               </SelectContent>
                                             </Select>
                                             <Input 

@@ -80,7 +80,7 @@ export default function BankAccounts() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
   const [accountForm, setAccountForm] = useState<Partial<BankAccount>>({
-    currency: 'USD',
+    currency: 'INR',
     status: 'active',
     accountType: 'current',
     isPrimary: false,
@@ -99,7 +99,7 @@ export default function BankAccounts() {
       swiftBic: 'CHASUS33',
       iban: 'US33CHAS12345678',
       balance: 458000.50,
-      currency: 'USD',
+      currency: 'INR',
       status: 'active',
       isPrimary: true,
       openingDate: '2024-01-15',
@@ -118,7 +118,7 @@ export default function BankAccounts() {
       routingNumber: '026009593',
       swiftBic: 'BOFAUS66',
       balance: 1250000.75,
-      currency: 'USD',
+      currency: 'INR',
       status: 'active',
       isPrimary: false,
       openingDate: '2024-03-22',
@@ -136,7 +136,7 @@ export default function BankAccounts() {
       accountNumber: '****9012',
       routingNumber: '121000248',
       balance: 750000.00,
-      currency: 'USD',
+      currency: 'INR',
       status: 'active',
       isPrimary: false,
       openingDate: '2024-06-10',
@@ -151,7 +151,7 @@ export default function BankAccounts() {
       accountNumber: '****3456',
       routingNumber: '021000089',
       balance: -12500.25,
-      currency: 'USD',
+      currency: 'INR',
       status: 'inactive',
       isPrimary: false,
       openingDate: '2023-11-05',
@@ -280,7 +280,7 @@ export default function BankAccounts() {
   
   const resetAccountForm = () => {
     setAccountForm({
-      currency: 'USD',
+      currency: 'INR',
       status: 'active',
       accountType: 'current',
       isPrimary: false,
@@ -928,7 +928,7 @@ export default function BankAccounts() {
               </div>
               <div className="flex flex-col items-start md:items-end gap-1">
                 <span className="text-xs font-black uppercase tracking-[0.2em] opacity-80">Available Liquid Balance</span>
-                <span className="text-4xl font-black tabular-nums">{selectedAccount ? formatCurrency(selectedAccount.balance) : '$0.00'}</span>
+                <span className="text-4xl font-black tabular-nums">{selectedAccount ? formatCurrency(selectedAccount.balance) : '₹0.00'}</span>
               </div>
             </div>
           </DialogHeader>
@@ -942,12 +942,12 @@ export default function BankAccounts() {
                     <div className="p-4 rounded-2xl bg-white shadow-sm flex flex-col items-center justify-center text-center gap-1 border border-slate-100">
                        <TrendingUp className="h-5 w-5 text-green-500" />
                        <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Inflow (Mo)</span>
-                       <span className="text-sm font-bold text-slate-700">+$24,500</span>
+                       <span className="text-sm font-bold text-slate-700">+₹24,500</span>
                     </div>
                     <div className="p-4 rounded-2xl bg-white shadow-sm flex flex-col items-center justify-center text-center gap-1 border border-slate-100">
                        <ArrowDownRight className="h-5 w-5 text-red-500" />
                        <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Outflow (Mo)</span>
-                       <span className="text-sm font-bold text-slate-700">-$8,200</span>
+                       <span className="text-sm font-bold text-slate-700">-₹8,200</span>
                     </div>
                  </div>
 
@@ -1034,10 +1034,10 @@ export default function BankAccounts() {
 
                     <div className="space-y-3">
                        {[
-                         { date: '2024-12-04', type: 'Credit', desc: 'Q4 Consulting Services Paym...', amount: '+ $12,400.00', status: 'Cleared', color: 'text-green-600' },
-                         { date: '2024-12-02', type: 'Debit', desc: 'Corporate Rent - Dec 2024', amount: '- $5,500.00', status: 'Cleared', color: 'text-slate-700' },
-                         { date: '2024-12-01', type: 'Transfer', desc: 'Internal Transfer to Petty Cash', amount: '- $1,500.00', status: 'Pending', color: 'text-slate-700' },
-                         { date: '2024-11-28', type: 'Credit', desc: 'Direct Deposit: Vendor Rebate', amount: '+ $850.20', status: 'Cleared', color: 'text-green-600' }
+                         { date: '2024-12-04', type: 'Credit', desc: 'Q4 Consulting Services Paym...', amount: '+ ₹12,400.00', status: 'Cleared', color: 'text-green-600' },
+                         { date: '2024-12-02', type: 'Debit', desc: 'Corporate Rent - Dec 2024', amount: '- ₹5,500.00', status: 'Cleared', color: 'text-slate-700' },
+                         { date: '2024-12-01', type: 'Transfer', desc: 'Internal Transfer to Petty Cash', amount: '- ₹1,500.00', status: 'Pending', color: 'text-slate-700' },
+                         { date: '2024-11-28', type: 'Credit', desc: 'Direct Deposit: Vendor Rebate', amount: '+ ₹850.20', status: 'Cleared', color: 'text-green-600' }
                        ].map((txn, i) => (
                          <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-dotted border-slate-100 hover:border-blue-200 hover:bg-slate-50/50 transition-all cursor-default relative group">
                             <div className="flex items-center gap-4">

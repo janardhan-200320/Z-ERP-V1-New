@@ -31,7 +31,7 @@ export default function CustomersDashboard() {
     },
     {
       title: "Pipeline Value",
-      value: "$2.4M",
+      value: "₹2.4M",
       description: "estimated revenue",
       icon: DollarSign,
       color: "text-green-600",

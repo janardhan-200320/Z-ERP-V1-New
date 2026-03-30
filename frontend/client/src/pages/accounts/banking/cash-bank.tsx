@@ -161,7 +161,7 @@ export default function CashBankEntries() {
       e.type,
       e.category,
       e.description,
-      new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(e.amount)
+      new Intl.NumberFormat('en-US', { style: 'currency', currency: 'INR' }).format(e.amount)
     ]);
     exportToPDF('Cash & Bank Entries', headers, data, 'cash_bank_entries');
   };

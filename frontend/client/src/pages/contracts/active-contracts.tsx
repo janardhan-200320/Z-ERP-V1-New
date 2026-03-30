@@ -37,7 +37,7 @@ export default function ActiveContractsModule() {
       contractTitle: "Enterprise Software Development",
       startDate: "2025-06-01",
       endDate: "2026-05-31",
-      value: "$450,000",
+      value: "₹450,000",
       paymentTerms: "Net 30",
       projectManager: "Sarah Johnson",
       status: "active",
@@ -49,7 +49,7 @@ export default function ActiveContractsModule() {
       contractTitle: "E-Commerce Platform Upgrade",
       startDate: "2025-09-15",
       endDate: "2026-09-14",
-      value: "$320,000",
+      value: "₹320,000",
       paymentTerms: "Net 45",
       projectManager: "Michael Chen",
       status: "active",
@@ -61,7 +61,7 @@ export default function ActiveContractsModule() {
       contractTitle: "Medical Records Management System",
       startDate: "2025-03-01",
       endDate: "2027-02-28",
-      value: "$680,000",
+      value: "₹680,000",
       paymentTerms: "Net 30",
       projectManager: "David Kim",
       status: "active",
@@ -73,7 +73,7 @@ export default function ActiveContractsModule() {
       contractTitle: "Banking Application Modernization",
       startDate: "2025-11-01",
       endDate: "2026-10-31",
-      value: "$520,000",
+      value: "₹520,000",
       paymentTerms: "Net 60",
       projectManager: "Emily Watson",
       status: "active",
@@ -85,7 +85,7 @@ export default function ActiveContractsModule() {
       contractTitle: "Inventory Management Portal",
       startDate: "2025-01-15",
       endDate: "2026-01-14",
-      value: "$185,000",
+      value: "₹185,000",
       paymentTerms: "Net 30",
       projectManager: "Robert Taylor",
       status: "pending",
@@ -97,7 +97,7 @@ export default function ActiveContractsModule() {
       contractTitle: "Learning Management System",
       startDate: "2024-08-01",
       endDate: "2025-07-31",
-      value: "$410,000",
+      value: "₹410,000",
       paymentTerms: "Net 30",
       projectManager: "Jessica Martinez",
       status: "expired",
@@ -208,7 +208,7 @@ export default function ActiveContractsModule() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="contractValue">Contract Value *</Label>
-                        <Input id="contractValue" placeholder="$0.00" />
+                        <Input id="contractValue" placeholder="₹0.00" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="paymentTerms">Payment Terms *</Label>

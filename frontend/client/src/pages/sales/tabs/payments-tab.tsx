@@ -55,7 +55,7 @@ export default function PaymentsTab() {
       id: 'PAY-001',
       invoice: 'INV-001',
       customer: 'Acme Corporation',
-      amount: '$45,000',
+      amount: '₹45,000',
       mode: 'Bank Transfer',
       transactionId: 'TXN-2026-001',
       date: '2026-01-10',
@@ -65,7 +65,7 @@ export default function PaymentsTab() {
       id: 'PAY-002',
       invoice: 'INV-005',
       customer: 'TechStart Inc.',
-      amount: '$25,000',
+      amount: '₹25,000',
       mode: 'Credit Card',
       transactionId: 'TXN-2026-002',
       date: '2026-01-12',
@@ -75,7 +75,7 @@ export default function PaymentsTab() {
       id: 'PAY-003',
       invoice: 'INV-007',
       customer: 'Global Brands Ltd.',
-      amount: '$15,000',
+      amount: '₹15,000',
       mode: 'PayPal',
       transactionId: 'TXN-2026-003',
       date: '2026-01-15',
@@ -85,7 +85,7 @@ export default function PaymentsTab() {
       id: 'PAY-004',
       invoice: 'INV-009',
       customer: 'Enterprise Solutions',
-      amount: '$125,000',
+      amount: '₹125,000',
       mode: 'Bank Transfer',
       transactionId: 'TXN-2026-004',
       date: '2026-01-18',
@@ -223,9 +223,9 @@ export default function PaymentsTab() {
                           <SelectValue placeholder="Select invoice" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="inv-001">INV-001 - $45,000</SelectItem>
-                          <SelectItem value="inv-002">INV-002 - $85,000</SelectItem>
-                          <SelectItem value="inv-003">INV-003 - $25,000</SelectItem>
+                          <SelectItem value="inv-001">INV-001 - ₹45,000</SelectItem>
+                          <SelectItem value="inv-002">INV-002 - ₹85,000</SelectItem>
+                          <SelectItem value="inv-003">INV-003 - ₹25,000</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -280,15 +280,15 @@ export default function PaymentsTab() {
                   <div className="p-4 bg-slate-50 rounded-lg space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-600">Invoice Amount:</span>
-                      <span className="font-semibold">$45,000.00</span>
+                      <span className="font-semibold">₹45,000.00</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-600">Amount Paid:</span>
-                      <span className="font-semibold text-green-700">$0.00</span>
+                      <span className="font-semibold text-green-700">₹0.00</span>
                     </div>
                     <div className="flex justify-between text-sm font-bold pt-2 border-t">
                       <span>Amount Due:</span>
-                      <span className="text-red-700">$45,000.00</span>
+                      <span className="text-red-700">₹45,000.00</span>
                     </div>
                   </div>
                 </div>
@@ -398,7 +398,7 @@ export default function PaymentsTab() {
               <div className="space-y-2">
                 <Label className="text-slate-600">Amount Received</Label>
                 <Input 
-                  value={selectedPayment?.amount || '$45,000.00'} 
+                  value={selectedPayment?.amount || '₹45,000.00'} 
                   disabled 
                   className="bg-slate-50"
                 />
@@ -504,7 +504,7 @@ export default function PaymentsTab() {
                 <div className="bg-slate-50 rounded-lg p-4 mt-4">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">Amount Paid</span>
-                    <span className="text-2xl font-bold text-green-700">{selectedPayment?.amount || '$45,000.00'}</span>
+                    <span className="text-2xl font-bold text-green-700">{selectedPayment?.amount || '₹45,000.00'}</span>
                   </div>
                 </div>
               </div>

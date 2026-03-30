@@ -28,7 +28,7 @@ export default function ExpiryAlertsModule() {
       contactEmail: "contact@techstart.com",
       contactPhone: "+1 234 567 8911",
       lastContacted: "2026-01-10",
-      contractValue: "$380,000",
+      contractValue: "₹380,000",
       projectManager: "Sarah Johnson"
     },
     {
@@ -40,7 +40,7 @@ export default function ExpiryAlertsModule() {
       contactEmail: "info@retailexpress.com",
       contactPhone: "+1 234 567 8912",
       lastContacted: "2026-01-08",
-      contractValue: "$215,000",
+      contractValue: "₹215,000",
       projectManager: "Michael Chen"
     },
     {
@@ -52,7 +52,7 @@ export default function ExpiryAlertsModule() {
       contactEmail: "contact@financehub.com",
       contactPhone: "+1 234 567 8913",
       lastContacted: "2026-01-05",
-      contractValue: "$490,000",
+      contractValue: "₹490,000",
       projectManager: "David Kim"
     },
     {
@@ -63,7 +63,7 @@ export default function ExpiryAlertsModule() {
       priority: "medium",
       contactEmail: "admin@securenet.com",
       contactPhone: "+1 234 567 8914",
-      contractValue: "$165,000",
+      contractValue: "₹165,000",
       projectManager: "Emily Watson"
     },
     {
@@ -75,7 +75,7 @@ export default function ExpiryAlertsModule() {
       contactEmail: "hello@marketingpro.com",
       contactPhone: "+1 234 567 8915",
       lastContacted: "2025-12-28",
-      contractValue: "$95,000",
+      contractValue: "₹95,000",
       projectManager: "Jessica Martinez"
     },
     {
@@ -87,7 +87,7 @@ export default function ExpiryAlertsModule() {
       contactEmail: "support@edusystems.com",
       contactPhone: "+1 234 567 8916",
       lastContacted: "2026-01-12",
-      contractValue: "$142,000",
+      contractValue: "₹142,000",
       projectManager: "Robert Taylor"
     },
     {
@@ -99,7 +99,7 @@ export default function ExpiryAlertsModule() {
       contactEmail: "contact@mfgplus.com",
       contactPhone: "+1 234 567 8917",
       lastContacted: "2026-01-03",
-      contractValue: "$625,000",
+      contractValue: "₹625,000",
       projectManager: "David Kim"
     },
     {
@@ -110,7 +110,7 @@ export default function ExpiryAlertsModule() {
       priority: "low",
       contactEmail: "info@salesdynamics.com",
       contactPhone: "+1 234 567 8918",
-      contractValue: "$285,000",
+      contractValue: "₹285,000",
       projectManager: "Sarah Johnson"
     }
   ];

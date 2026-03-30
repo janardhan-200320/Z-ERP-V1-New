@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import {
-  TrendingDown, Plus, Upload, X, FileText, CreditCard,
+  TrendingDown, Plus, FileText, CreditCard,
   Banknote, Smartphone, Building2, Car, BarChart3,
   Calendar, Tag, Receipt, Edit, Trash2, CheckCircle,
   Clock, Paperclip, Search, Filter,
@@ -20,6 +20,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import FormDescriptionUpload from '@/components/ui/form-description-upload';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type PaymentMethod = 'Cash' | 'UPI' | 'Bank Transfer' | 'Card' | 'Custom';
@@ -83,7 +84,6 @@ export default function Expenses() {
   const [form, setForm]           = useState({ ...BLANK_FORM });
   const [customPM, setCustomPM]   = useState('');
   const [billFile, setBillFile]   = useState<File | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const [search, setSearch]         = useState('');
   const [filterCat, setFilterCat]   = useState('All');
@@ -191,17 +191,12 @@ export default function Expenses() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4 mt-1">
-            {/* Row 1 — Date + Description */}
+            {/* Row 1 — Date */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label className="text-xs font-semibold text-slate-600 mb-1.5 block">Date *</Label>
                 <Input type="date" required className="h-9 text-sm"
                   value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-              </div>
-              <div className="sm:col-span-2">
-                <Label className="text-xs font-semibold text-slate-600 mb-1.5 block">Description *</Label>
-                <Input required placeholder="e.g. Office Rent, Team Lunch…" className="h-9 text-sm"
-                  value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
               </div>
             </div>
 
@@ -268,41 +263,17 @@ export default function Expenses() {
                 value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
 
-            {/* Bill Upload */}
-            <div>
-              <Label className="text-xs font-semibold text-slate-600 mb-1.5 block">Bill / Invoice Upload</Label>
-              <div
-                className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:border-red-400 hover:bg-red-50/20 transition-all duration-200"
-                onClick={() => fileRef.current?.click()}
-              >
-                <input ref={fileRef} type="file" className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png,.webp"
-                  onChange={e => setBillFile(e.target.files?.[0] ?? null)} />
-                {billFile ? (
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                      <FileText className="h-4 w-4 text-red-600" />
-                    </div>
-                    <div className="text-left min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{billFile.name}</p>
-                      <p className="text-xs text-slate-400">{(billFile.size / 1024).toFixed(1)} KB · Click to change</p>
-                    </div>
-                    <button type="button" className="ml-auto text-slate-400 hover:text-red-500 shrink-0"
-                      onClick={ev => { ev.stopPropagation(); setBillFile(null); }}>
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-1.5">
-                      <Upload className="h-4 w-4 text-slate-400" />
-                    </div>
-                    <p className="text-sm font-medium text-slate-600">Drop file or click to upload</p>
-                    <p className="text-xs text-slate-400 mt-0.5">PDF, JPG, PNG — up to 10 MB</p>
-                  </>
-                )}
-              </div>
-            </div>
+            <FormDescriptionUpload
+              descriptionLabel="Description"
+              descriptionPlaceholder="e.g. Office Rent, Team Lunch..."
+              descriptionValue={form.description}
+              onDescriptionChange={(value) => setForm(f => ({ ...f, description: value }))}
+              descriptionRequired
+              uploadLabel="Bill / Invoice Upload"
+              uploadedFile={billFile}
+              onUploadedFileChange={setBillFile}
+              helperText="PDF, JPG, PNG, WEBP"
+            />
 
             <DialogFooter className="pt-1 gap-2">
               <Button type="button" variant="outline" onClick={cancel}>Cancel</Button>

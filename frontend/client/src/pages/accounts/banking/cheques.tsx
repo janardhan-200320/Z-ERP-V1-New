@@ -173,7 +173,7 @@ export default function ChequeManagement() {
       c.chequeNumber,
       c.date,
       c.payee,
-      new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(c.amount),
+      new Intl.NumberFormat('en-US', { style: 'currency', currency: 'INR' }).format(c.amount),
       c.type,
       c.status
     ]);

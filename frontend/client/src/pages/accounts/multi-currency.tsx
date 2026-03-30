@@ -10,16 +10,16 @@ import { Plus, Globe, TrendingUp, TrendingDown, ArrowRightLeft } from 'lucide-re
 
 export default function MultiCurrencyModule() {
   const currencyAccounts = [
-    { currency: 'USD', code: 'US Dollar', balance: '$2,458,000', rate: '1.00', gain: '+$0', color: 'text-blue-700' },
-    { currency: 'EUR', code: 'Euro', balance: '€850,000', rate: '0.92', gain: '+$15,420', color: 'text-green-700' },
-    { currency: 'GBP', code: 'British Pound', balance: '£450,000', rate: '0.79', gain: '-$8,200', color: 'text-red-700' },
-    { currency: 'JPY', code: 'Japanese Yen', balance: '¥125,000,000', rate: '149.50', gain: '+$2,800', color: 'text-green-700' }
+    { currency: 'INR', code: 'US Dollar', balance: '₹2,458,000', rate: '1.00', gain: '+₹0', color: 'text-blue-700' },
+    { currency: 'EUR', code: 'Euro', balance: '€850,000', rate: '0.92', gain: '+₹15,420', color: 'text-green-700' },
+    { currency: 'GBP', code: 'British Pound', balance: '£450,000', rate: '0.79', gain: '-₹8,200', color: 'text-red-700' },
+    { currency: 'JPY', code: 'Japanese Yen', balance: '¥125,000,000', rate: '149.50', gain: '+₹2,800', color: 'text-green-700' }
   ];
 
   const transactions = [
-    { id: '1', date: '2026-01-15', type: 'Receipt', fromCurrency: 'EUR', toCurrency: 'USD', amount: '€10,000', converted: '$10,870', rate: '1.087' },
-    { id: '2', date: '2026-01-14', type: 'Payment', fromCurrency: 'USD', toCurrency: 'GBP', amount: '$25,000', converted: '£19,750', rate: '0.79' },
-    { id: '3', date: '2026-01-13', type: 'Transfer', fromCurrency: 'USD', toCurrency: 'JPY', amount: '$50,000', converted: '¥7,475,000', rate: '149.50' }
+    { id: '1', date: '2026-01-15', type: 'Receipt', fromCurrency: 'EUR', toCurrency: 'USD', amount: '€10,000', converted: '₹10,870', rate: '1.087' },
+    { id: '2', date: '2026-01-14', type: 'Payment', fromCurrency: 'USD', toCurrency: 'GBP', amount: '₹25,000', converted: '£19,750', rate: '0.79' },
+    { id: '3', date: '2026-01-13', type: 'Transfer', fromCurrency: 'USD', toCurrency: 'JPY', amount: '₹50,000', converted: '¥7,475,000', rate: '149.50' }
   ];
 
   return (

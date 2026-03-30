@@ -27,10 +27,10 @@ export default function Reports({ includeLayout = true }: any) {
   }> = {
     "q4-2025": {
       kpis: [
-        { label: "Gross Revenue", value: "$2.4M", trend: "+12.5%", positive: true, prevValue: "$2.1M" },
+        { label: "Gross Revenue", value: "₹2.4M", trend: "+12.5%", positive: true, prevValue: "₹2.1M" },
         { label: "Net Margin", value: "32.4%", trend: "+2.1%", positive: true, prevValue: "30.3%" },
-        { label: "Operating Exp", value: "$840K", trend: "-4.2%", positive: true, prevValue: "$876K" },
-        { label: "Tax Liability", value: "$412K", trend: "+0.8%", positive: false, prevValue: "$408K" },
+        { label: "Operating Exp", value: "₹840K", trend: "-4.2%", positive: true, prevValue: "₹876K" },
+        { label: "Tax Liability", value: "₹412K", trend: "+0.8%", positive: false, prevValue: "₹408K" },
       ],
       revenue: [
         { month: 'Jul', actual: 65, budget: 55 },
@@ -41,16 +41,16 @@ export default function Reports({ includeLayout = true }: any) {
         { month: 'Dec', actual: 75, budget: 70 }
       ],
       allocations: [
-        { name: 'Operations', value: '$1.2M', color: 'text-emerald-500' },
-        { name: 'Investments', value: '$450K', color: 'text-blue-500' }
+        { name: 'Operations', value: '₹1.2M', color: 'text-emerald-500' },
+        { name: 'Investments', value: '₹450K', color: 'text-blue-500' }
       ]
     },
     "q3-2025": {
       kpis: [
-        { label: "Gross Revenue", value: "$1.9M", trend: "+8.2%", positive: true, prevValue: "$1.75M" },
+        { label: "Gross Revenue", value: "₹1.9M", trend: "+8.2%", positive: true, prevValue: "₹1.75M" },
         { label: "Net Margin", value: "28.5%", trend: "-1.5%", positive: false, prevValue: "30.0%" },
-        { label: "Operating Exp", value: "$720K", trend: "+5.1%", positive: false, prevValue: "$685K" },
-        { label: "Tax Liability", value: "$310K", trend: "+2.2%", positive: false, prevValue: "$303K" },
+        { label: "Operating Exp", value: "₹720K", trend: "+5.1%", positive: false, prevValue: "₹685K" },
+        { label: "Tax Liability", value: "₹310K", trend: "+2.2%", positive: false, prevValue: "₹303K" },
       ],
       revenue: [
         { month: 'Jan', actual: 45, budget: 50 },
@@ -61,16 +61,16 @@ export default function Reports({ includeLayout = true }: any) {
         { month: 'Jun', actual: 95, budget: 90 }
       ],
       allocations: [
-        { name: 'Operations', value: '$950K', color: 'text-emerald-500' },
-        { name: 'Investments', value: '$320K', color: 'text-blue-500' }
+        { name: 'Operations', value: '₹950K', color: 'text-emerald-500' },
+        { name: 'Investments', value: '₹320K', color: 'text-blue-500' }
       ]
     },
     "fy-2024": {
       kpis: [
-        { label: "Gross Revenue", value: "$10.2M", trend: "+22.1%", positive: true, prevValue: "$8.3M" },
+        { label: "Gross Revenue", value: "₹10.2M", trend: "+22.1%", positive: true, prevValue: "₹8.3M" },
         { label: "Net Margin", value: "35.8%", trend: "+5.4%", positive: true, prevValue: "30.4%" },
-        { label: "Operating Exp", value: "$3.1M", trend: "-2.8%", positive: true, prevValue: "$3.2M" },
-        { label: "Tax Liability", value: "$1.8M", trend: "+12.1%", positive: false, prevValue: "$1.6M" },
+        { label: "Operating Exp", value: "₹3.1M", trend: "-2.8%", positive: true, prevValue: "₹3.2M" },
+        { label: "Tax Liability", value: "₹1.8M", trend: "+12.1%", positive: false, prevValue: "₹1.6M" },
       ],
       revenue: [
         { month: 'Q1', actual: 80, budget: 75 },
@@ -81,8 +81,8 @@ export default function Reports({ includeLayout = true }: any) {
         { month: 'Feb', actual: 105, budget: 100 }
       ],
       allocations: [
-        { name: 'Operations', value: '$6.8M', color: 'text-emerald-500' },
-        { name: 'Investments', value: '$2.1M', color: 'text-blue-500' }
+        { name: 'Operations', value: '₹6.8M', color: 'text-emerald-500' },
+        { name: 'Investments', value: '₹2.1M', color: 'text-blue-500' }
       ]
     }
   };

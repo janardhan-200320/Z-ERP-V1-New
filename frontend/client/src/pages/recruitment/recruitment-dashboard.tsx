@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -416,11 +416,11 @@ export default function RecruitmentDashboard() {
                       <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider border-b pb-2">Compensation</h3>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>Salary Min ($)</Label>
+                          <Label>Salary Min (₹)</Label>
                           <Input placeholder="e.g. 80,000" value={form.salaryMin} onChange={(e) => updateForm('salaryMin', e.target.value)} />
                         </div>
                         <div className="space-y-2">
-                          <Label>Salary Max ($)</Label>
+                          <Label>Salary Max (₹)</Label>
                           <Input placeholder="e.g. 120,000" value={form.salaryMax} onChange={(e) => updateForm('salaryMax', e.target.value)} />
                         </div>
                       </div>

@@ -20,17 +20,17 @@ export default function ReconciliationModule() {
 
   // Mock data
   const bookTransactions = [
-    { id: 'BK-001', date: '2026-01-14', description: 'Payment to TechSupply', amount: '-$12,500', reference: 'PO-458', matched: true },
-    { id: 'BK-002', date: '2026-01-13', description: 'Receipt from Acme Corp', amount: '+$45,000', reference: 'INV-001', matched: true },
-    { id: 'BK-003', date: '2026-01-12', description: 'Salary Payment', amount: '-$150,000', reference: 'PAY-JAN', matched: false },
-    { id: 'BK-004', date: '2026-01-11', description: 'Receipt from GlobalTech', amount: '+$25,000', reference: 'INV-005', matched: false }
+    { id: 'BK-001', date: '2026-01-14', description: 'Payment to TechSupply', amount: '-₹12,500', reference: 'PO-458', matched: true },
+    { id: 'BK-002', date: '2026-01-13', description: 'Receipt from Acme Corp', amount: '+₹45,000', reference: 'INV-001', matched: true },
+    { id: 'BK-003', date: '2026-01-12', description: 'Salary Payment', amount: '-₹150,000', reference: 'PAY-JAN', matched: false },
+    { id: 'BK-004', date: '2026-01-11', description: 'Receipt from GlobalTech', amount: '+₹25,000', reference: 'INV-005', matched: false }
   ];
 
   const bankStatements = [
-    { id: 'ST-001', date: '2026-01-14', description: 'ACH PAYMENT TECHSUPPLY', amount: '-$12,500', reference: 'ACH-789', matched: true },
-    { id: 'ST-002', date: '2026-01-13', description: 'WIRE ACME CORPORATION', amount: '+$45,000', reference: 'WIRE-456', matched: true },
-    { id: 'ST-003', date: '2026-01-10', description: 'BANK CHARGES', amount: '-$50', reference: 'FEE-123', matched: false },
-    { id: 'ST-004', date: '2026-01-11', description: 'CHK DEP GLOBALTECH', amount: '+$25,000', reference: 'CHK-321', matched: false }
+    { id: 'ST-001', date: '2026-01-14', description: 'ACH PAYMENT TECHSUPPLY', amount: '-₹12,500', reference: 'ACH-789', matched: true },
+    { id: 'ST-002', date: '2026-01-13', description: 'WIRE ACME CORPORATION', amount: '+₹45,000', reference: 'WIRE-456', matched: true },
+    { id: 'ST-003', date: '2026-01-10', description: 'BANK CHARGES', amount: '-₹50', reference: 'FEE-123', matched: false },
+    { id: 'ST-004', date: '2026-01-11', description: 'CHK DEP GLOBALTECH', amount: '+₹25,000', reference: 'CHK-321', matched: false }
   ];
 
   const reconciliationProgress = 75;
@@ -99,7 +99,7 @@ export default function ReconciliationModule() {
             <CardTitle className="text-sm font-medium text-slate-600">Opening Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-700">$340,500</div>
+            <div className="text-2xl font-bold text-blue-700">₹340,500</div>
             <p className="text-xs text-slate-600 mt-1">As of Jan 1, 2026</p>
           </CardContent>
         </Card>
@@ -109,7 +109,7 @@ export default function ReconciliationModule() {
             <CardTitle className="text-sm font-medium text-slate-600">Closing Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-700">$458,000</div>
+            <div className="text-2xl font-bold text-blue-700">₹458,000</div>
             <p className="text-xs text-slate-600 mt-1">As of Jan 15, 2026</p>
           </CardContent>
         </Card>

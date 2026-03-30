@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { customerDirectory } from "@/lib/customer-directory";
 import { 
-  Search, Filter, Plus, Upload, Users, FileText, 
+  Search, Filter, Plus, Users, FileText, 
   ChevronLeft, ChevronRight, RefreshCw, Download,
   ArrowUpDown, UserCheck, UserX, UserCircle, Clock,
   Globe, FileBarChart, FolderKanban, FileSpreadsheet, ScrollText, Building
@@ -179,28 +179,6 @@ export default function CustomersListModule() {
     }
   };
 
-  const copyBillingToShipping = () => {
-    setNewCustomer({
-      ...newCustomer,
-      shippingStreet: newCustomer.billingStreet,
-      shippingCity: newCustomer.billingCity,
-      shippingState: newCustomer.billingState,
-      shippingZipCode: newCustomer.billingZipCode,
-      shippingCountry: newCustomer.billingCountry
-    });
-  };
-
-  const copyCustomerInfoToBilling = () => {
-    setNewCustomer({
-      ...newCustomer,
-      billingStreet: newCustomer.address,
-      billingCity: newCustomer.city,
-      billingState: newCustomer.state,
-      billingZipCode: newCustomer.zipCode,
-      billingCountry: newCustomer.country
-    });
-  };
-
   return (
     <div className="space-y-4">
       {/* Action Buttons */}
@@ -219,18 +197,12 @@ export default function CustomersListModule() {
               </DialogHeader>
               
               <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-                <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsList className="grid w-full grid-cols-1 mb-6">
                   <TabsTrigger 
                     value="details" 
                     className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-600"
                   >
                     Customer Details
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="billing" 
-                    className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-600"
-                  >
-                    Billing & Shipping
                   </TabsTrigger>
                 </TabsList>
 
@@ -314,7 +286,7 @@ export default function CustomersListModule() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="system">System Default</SelectItem>
-                          <SelectItem value="usd">USD ($)</SelectItem>
+                          <SelectItem value="usd">INR (₹)</SelectItem>
                           <SelectItem value="eur">EUR (€)</SelectItem>
                           <SelectItem value="gbp">GBP (£)</SelectItem>
                           <SelectItem value="inr">INR (₹)</SelectItem>
@@ -405,142 +377,6 @@ export default function CustomersListModule() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="billing" className="space-y-6 mt-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Billing Address */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-gray-900">Billing Address</h3>
-                        <Button 
-                          variant="link" 
-                          className="text-blue-600 hover:text-blue-800 p-0 h-auto text-sm"
-                          onClick={copyCustomerInfoToBilling}
-                        >
-                          Same as Customer Info
-                        </Button>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-gray-700">Street</Label>
-                          <Textarea 
-                            value={newCustomer.billingStreet}
-                            onChange={(e) => setNewCustomer({...newCustomer, billingStreet: e.target.value})}
-                            className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 resize-y min-h-[80px]"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-blue-600">City</Label>
-                          <Input 
-                            value={newCustomer.billingCity}
-                            onChange={(e) => setNewCustomer({...newCustomer, billingCity: e.target.value})}
-                            className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-blue-600">State</Label>
-                          <Input 
-                            value={newCustomer.billingState}
-                            onChange={(e) => setNewCustomer({...newCustomer, billingState: e.target.value})}
-                            className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-blue-600">Zip Code</Label>
-                          <Input 
-                            value={newCustomer.billingZipCode}
-                            onChange={(e) => setNewCustomer({...newCustomer, billingZipCode: e.target.value})}
-                            className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-blue-600">Country</Label>
-                          <Select 
-                            value={newCustomer.billingCountry}
-                            onValueChange={(val) => setNewCustomer({...newCustomer, billingCountry: val})}
-                          >
-                            <SelectTrigger className="border-gray-200">
-                              <SelectValue placeholder="Non selected" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[200px]">
-                              {countries.map(country => (
-                                <SelectItem key={country} value={country}>{country}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Shipping Address */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                          <Globe className="h-4 w-4 text-gray-400" />
-                          Shipping Address
-                        </h3>
-                        <Button 
-                          variant="link" 
-                          className="text-blue-600 hover:text-blue-800 p-0 h-auto text-sm"
-                          onClick={copyBillingToShipping}
-                        >
-                          Copy Billing Address
-                        </Button>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-gray-700">Street</Label>
-                          <Textarea 
-                            value={newCustomer.shippingStreet}
-                            onChange={(e) => setNewCustomer({...newCustomer, shippingStreet: e.target.value})}
-                            className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 resize-y min-h-[80px]"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-blue-600">City</Label>
-                          <Input 
-                            value={newCustomer.shippingCity}
-                            onChange={(e) => setNewCustomer({...newCustomer, shippingCity: e.target.value})}
-                            className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-blue-600">State</Label>
-                          <Input 
-                            value={newCustomer.shippingState}
-                            onChange={(e) => setNewCustomer({...newCustomer, shippingState: e.target.value})}
-                            className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-blue-600">Zip Code</Label>
-                          <Input 
-                            value={newCustomer.shippingZipCode}
-                            onChange={(e) => setNewCustomer({...newCustomer, shippingZipCode: e.target.value})}
-                            className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium text-blue-600">Country</Label>
-                          <Select 
-                            value={newCustomer.shippingCountry}
-                            onValueChange={(val) => setNewCustomer({...newCustomer, shippingCountry: val})}
-                          >
-                            <SelectTrigger className="border-gray-200">
-                              <SelectValue placeholder="Non selected" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[200px]">
-                              {countries.map(country => (
-                                <SelectItem key={country} value={country}>{country}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
               </Tabs>
 
               <DialogFooter className="border-t pt-4 mt-6">
@@ -557,11 +393,6 @@ export default function CustomersListModule() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all duration-200 hover:shadow-md">
-            <Upload className="h-4 w-4 mr-2" />
-            Import Customers
-          </Button>
 
           <Button variant="outline" className="border-gray-300 hover:bg-gray-50 transition-all duration-200">
             <Users className="h-4 w-4 mr-2" />

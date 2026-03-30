@@ -78,6 +78,7 @@ type CatalogItem = {
 interface ProposalsTabProps {
   customerFilter?: string;
   proposalsData?: any[];
+  hideCreateProposalButton?: boolean;
 }
 
 const TAX_RATES: Record<string, TaxBreakdown> = {
@@ -107,7 +108,7 @@ const inferCatalogType = (description: string): 'product' | 'service' => {
   return serviceKeywords.some((keyword) => normalized.includes(keyword)) ? 'service' : 'product';
 };
 
-export default function ProposalsTab({ customerFilter, proposalsData }: ProposalsTabProps) {
+export default function ProposalsTab({ customerFilter, proposalsData, hideCreateProposalButton = false }: ProposalsTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showFilterDialog, setShowFilterDialog] = useState(false);
@@ -121,7 +122,7 @@ export default function ProposalsTab({ customerFilter, proposalsData }: Proposal
       id: 'PROP-001',
       subject: 'Website Redesign Project',
       customer: 'Acme Corporation',
-      totalAmount: '$45,000',
+      totalAmount: '₹45,000',
       date: '2026-01-05',
       validUntil: '2026-02-05',
       project: 'Web Development',
@@ -154,7 +155,7 @@ export default function ProposalsTab({ customerFilter, proposalsData }: Proposal
       id: 'PROP-002',
       subject: 'Mobile App Development',
       customer: 'TechStart Inc.',
-      totalAmount: '$85,000',
+      totalAmount: '₹85,000',
       date: '2026-01-08',
       validUntil: '2026-02-08',
       project: 'Mobile App',
@@ -187,7 +188,7 @@ export default function ProposalsTab({ customerFilter, proposalsData }: Proposal
       id: 'PROP-003',
       subject: 'Digital Marketing Campaign',
       customer: 'Global Brands Ltd.',
-      totalAmount: '$25,000',
+      totalAmount: '₹25,000',
       date: '2026-01-10',
       validUntil: '2026-02-10',
       project: 'Marketing',
@@ -219,7 +220,7 @@ export default function ProposalsTab({ customerFilter, proposalsData }: Proposal
       id: 'PROP-004',
       subject: 'ERP System Implementation',
       customer: 'Enterprise Solutions',
-      totalAmount: '$125,000',
+      totalAmount: '₹125,000',
       date: '2026-01-12',
       validUntil: '2026-02-12',
       project: 'ERP',
@@ -939,6 +940,7 @@ export default function ProposalsTab({ customerFilter, proposalsData }: Proposal
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {!hideCreateProposalButton && (
           <Dialog>
             <DialogTrigger asChild>
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
@@ -1017,7 +1019,7 @@ export default function ProposalsTab({ customerFilter, proposalsData }: Proposal
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="usd">USD $</SelectItem>
+                              <SelectItem value="usd">INR ₹</SelectItem>
                               <SelectItem value="eur">EUR €</SelectItem>
                               <SelectItem value="gbp">GBP £</SelectItem>
                               <SelectItem value="inr">INR ₹</SelectItem>
@@ -1033,7 +1035,7 @@ export default function ProposalsTab({ customerFilter, proposalsData }: Proposal
                             <SelectContent>
                               <SelectItem value="no-discount">No discount</SelectItem>
                               <SelectItem value="percent">Percent (%)</SelectItem>
-                              <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
+                              <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1903,6 +1905,7 @@ export default function ProposalsTab({ customerFilter, proposalsData }: Proposal
               </div>
             </DialogContent>
           </Dialog>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -2330,7 +2333,7 @@ export default function ProposalsTab({ customerFilter, proposalsData }: Proposal
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="usd">USD $</SelectItem>
+                            <SelectItem value="usd">INR ₹</SelectItem>
                             <SelectItem value="eur">EUR €</SelectItem>
                             <SelectItem value="inr">INR ₹</SelectItem>
                           </SelectContent>

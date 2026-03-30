@@ -154,8 +154,8 @@ export default function EstimatesTab() {
     {
       id: 'EST-001',
       customer: 'Acme Corporation',
-      amount: '$42,000',
-      tax: '$4,200',
+      amount: '₹42,000',
+      tax: '₹4,200',
       date: '2026-01-03',
       expiryDate: '2026-02-03',
       reference: 'REF-2026-001',
@@ -166,8 +166,8 @@ export default function EstimatesTab() {
     {
       id: 'EST-002',
       customer: 'TechStart Inc.',
-      amount: '$78,000',
-      tax: '$7,800',
+      amount: '₹78,000',
+      tax: '₹7,800',
       date: '2026-01-06',
       expiryDate: '2026-02-06',
       reference: 'REF-2026-002',
@@ -178,8 +178,8 @@ export default function EstimatesTab() {
     {
       id: 'EST-003',
       customer: 'Global Brands Ltd.',
-      amount: '$22,000',
-      tax: '$2,200',
+      amount: '₹22,000',
+      tax: '₹2,200',
       date: '2026-01-09',
       expiryDate: '2026-02-09',
       reference: 'REF-2026-003',
@@ -190,8 +190,8 @@ export default function EstimatesTab() {
     {
       id: 'EST-004',
       customer: 'Enterprise Solutions',
-      amount: '$115,000',
-      tax: '$11,500',
+      amount: '₹115,000',
+      tax: '₹11,500',
       date: '2026-01-11',
       expiryDate: '2026-02-11',
       reference: 'REF-2026-004',
@@ -540,7 +540,7 @@ export default function EstimatesTab() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="INR">INR (₹)</SelectItem>
-                            <SelectItem value="USD">USD ($)</SelectItem>
+                            <SelectItem value="USD">INR (₹)</SelectItem>
                             <SelectItem value="EUR">EUR (€)</SelectItem>
                             <SelectItem value="GBP">GBP (£)</SelectItem>
                           </SelectContent>
@@ -993,7 +993,7 @@ export default function EstimatesTab() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="usd">USD $</SelectItem>
+                                <SelectItem value="usd">INR ₹</SelectItem>
                                 <SelectItem value="eur">EUR €</SelectItem>
                                 <SelectItem value="gbp">GBP £</SelectItem>
                                 <SelectItem value="inr">INR ₹</SelectItem>
@@ -1176,7 +1176,7 @@ export default function EstimatesTab() {
                             <div></div>
                             <div className="text-right">
                               <Label className="text-xs text-blue-600">Sub Total:</Label>
-                              <p className="font-semibold">$0.00</p>
+                              <p className="font-semibold">₹0.00</p>
                             </div>
                           </div>
                           <div className="flex justify-between items-center">
@@ -1197,7 +1197,7 @@ export default function EstimatesTab() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <p className="text-sm text-slate-600">$0.00</p>
+                            <p className="text-sm text-slate-600">₹0.00</p>
                           </div>
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
@@ -1208,11 +1208,11 @@ export default function EstimatesTab() {
                                 className="w-24 h-8 text-sm"
                               />
                             </div>
-                            <p className="text-sm text-slate-600">$0.00</p>
+                            <p className="text-sm text-slate-600">₹0.00</p>
                           </div>
                           <div className="flex justify-between items-center pt-3 border-t">
                             <Label className="text-lg font-bold text-blue-600">Total:</Label>
-                            <p className="text-xl font-bold text-green-700">$0.00</p>
+                            <p className="text-xl font-bold text-green-700">₹0.00</p>
                           </div>
                         </div>
                       </div>

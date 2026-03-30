@@ -320,7 +320,7 @@ export default function Payables({ includeLayout = true }: any) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-slate-800">$248,500</div>
+            <div className="text-3xl font-black text-slate-800">₹248,500</div>
             <p className="text-xs text-green-600 font-bold mt-2">Settled Vendor Invoices</p>
           </CardContent>
         </Card>

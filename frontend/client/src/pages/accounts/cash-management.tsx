@@ -7,17 +7,17 @@ import { Plus, Download } from 'lucide-react';
 
 export default function CashManagementModule() {
   const cashbook = [
-    { date: '2026-01-15', voucher: 'Cash', reference: 'CV-001', receipt: '$5,000', payment: '-', balance: '$25,000', approvedBy: 'John Doe' },
-    { date: '2026-01-14', voucher: 'Cash', reference: 'CV-002', receipt: '-', payment: '$2,500', balance: '$20,000', approvedBy: 'Jane Smith' },
-    { date: '2026-01-13', voucher: 'Petty Cash', reference: 'PC-001', receipt: '-', payment: '$500', balance: '$22,500', approvedBy: 'John Doe' }
+    { date: '2026-01-15', voucher: 'Cash', reference: 'CV-001', receipt: '₹5,000', payment: '-', balance: '₹25,000', approvedBy: 'John Doe' },
+    { date: '2026-01-14', voucher: 'Cash', reference: 'CV-002', receipt: '-', payment: '₹2,500', balance: '₹20,000', approvedBy: 'Jane Smith' },
+    { date: '2026-01-13', voucher: 'Petty Cash', reference: 'PC-001', receipt: '-', payment: '₹500', balance: '₹22,500', approvedBy: 'John Doe' }
   ];
 
   const denominations = [
-    { note: '$100', quantity: 50, total: '$5,000' },
-    { note: '$50', quantity: 100, total: '$5,000' },
-    { note: '$20', quantity: 250, total: '$5,000' },
-    { note: '$10', quantity: 500, total: '$5,000' },
-    { note: '$5', quantity: 1000, total: '$5,000' }
+    { note: '₹100', quantity: 50, total: '₹5,000' },
+    { note: '₹50', quantity: 100, total: '₹5,000' },
+    { note: '₹20', quantity: 250, total: '₹5,000' },
+    { note: '₹10', quantity: 500, total: '₹5,000' },
+    { note: '₹5', quantity: 1000, total: '₹5,000' }
   ];
 
   return (
@@ -101,7 +101,7 @@ export default function CashManagementModule() {
                 <TableRow className="bg-slate-100">
                   <TableCell className="font-bold">Total Cash</TableCell>
                   <TableCell className="font-bold">1,900</TableCell>
-                  <TableCell className="font-bold text-xl text-blue-700">$25,000</TableCell>
+                  <TableCell className="font-bold text-xl text-blue-700">₹25,000</TableCell>
                 </TableRow>
               </TableBody>
             </Table>

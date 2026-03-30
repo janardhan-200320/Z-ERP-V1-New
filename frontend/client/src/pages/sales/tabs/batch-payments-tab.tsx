@@ -27,21 +27,21 @@ export default function BatchPaymentsTab() {
     {
       id: 'INV-002',
       customer: 'TechStart Inc.',
-      amount: '$85,000',
+      amount: '₹85,000',
       dueDate: '2026-02-08',
       status: 'open'
     },
     {
       id: 'INV-003',
       customer: 'Global Brands Ltd.',
-      amount: '$25,000',
+      amount: '₹25,000',
       dueDate: '2026-01-25',
       status: 'overdue'
     },
     {
       id: 'INV-004',
       customer: 'Enterprise Solutions',
-      amount: '$125,000',
+      amount: '₹125,000',
       dueDate: '2026-02-12',
       status: 'unpaid'
     }
@@ -53,7 +53,7 @@ export default function BatchPaymentsTab() {
       row: 1,
       invoice: 'INV-002',
       customer: 'TechStart Inc.',
-      amount: '$85,000',
+      amount: '₹85,000',
       date: '2026-01-20',
       reference: 'TXN-123',
       status: 'valid',
@@ -63,7 +63,7 @@ export default function BatchPaymentsTab() {
       row: 2,
       invoice: 'INV-999',
       customer: 'Unknown Corp',
-      amount: '$45,000',
+      amount: '₹45,000',
       date: '2026-01-21',
       reference: 'TXN-124',
       status: 'error',
@@ -73,7 +73,7 @@ export default function BatchPaymentsTab() {
       row: 3,
       invoice: 'INV-004',
       customer: 'Enterprise Solutions',
-      amount: '$125,000',
+      amount: '₹125,000',
       date: '2026-01-22',
       reference: 'TXN-125',
       status: 'warning',
@@ -180,15 +180,15 @@ export default function BatchPaymentsTab() {
             <div className="border rounded-lg p-4 space-y-2 bg-slate-50">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600">Bank Statement Balance:</span>
-                <span className="font-semibold">$255,000.00</span>
+                <span className="font-semibold">₹255,000.00</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600">Recorded Payments:</span>
-                <span className="font-semibold">$210,000.00</span>
+                <span className="font-semibold">₹210,000.00</span>
               </div>
               <div className="flex justify-between text-sm font-bold pt-2 border-t">
                 <span>Difference:</span>
-                <span className="text-orange-700">$45,000.00</span>
+                <span className="text-orange-700">₹45,000.00</span>
               </div>
             </div>
             <Button className="w-full" variant="outline">
@@ -264,7 +264,7 @@ export default function BatchPaymentsTab() {
                     {selectedInvoices.length} invoices selected
                   </p>
                   <p className="text-xs text-slate-600">
-                    Total: $235,000.00
+                    Total: ₹235,000.00
                   </p>
                 </div>
               </div>

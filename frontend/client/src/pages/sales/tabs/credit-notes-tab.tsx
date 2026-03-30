@@ -57,8 +57,8 @@ export default function CreditNotesTab() {
       id: 'CN-001',
       invoice: 'INV-001',
       client: 'Acme Corporation',
-      amount: '-$5,000.00',
-      remainingAmount: '$0.00',
+      amount: '-₹5,000.00',
+      remainingAmount: '₹0.00',
       reference: 'REF-001',
       reason: 'Product Return',
       date: '2026-01-12',
@@ -69,8 +69,8 @@ export default function CreditNotesTab() {
       id: 'CN-002',
       invoice: 'INV-005',
       client: 'TechStart Inc.',
-      amount: '-$2,500.00',
-      remainingAmount: '$2,500.00',
+      amount: '-₹2,500.00',
+      remainingAmount: '₹2,500.00',
       reference: 'REF-002',
       reason: 'Service Adjustment',
       date: '2026-01-14',
@@ -81,8 +81,8 @@ export default function CreditNotesTab() {
       id: 'CN-003',
       invoice: 'INV-007',
       client: 'Global Brands Ltd.',
-      amount: '-$1,200.00',
-      remainingAmount: '$1,200.00',
+      amount: '-₹1,200.00',
+      remainingAmount: '₹1,200.00',
       reference: 'REF-003',
       reason: 'Billing Error',
       date: '2026-01-16',
@@ -93,8 +93,8 @@ export default function CreditNotesTab() {
       id: 'CN-004',
       invoice: 'INV-009',
       client: 'Enterprise Solutions',
-      amount: '-$15,000.00',
-      remainingAmount: '$0.00',
+      amount: '-₹15,000.00',
+      remainingAmount: '₹0.00',
       reference: 'REF-004',
       reason: 'Scope Change',
       date: '2026-01-18',
@@ -363,7 +363,7 @@ export default function CreditNotesTab() {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell className="text-right font-semibold">$0.00</TableCell>
+                          <TableCell className="text-right font-semibold">₹0.00</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50">
                               <Trash2 className="h-4 w-4" />
@@ -400,11 +400,11 @@ export default function CreditNotesTab() {
                     </div>
                     <div className="flex justify-between text-sm pt-2 border-t">
                       <span className="text-slate-600">Sub Total</span>
-                      <span className="font-semibold">$0.00</span>
+                      <span className="font-semibold">₹0.00</span>
                     </div>
                     <div className="flex justify-between text-lg font-bold pt-2 border-t">
                       <span>Total</span>
-                      <span className="text-rose-700">$0.00</span>
+                      <span className="text-rose-700">₹0.00</span>
                     </div>
                   </div>
                 </div>
@@ -596,19 +596,19 @@ export default function CreditNotesTab() {
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600">Credit Amount</span>
-                <span className="font-bold text-rose-600 text-lg">{selectedNote?.amount || '-$5,000.00'}</span>
+                <span className="font-bold text-rose-600 text-lg">{selectedNote?.amount || '-₹5,000.00'}</span>
               </div>
               
               <div className="flex justify-between text-sm border-t pt-3">
                 <span className="text-slate-600">Applied Amount</span>
                 <span className="font-semibold text-green-600">
-                  {selectedNote?.remainingAmount === '$0.00' ? selectedNote?.amount : '$0.00'}
+                  {selectedNote?.remainingAmount === '₹0.00' ? selectedNote?.amount : '₹0.00'}
                 </span>
               </div>
               
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600">Remaining Balance</span>
-                <span className="font-semibold">{selectedNote?.remainingAmount || '$5,000.00'}</span>
+                <span className="font-semibold">{selectedNote?.remainingAmount || '₹5,000.00'}</span>
               </div>
             </div>
             

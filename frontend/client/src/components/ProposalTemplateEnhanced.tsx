@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, Mail, Phone, MapPin, Printer } from 'lucide-react';
+import { CheckCircle2, Download, Mail, Phone, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
@@ -64,6 +64,10 @@ interface ProposalTemplateEnhancedProps {
   terms?: string[];
   currency?: string;
   saleAgent?: string;
+  onAccept?: () => void;
+  canAccept?: boolean;
+  acceptButtonLabel?: string;
+  showDownloadButton?: boolean;
 }
 
 export default function ProposalTemplateEnhanced({
@@ -108,7 +112,11 @@ export default function ProposalTemplateEnhanced({
     'Revisions beyond the agreed scope will be billed separately'
   ],
   currency = '$',
-  saleAgent = 'Sales Representative'
+  saleAgent = 'Sales Representative',
+  onAccept,
+  canAccept = false,
+  acceptButtonLabel = 'Accept',
+  showDownloadButton = false
 }: ProposalTemplateEnhancedProps) {
   
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
@@ -126,22 +134,27 @@ export default function ProposalTemplateEnhanced({
     });
   }, [proposalId, company.name, currency, total]);
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <div className="relative">
       {/* Print Buttons */}
       <div className="print:hidden mb-4 flex justify-end gap-2">
-        <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2">
-          <Printer className="h-4 w-4" />
-          Print
-        </Button>
-        <Button onClick={handlePrint} variant="default" size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700">
-          <Download className="h-4 w-4" />
-          Download PDF
-        </Button>
+        {showDownloadButton && (
+          <Button onClick={() => window.print()} variant="default" size="sm" className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+            <Download className="h-4 w-4" />
+            Download
+          </Button>
+        )}
+        {onAccept && (
+          <Button
+            onClick={onAccept}
+            size="sm"
+            disabled={!canAccept}
+            className="gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-600"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {acceptButtonLabel}
+          </Button>
+        )}
       </div>
 
       {/* Proposal Template */}
@@ -181,7 +194,8 @@ export default function ProposalTemplateEnhanced({
                   status === 'draft' && 'bg-slate-100 text-slate-700',
                   status === 'sent' && 'bg-blue-100 text-blue-700',
                   status === 'accepted' && 'bg-green-100 text-green-700',
-                  status === 'declined' && 'bg-red-100 text-red-700'
+                  status === 'declined' && 'bg-red-100 text-red-700',
+                  status === 'expired' && 'bg-amber-100 text-amber-800'
                 )}>
                   {status.toUpperCase()}
                 </Badge>
@@ -228,7 +242,7 @@ export default function ProposalTemplateEnhanced({
         </div>
 
         {/* Project Title */}
-        <div className="mb-8 text-center">
+        <div className="mb-8 text-center print:break-before-page">
           <h2 className="text-3xl font-black text-slate-900 uppercase tracking-wide">{title}</h2>
           <div className="h-1 w-32 bg-indigo-600 mx-auto mt-3 rounded-full"></div>
         </div>

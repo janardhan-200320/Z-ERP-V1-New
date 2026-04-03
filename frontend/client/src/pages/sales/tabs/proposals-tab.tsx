@@ -2197,13 +2197,6 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                       <Button variant="outline" onClick={() => setIsViewOpen(false)}>
                         Close
                       </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={() => handleExportProposalPDF(selectedProposal)}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Download PDF
-                      </Button>
                       <Button
                         className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-100 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
                         disabled={proposalExpired || proposalAccepted}

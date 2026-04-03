@@ -66,6 +66,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import sidebarBrandLogo from '../../../images/ZeduERP Dark Theme@4x-8.png';
 
 interface Company {
   name: string;
@@ -891,29 +892,13 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       className="relative z-30 hidden h-full flex-col overflow-hidden border-r border-slate-700 bg-slate-800 text-white shadow-2xl lg:flex"
     >
       <div className="relative px-4 pb-4 pt-6">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <motion.div
-              layout
-              className="flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-lg p-1.5"
-            >
-              {orgLogo ? (
-                <img src={orgLogo} alt="Logo" className="h-full w-full rounded-lg object-cover" />
-              ) : (
-                <img src="/favicon.png" alt="Z-ERP" className="h-full w-full object-contain" />
-              )}
-            </motion.div>
-            {expanded && (
-              <div className="bg-gradient-to-br from-white via-slate-50 to-slate-100 rounded-xl px-4 py-3 shadow-[0_8px_16px_rgba(0,0,0,0.3),0_2px_4px_rgba(0,0,0,0.2)] border border-slate-300/50 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent pointer-events-none" />
-                <div className="flex items-center justify-center relative z-10">
-                  <div className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    Z-ERP
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+        <div className="mb-6 flex items-center justify-center">
+          <motion.div
+            layout
+            className={`flex items-center justify-center ${expanded ? 'h-24 w-60' : 'h-14 w-14'}`}
+          >
+            <img src={sidebarBrandLogo} alt="Z-ERP" className="h-full w-full object-contain" />
+          </motion.div>
         </div>
       </div>
 
@@ -953,28 +938,14 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
             transition={{ type: 'spring', stiffness: 220, damping: 30 }}
             className="relative z-10 flex h-full w-80 flex-col overflow-y-auto border-r border-slate-700 bg-slate-800 text-white shadow-2xl"
           >
-            <div className="flex items-center justify-between px-5 py-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-lg p-1.5">
-                  {orgLogo ? (
-                    <img src={orgLogo} alt="Logo" className="h-full w-full rounded-lg object-cover" />
-                  ) : (
-                    <img src="/favicon.png" alt="Z-ERP" className="h-full w-full object-contain" />
-                  )}
-                </div>
-                <div className="bg-gradient-to-br from-white via-slate-50 to-slate-100 rounded-xl px-4 py-3 shadow-[0_8px_16px_rgba(0,0,0,0.3),0_2px_4px_rgba(0,0,0,0.2)] border border-slate-300/50 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent pointer-events-none" />
-                  <div className="flex items-center justify-center relative z-10">
-                    <div className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                      Z-ERP
-                    </div>
-                  </div>
-                </div>
+            <div className="relative flex items-center justify-center px-5 py-6">
+              <div className="flex h-24 w-60 items-center justify-center">
+                <img src={sidebarBrandLogo} alt="Z-ERP" className="h-full w-full object-contain" />
               </div>
 
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                className="rounded-xl bg-slate-700 p-2 text-slate-300 ring-1 ring-slate-600"
+                className="absolute right-5 rounded-xl bg-slate-700 p-2 text-slate-300 ring-1 ring-slate-600"
                 onClick={() => setMobileSidebarOpen(false)}
                 aria-label="Close navigation"
               >

@@ -22,3 +22,26 @@ export const getProposalForStandaloneView = (proposalId: string) => {
   const stored = safeGetItem<ProposalViewStore>(PROPOSAL_VIEW_STORAGE_KEY, {});
   return stored[proposalId] ?? null;
 };
+
+export const updateProposalForStandaloneView = (
+  proposalId: string,
+  updates: Record<string, any>,
+) => {
+  if (!proposalId) return null;
+
+  const stored = safeGetItem<ProposalViewStore>(PROPOSAL_VIEW_STORAGE_KEY, {});
+  const existing = stored[proposalId];
+  if (!existing) return null;
+
+  const updatedRecord = {
+    ...existing,
+    ...updates,
+  };
+
+  safeSetItem(PROPOSAL_VIEW_STORAGE_KEY, {
+    ...stored,
+    [proposalId]: updatedRecord,
+  });
+
+  return updatedRecord;
+};

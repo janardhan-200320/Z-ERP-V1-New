@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Target, Users, TrendingUp, Award, Plus, Search, Filter,
   Phone, Mail, Calendar, MessageCircle, Send, Clock, Edit,
-  CheckCircle, XCircle, AlertCircle, BarChart3, Zap, User, 
+  CheckCircle, XCircle, AlertCircle, Zap, User, 
   Settings, GitBranch, Flag, MapPin, Paperclip, Trash2, Eye, 
   ArrowRight, Upload, FileText, X, ChevronDown, MoreVertical,
   Grid3x3, Columns3, LayoutGrid, Star, Flame, Download, Import,
@@ -59,7 +59,6 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import ProposalsTab from "@/pages/sales/tabs/proposals-tab";
@@ -2748,26 +2747,6 @@ export default function LeadsModule() {
                     </Badge>
                   )}
                 </div>
-              </div>
-              {/* Progress Indicator */}
-              <div className="mt-3 sm:mt-4">
-                <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
-                  <span className="font-semibold flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-blue-600" />
-                    Form Completion
-                  </span>
-                  <span className="font-bold text-blue-700">
-                    {Math.round(
-                      (Object.values(formData).filter(v => v !== undefined && v !== "").length / 15) * 100
-                    )}%
-                  </span>
-                </div>
-                <Progress 
-                  value={Math.round(
-                    (Object.values(formData).filter(v => v !== undefined && v !== "").length / 15) * 100
-                  )}
-                  className="h-2.5 bg-gray-200"
-                />
               </div>
             </DialogHeader>
             

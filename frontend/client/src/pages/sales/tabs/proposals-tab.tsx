@@ -1690,7 +1690,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                       <TableHeader className="bg-gradient-to-r from-slate-100 to-slate-50">
                         <TableRow>
                           <TableHead className="w-8"></TableHead>
-                          <TableHead className="w-32 font-semibold">Item</TableHead>
+                          <TableHead className="w-40 font-semibold">Item</TableHead>
                           <TableHead className="font-semibold">Description</TableHead>
                           <TableHead className="w-24 font-semibold">Qty</TableHead>
                           <TableHead className="w-32 font-semibold">Rate</TableHead>
@@ -1703,22 +1703,21 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         {proposalItems.map((item, index) => (
                           <TableRow key={item.id}>
                             <TableCell className="align-top"></TableCell>
-                            <TableCell className="align-top">
-                              <Textarea
-                                placeholder="Description"
+                            <TableCell className="align-top pt-5 w-40">
+                              <Input
+                                placeholder="Item name"
                                 value={item.description}
                                 onChange={(e) => updateProposalItem(item.id, 'description', e.target.value)}
-                                className="min-h-[60px] resize-y text-sm"
-                                rows={2}
+                                className="h-9 text-sm"
                               />
                             </TableCell>
-                            <TableCell className="align-top">
+                            <TableCell className="align-top py-4">
                               <Textarea
-                                placeholder="Long description"
+                                placeholder="Description"
                                 value={item.longDescription}
                                 onChange={(e) => updateProposalItem(item.id, 'longDescription', e.target.value)}
-                                className="min-h-[60px] resize-y text-sm"
-                                rows={2}
+                                className="min-h-[88px] resize-y text-sm"
+                                rows={3}
                               />
                               <Button variant="link" size="sm" className="h-6 px-0 text-xs text-blue-600">
                                 Link

@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: z-erp-v1-new-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm ci; npm run build
+    staticPublishPath: dist/public
+    pullRequestPreviewsEnabled: true
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: /api/:splat
+      - type: rewrite
+        source: /*
+        destination: /index.html

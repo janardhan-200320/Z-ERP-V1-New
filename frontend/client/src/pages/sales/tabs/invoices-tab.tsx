@@ -152,10 +152,6 @@ export default function InvoicesTab() {
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<string>('');
   const [activeCatalogTab, setActiveCatalogTab] = useState<'service' | 'product'>('service');
   const [paymentMode, setPaymentMode] = useState('cash');
-  const [bankAccountHolder, setBankAccountHolder] = useState('');
-  const [bankName, setBankName] = useState('');
-  const [bankAccountNumber, setBankAccountNumber] = useState('');
-  const [bankIfsc, setBankIfsc] = useState('');
   const [selectedBankAccountId, setSelectedBankAccountId] = useState('');
   const [availableBankAccounts, setAvailableBankAccounts] = useState(() =>
     getBankAccounts().filter((account) => account.status === 'active'),

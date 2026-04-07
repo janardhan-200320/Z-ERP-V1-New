@@ -7,6 +7,8 @@ export type FinanceSettingsData = {
   defaultCurrency: string;
   currencyFormat: string;
   defaultTaxRate: number;
+  gstRateMode: 'auto' | 'custom';
+  gstCustomRate: number;
   cgstTaxOption: string;
   sgstTaxOption: string;
   cgstCustomRate: number;
@@ -25,6 +27,8 @@ export const DEFAULT_FINANCE_SETTINGS: FinanceSettingsData = {
   defaultCurrency: 'USD',
   currencyFormat: 'symbol',
   defaultTaxRate: 10,
+  gstRateMode: 'auto',
+  gstCustomRate: 18,
   cgstTaxOption: '9',
   sgstTaxOption: '9',
   cgstCustomRate: 0,
@@ -50,6 +54,8 @@ const normalizeFinanceSettings = (settings: Partial<FinanceSettingsData> | null 
     ...merged,
     defaultCurrency: String(merged.defaultCurrency || DEFAULT_FINANCE_SETTINGS.defaultCurrency).toUpperCase(),
     defaultTaxRate: clampRate(Number(merged.defaultTaxRate)),
+    gstRateMode: merged.gstRateMode === 'custom' ? 'custom' : 'auto',
+    gstCustomRate: clampRate(Number(merged.gstCustomRate)),
     cgstTaxOption: String(merged.cgstTaxOption || DEFAULT_FINANCE_SETTINGS.cgstTaxOption),
     sgstTaxOption: String(merged.sgstTaxOption || DEFAULT_FINANCE_SETTINGS.sgstTaxOption),
     cgstCustomRate: clampRate(Number(merged.cgstCustomRate)),

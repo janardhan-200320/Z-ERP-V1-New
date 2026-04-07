@@ -34,15 +34,18 @@ interface ProposalTemplateProps {
   otherTaxAmount?: number;
   validUntil?: string;
   onAccept?: () => void;
+  onDecline?: () => void;
   canAccept?: boolean;
+  canDecline?: boolean;
   acceptButtonLabel?: string;
+  declineButtonLabel?: string;
   downloadButtonLabel?: string;
   onDownload?: () => void;
   contentRef?: Ref<HTMLDivElement>;
 }
 
 export default function ProposalTemplate({
-  proposalId = 'PROP-001',
+  proposalId = 'PRO-001',
   date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
   preparedFor = '[Client\'s Name]',
   preparedBy = '[Your Business Name]',
@@ -59,8 +62,11 @@ export default function ProposalTemplate({
   otherTaxAmount = 0,
   validUntil,
   onAccept,
+  onDecline,
   canAccept = false,
+  canDecline = false,
   acceptButtonLabel = 'Accept',
+  declineButtonLabel = 'Decline',
   downloadButtonLabel = 'Print Proposal',
   onDownload,
   contentRef,
@@ -82,6 +88,17 @@ export default function ProposalTemplate({
           <Download className="h-4 w-4" />
           {downloadButtonLabel}
         </Button>
+        {onDecline && (
+          <Button
+            onClick={onDecline}
+            size="sm"
+            variant="outline"
+            disabled={!canDecline}
+            className="gap-2 border-rose-200 text-rose-700 hover:bg-rose-50 disabled:border-slate-200 disabled:text-slate-400"
+          >
+            {declineButtonLabel}
+          </Button>
+        )}
         {onAccept && (
           <Button
             onClick={onAccept}
@@ -117,12 +134,10 @@ export default function ProposalTemplate({
                 <p className="text-sm font-medium text-slate-900">{date}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-slate-600" />
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title}</p>
-              </div>
-            </div>
+          </div>
+
+          <div className="mt-8 text-center">
+            <h3 className="text-3xl md:text-5xl font-extrabold text-slate-900 uppercase tracking-wide">{title}</h3>
           </div>
         </div>
 

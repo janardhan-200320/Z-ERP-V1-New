@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Save, DollarSign } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,41 @@ import { getFinanceSettings, saveFinanceSettings } from "@/lib/finance-settings"
 export default function FinanceSettings() {
   const { toast } = useToast();
   const [settings, setSettings] = useState(() => getFinanceSettings());
+
+  const resolveTaxRate = (option: string, customRate: number) => {
+    if (option === "custom") {
+      return Number(customRate) || 0;
+    }
+
+    return Number(option) || 0;
+  };
+
+  const gstRate = useMemo(() => {
+    const cgstRate = resolveTaxRate(settings.cgstTaxOption, settings.cgstCustomRate);
+    const sgstRate = resolveTaxRate(settings.sgstTaxOption, settings.sgstCustomRate);
+    return Number((cgstRate + sgstRate).toFixed(2));
+  }, [settings.cgstTaxOption, settings.cgstCustomRate, settings.sgstTaxOption, settings.sgstCustomRate]);
+
+  const effectiveGstRate = useMemo(() => {
+    if (settings.gstRateMode === "custom") {
+      return Number(settings.gstCustomRate) || 0;
+    }
+
+    return gstRate;
+  }, [settings.gstRateMode, settings.gstCustomRate, gstRate]);
+
+  useEffect(() => {
+    setSettings((prev) => {
+      if (prev.defaultTaxRate === effectiveGstRate) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        defaultTaxRate: effectiveGstRate,
+      };
+    });
+  }, [effectiveGstRate]);
 
   const currencyOptions = useMemo(() => {
     const fallback = [
@@ -113,19 +148,43 @@ export default function FinanceSettings() {
             <Separator />
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="default-tax">Default Tax Rate</Label>
+                <Label htmlFor="gst-rate">GST Rate</Label>
                 <div className="flex gap-2">
+                  <Select
+                    value={settings.gstRateMode}
+                    onValueChange={(value) => setSettings((prev) => ({
+                      ...prev,
+                      gstRateMode: value as "auto" | "custom",
+                    }))}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Input
-                    id="default-tax"
+                    id="gst-rate"
                     type="number"
                     min="0"
                     max="100"
                     step="0.01"
-                    value={settings.defaultTaxRate}
-                    onChange={(e) => setSettings((prev) => ({ ...prev, defaultTaxRate: Number(e.target.value) || 0 }))}
+                    value={effectiveGstRate}
+                    disabled={settings.gstRateMode !== "custom"}
+                    onChange={(e) => setSettings((prev) => ({
+                      ...prev,
+                      gstCustomRate: Number(e.target.value) || 0,
+                    }))}
                   />
                   <div className="h-10 min-w-10 rounded-md border bg-muted px-3 text-sm flex items-center justify-center">%</div>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  {settings.gstRateMode === "custom"
+                    ? "Custom GST is used as main tax rate"
+                    : "Auto calculated as CGST + SGST"}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="tax-number">Tax ID / VAT Number</Label>

@@ -6,6 +6,13 @@ import { getProposalForStandaloneView, updateProposalForStandaloneView } from '@
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { MessageSquare, Send } from 'lucide-react';
 
 type ProposalItem = {
   id: number;
@@ -50,6 +57,7 @@ export default function ProposalViewPage() {
 
   const [proposal, setProposal] = useState(() => getProposalForStandaloneView(proposalId));
   const proposalContentRef = useRef<HTMLDivElement | null>(null);
+  const [discussionMessage, setDiscussionMessage] = useState('');
 
   const isExpired = useMemo(() => {
     if (!proposal?.validUntil) return false;
@@ -64,6 +72,7 @@ export default function ProposalViewPage() {
   }, [proposal?.validUntil]);
 
   const isAccepted = proposal?.status === 'accepted';
+  const isDeclined = proposal?.status === 'declined';
   const computedStatus = isAccepted ? 'accepted' : isExpired ? 'expired' : (proposal?.status || 'sent');
 
   const summary = useMemo(() => {
@@ -102,6 +111,16 @@ export default function ProposalViewPage() {
     );
   }
 
+  const discussionThread = Array.isArray(proposal.discussion) ? proposal.discussion : [
+    {
+      id: 'seed-company',
+      sender: 'company',
+      senderName: proposal.preparedBy || 'Company',
+      message: 'Thank you for reviewing this proposal. Please share your questions here.',
+      timestamp: new Date().toISOString(),
+    },
+  ];
+
   const handleAccept = () => {
     if (isAccepted) {
       toast({
@@ -120,6 +139,15 @@ export default function ProposalViewPage() {
       return;
     }
 
+    if (isDeclined) {
+      toast({
+        title: 'Proposal declined',
+        description: `Proposal ${proposal.id} has been declined and cannot be accepted directly.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const updated = updateProposalForStandaloneView(proposal.id, {
       status: 'accepted',
       acceptedAt: new Date().toISOString(),
@@ -133,6 +161,63 @@ export default function ProposalViewPage() {
       title: 'Proposal accepted',
       description: `Thank you. Proposal ${proposal.id} has been accepted successfully.`,
     });
+  };
+
+  const handleDecline = () => {
+    if (isDeclined) {
+      toast({
+        title: 'Already declined',
+        description: `Proposal ${proposal.id} has already been declined.`,
+      });
+      return;
+    }
+
+    if (isAccepted) {
+      toast({
+        title: 'Proposal accepted',
+        description: `Proposal ${proposal.id} has already been accepted and cannot be declined.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const updated = updateProposalForStandaloneView(proposal.id, {
+      status: 'declined',
+      declinedAt: new Date().toISOString(),
+    });
+
+    if (updated) {
+      setProposal(updated);
+    }
+
+    toast({
+      title: 'Proposal declined',
+      description: `Proposal ${proposal.id} has been declined.`,
+    });
+  };
+
+  const handleSendDiscussionMessage = () => {
+    const message = discussionMessage.trim();
+    if (!message) return;
+
+    const newMessage = {
+      id: `msg-${Date.now()}`,
+      sender: 'client',
+      senderName: proposal.preparedFor || proposal.customer || 'Client',
+      message,
+      timestamp: new Date().toISOString(),
+    };
+
+    const updatedThread = [...discussionThread, newMessage];
+    const updated = updateProposalForStandaloneView(proposal.id, {
+      discussion: updatedThread,
+    });
+
+    if (updated) {
+      setProposal(updated);
+    }
+
+    setDiscussionMessage('');
   };
 
   const handleDownload = async () => {
@@ -275,34 +360,128 @@ export default function ProposalViewPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <ProposalTemplate
-        proposalId={proposal.id}
-        date={new Date(proposal.date).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        })}
-        preparedFor={proposal.preparedFor || proposal.customer}
-        preparedBy={proposal.preparedBy || 'Your Business Name'}
-        title={proposal.title || proposal.subject}
-        overview={proposal.overview}
-        scopeOfWork={proposal.scopeOfWork || []}
-        timeline={proposal.timeline || []}
-        status={computedStatus}
-        customer={proposal.customer}
-        totalAmount={proposal.totalAmount}
-        validUntil={proposal.validUntil}
-        subTotal={summary.subTotal}
-        cgstAmount={summary.cgstAmount}
-        sgstAmount={summary.sgstAmount}
-        otherTaxAmount={summary.otherTaxAmount}
-        downloadButtonLabel="Download"
-        onDownload={handleDownload}
-        contentRef={proposalContentRef}
-        onAccept={handleAccept}
-        canAccept={!isExpired && !isAccepted}
-        acceptButtonLabel={isAccepted ? 'Accepted' : isExpired ? 'Expired' : 'Accept'}
-      />
+      <div className="mx-auto max-w-[1500px] grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
+        <ProposalTemplate
+          proposalId={proposal.id}
+          date={new Date(proposal.date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}
+          preparedFor={proposal.preparedFor || proposal.customer}
+          preparedBy={proposal.preparedBy || 'Your Business Name'}
+          title={proposal.title || proposal.subject}
+          overview={proposal.overview}
+          scopeOfWork={proposal.scopeOfWork || []}
+          timeline={proposal.timeline || []}
+          status={computedStatus}
+          customer={proposal.customer}
+          totalAmount={proposal.totalAmount}
+          validUntil={proposal.validUntil}
+          subTotal={summary.subTotal}
+          cgstAmount={summary.cgstAmount}
+          sgstAmount={summary.sgstAmount}
+          otherTaxAmount={summary.otherTaxAmount}
+          downloadButtonLabel="Download"
+          onDownload={handleDownload}
+          contentRef={proposalContentRef}
+          onAccept={handleAccept}
+          onDecline={handleDecline}
+          canAccept={!isExpired && !isAccepted && !isDeclined}
+          canDecline={!isExpired && !isAccepted && !isDeclined}
+          acceptButtonLabel={isAccepted ? 'Accepted' : isExpired ? 'Expired' : 'Accept'}
+          declineButtonLabel={isDeclined ? 'Declined' : 'Decline'}
+        />
+
+        <Card className="xl:sticky xl:top-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Proposal Side Panel</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Tabs defaultValue="summary" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="summary">Summary</TabsTrigger>
+                <TabsTrigger value="discussion">Discussion</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="summary" className="space-y-4 mt-4">
+                <div className="space-y-1 text-sm text-slate-700">
+                  <p className="font-semibold text-slate-900">{proposal.preparedBy || 'Company Name'}</p>
+                  <p>{proposal.companyAddress || proposal.address || 'Company address not provided'}</p>
+                  <p>{proposal.companyCity || proposal.city || ''}</p>
+                  <p className="pt-1">GSTIN: {proposal.companyGstin || proposal.gstin || 'Not provided'}</p>
+                </div>
+
+                <div className="border-t pt-3 space-y-2 text-sm">
+                  <h4 className="font-semibold text-slate-900">Proposal Information</h4>
+                  <p className="text-slate-700">{proposal.preparedFor || proposal.customer}</p>
+                  {(proposal.customerAddress || proposal.address) && (
+                    <p className="text-slate-600">{proposal.customerAddress || proposal.address}</p>
+                  )}
+                  {proposal.customerPhone && <p className="text-slate-600">{proposal.customerPhone}</p>}
+                  {proposal.customerEmail && <p className="text-slate-600">{proposal.customerEmail}</p>}
+                </div>
+
+                <div className="border-t pt-3 space-y-2 text-sm">
+                  <p className="font-bold text-lg text-slate-900">Total {proposal.totalAmount || 'N/A'}</p>
+                  <div className="grid grid-cols-2 gap-y-1 text-slate-600">
+                    <span>Status</span>
+                    <span className="font-medium text-slate-800 capitalize">{computedStatus}</span>
+                    <span>Date</span>
+                    <span className="font-medium text-slate-800">{proposal.date}</span>
+                    <span>Open Till</span>
+                    <span className="font-medium text-slate-800">{proposal.validUntil || '-'}</span>
+                    <span>Project</span>
+                    <span className="font-medium text-slate-800">{proposal.title || proposal.subject || '-'}</span>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="discussion" className="mt-4 space-y-3">
+                <ScrollArea className="h-72 rounded border p-3">
+                  <div className="space-y-3">
+                    {discussionThread.map((message: any) => {
+                      const isClient = message.sender === 'client';
+                      return (
+                        <div key={message.id} className={`flex ${isClient ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${isClient ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-800'}`}>
+                            <p className="text-xs opacity-80 mb-1">{message.senderName}</p>
+                            <p>{message.message}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+                <div className="space-y-2">
+                  <Label htmlFor="discussion-message" className="text-sm">Send a message</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="discussion-message"
+                      placeholder="Type your message..."
+                      value={discussionMessage}
+                      onChange={(e) => setDiscussionMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSendDiscussionMessage();
+                        }
+                      }}
+                    />
+                    <Button size="icon" onClick={handleSendDiscussionMessage}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-slate-500 flex items-center gap-1">
+                    <MessageSquare className="h-3 w-3" />
+                    Discussion is saved with this proposal.
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

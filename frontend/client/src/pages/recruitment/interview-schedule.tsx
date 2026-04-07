@@ -97,6 +97,10 @@ const INTERVIEWS_DATA = [
 ];
 
 export default function InterviewScheduleModule({ schedulingFor, onClearScheduling, jobs }: Props) {
+  const CUSTOM_POSITION_VALUE = '__custom_position__';
+  const CUSTOM_TYPE_VALUE = '__custom_type__';
+  const CUSTOM_ROUND_VALUE = '__custom_round__';
+
   const [searchTerm, setSearchTerm] = useState('');
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [interviews, setInterviews] = useState(INTERVIEWS_DATA);
@@ -115,6 +119,12 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
   const [newTime, setNewTime] = useState('');
   const [newType, setNewType] = useState('');
   const [newRound, setNewRound] = useState('');
+  const [useCustomPosition, setUseCustomPosition] = useState(false);
+  const [useCustomType, setUseCustomType] = useState(false);
+  const [useCustomRound, setUseCustomRound] = useState(false);
+  const [customPosition, setCustomPosition] = useState('');
+  const [customType, setCustomType] = useState('');
+  const [customRound, setCustomRound] = useState('');
   const { toast } = useToast();
 
   // Auto-open schedule dialog when navigating from candidates
@@ -126,14 +136,36 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
       setNewTime('');
       setNewType('');
       setNewRound('Initial');
+      setUseCustomPosition(false);
+      setUseCustomType(false);
+      setUseCustomRound(false);
+      setCustomPosition('');
+      setCustomType('');
+      setCustomRound('');
       setScheduleNewOpen(true);
       onClearScheduling();
     }
   }, [schedulingFor]);
 
   const scheduleNewInterview = () => {
+    const resolvedPosition = useCustomPosition ? customPosition.trim() : newPosition;
+    const resolvedType = useCustomType ? customType.trim() : newType;
+    const resolvedRound = useCustomRound ? customRound.trim() : newRound;
+
     if (!newCandidateName.trim()) {
       toast({ title: 'Missing candidate', description: 'Please enter the candidate name.' });
+      return;
+    }
+    if (useCustomPosition && !resolvedPosition) {
+      toast({ title: 'Missing position', description: 'Please enter a custom position name.' });
+      return;
+    }
+    if (useCustomType && !resolvedType) {
+      toast({ title: 'Missing interview type', description: 'Please enter a custom interview type.' });
+      return;
+    }
+    if (useCustomRound && !resolvedRound) {
+      toast({ title: 'Missing round', description: 'Please enter a custom round name.' });
       return;
     }
     if (!newDate) {
@@ -147,12 +179,12 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
     const newInterview = {
       id: Date.now(),
       candidate: newCandidateName,
-      position: newPosition || 'Not specified',
+      position: resolvedPosition || 'Not specified',
       date: newDate,
       time: newTime,
-      type: newType || 'Video',
+      type: resolvedType || 'Video',
       status: 'Scheduled',
-      round: newRound || 'Initial',
+      round: resolvedRound || 'Initial',
       feedback: '',
     };
     setInterviews(prev => [newInterview, ...prev]);
@@ -163,6 +195,12 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
     setNewTime('');
     setNewType('');
     setNewRound('');
+    setUseCustomPosition(false);
+    setUseCustomType(false);
+    setUseCustomRound(false);
+    setCustomPosition('');
+    setCustomType('');
+    setCustomRound('');
     toast({ title: 'Interview scheduled!', description: `Interview with ${newInterview.candidate} has been scheduled.` });
   };
 
@@ -266,14 +304,33 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
                     </div>
                     <div className="space-y-2">
                       <Label>Position</Label>
-                      <Select value={newPosition} onValueChange={setNewPosition}>
+                      <Select
+                        value={useCustomPosition ? CUSTOM_POSITION_VALUE : newPosition}
+                        onValueChange={(value) => {
+                          if (value === CUSTOM_POSITION_VALUE) {
+                            setUseCustomPosition(true);
+                            return;
+                          }
+
+                          setUseCustomPosition(false);
+                          setNewPosition(value);
+                        }}
+                      >
                         <SelectTrigger><SelectValue placeholder="Select position" /></SelectTrigger>
                         <SelectContent>
                           {jobs.map(j => (
                             <SelectItem key={j.id} value={j.title}>{j.title}</SelectItem>
                           ))}
+                          <SelectItem value={CUSTOM_POSITION_VALUE}>Custom (type your own)</SelectItem>
                         </SelectContent>
                       </Select>
+                      {useCustomPosition && (
+                        <Input
+                          placeholder="Type custom position"
+                          value={customPosition}
+                          onChange={(e) => setCustomPosition(e.target.value)}
+                        />
+                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -298,18 +355,48 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Interview Type</Label>
-                        <Select value={newType} onValueChange={setNewType}>
+                        <Select
+                          value={useCustomType ? CUSTOM_TYPE_VALUE : newType}
+                          onValueChange={(value) => {
+                            if (value === CUSTOM_TYPE_VALUE) {
+                              setUseCustomType(true);
+                              return;
+                            }
+
+                            setUseCustomType(false);
+                            setNewType(value);
+                          }}
+                        >
                           <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Video">Video Call</SelectItem>
                             <SelectItem value="Phone">Phone Call</SelectItem>
                             <SelectItem value="Onsite">In Person</SelectItem>
+                            <SelectItem value={CUSTOM_TYPE_VALUE}>Custom (type your own)</SelectItem>
                           </SelectContent>
                         </Select>
+                        {useCustomType && (
+                          <Input
+                            placeholder="Type custom interview type"
+                            value={customType}
+                            onChange={(e) => setCustomType(e.target.value)}
+                          />
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label>Round</Label>
-                        <Select value={newRound} onValueChange={setNewRound}>
+                        <Select
+                          value={useCustomRound ? CUSTOM_ROUND_VALUE : newRound}
+                          onValueChange={(value) => {
+                            if (value === CUSTOM_ROUND_VALUE) {
+                              setUseCustomRound(true);
+                              return;
+                            }
+
+                            setUseCustomRound(false);
+                            setNewRound(value);
+                          }}
+                        >
                           <SelectTrigger><SelectValue placeholder="Select round" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Initial">Initial Screening</SelectItem>
@@ -317,8 +404,16 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
                             <SelectItem value="Cultural Fit">Cultural Fit</SelectItem>
                             <SelectItem value="Final">Final Round</SelectItem>
                             <SelectItem value="HR">HR Round</SelectItem>
+                            <SelectItem value={CUSTOM_ROUND_VALUE}>Custom (type your own)</SelectItem>
                           </SelectContent>
                         </Select>
+                        {useCustomRound && (
+                          <Input
+                            placeholder="Type custom round"
+                            value={customRound}
+                            onChange={(e) => setCustomRound(e.target.value)}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>

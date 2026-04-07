@@ -48,6 +48,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from '@/lib/utils';
 import { BANK_ACCOUNTS_UPDATED_EVENT, getActiveBankAccountOptions } from '@/lib/bank-accounts';
+import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
 
 type EstimateLineItem = {
   id: number;
@@ -121,6 +122,9 @@ export default function EstimatesTab() {
   const [createPaymentMode, setCreatePaymentMode] = useState('bank');
   const [createBankAccountId, setCreateBankAccountId] = useState('');
   const [bankAccountOptions, setBankAccountOptions] = useState(() => getActiveBankAccountOptions());
+  const [eSignatures, setESignatures] = useState(() => getESignatureProfiles());
+  const [createESignatureId, setCreateESignatureId] = useState('');
+  const [createSignatureDesignation, setCreateSignatureDesignation] = useState('');
   const [createCatalogTab, setCreateCatalogTab] = useState<'service' | 'product'>('service');
   const [createCatalogSelection, setCreateCatalogSelection] = useState('');
   const [createDiscountValue, setCreateDiscountValue] = useState(0);
@@ -145,6 +149,39 @@ export default function EstimatesTab() {
       window.removeEventListener('storage', reloadBankAccounts);
     };
   }, []);
+
+  useEffect(() => {
+    const refreshESignatures = () => {
+      setESignatures(getESignatureProfiles());
+    };
+
+    window.addEventListener(ESIGN_SIGNATURES_UPDATED_EVENT, refreshESignatures);
+    window.addEventListener('storage', refreshESignatures);
+
+    return () => {
+      window.removeEventListener(ESIGN_SIGNATURES_UPDATED_EVENT, refreshESignatures);
+      window.removeEventListener('storage', refreshESignatures);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (createESignatureId) return;
+
+    const defaultSignature = getDefaultESignatureProfile();
+    if (!defaultSignature) return;
+
+    setCreateESignatureId(defaultSignature.id);
+    setCreateSignatureDesignation(defaultSignature.designation || '');
+  }, [createESignatureId, eSignatures]);
+
+  useEffect(() => {
+    if (!createESignatureId) return;
+
+    const selectedSignature = eSignatures.find((signature) => signature.id === createESignatureId);
+    if (!selectedSignature) return;
+
+    setCreateSignatureDesignation(selectedSignature.designation || '');
+  }, [createESignatureId, eSignatures]);
 
   const createCatalog = useMemo<EstimateCatalogItem[]>(() => [
     {
@@ -1274,6 +1311,32 @@ export default function EstimatesTab() {
                             </Select>
                           </div>
                         )}
+
+                        <div className="space-y-2">
+                          <Label className="text-xs text-slate-600">E-Signature</Label>
+                          <Select value={createESignatureId} onValueChange={setCreateESignatureId}>
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Select signature from E-Sign Settings" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {eSignatures.map((signature) => (
+                                <SelectItem key={signature.id} value={signature.id}>
+                                  {signature.signerName} - {signature.designation}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-xs text-slate-600">Designation</Label>
+                          <Input
+                            value={createSignatureDesignation}
+                            onChange={(e) => setCreateSignatureDesignation(e.target.value)}
+                            placeholder="Signer designation"
+                            className="h-10"
+                          />
+                        </div>
 
                         {/* Sale Agent / Discount Type */}
                         <div className="grid grid-cols-2 gap-4">

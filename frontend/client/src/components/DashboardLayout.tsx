@@ -373,19 +373,31 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     
     { name: 'Subscription', icon: CreditCard, path: '/subscriptions' },
     {
-      name: 'Admin',
+      name: 'Settings',
       icon: Settings,
-      path: '/admin',
+      path: '/dashboard/settings',
       hasSubmenu: true,
-      submenuKey: 'admin',
+      submenuKey: 'settings',
       submenu: [
-        { name: 'Company Details', path: '/admin/company' },
-        { name: 'Domain Setup', path: '/admin/domain' },
-        { name: 'Users', path: '/admin/users' },
-        { name: 'Roles & Permissions', path: '/admin/permissions' },
-      ]
+        { name: 'Settings Dashboard', path: '/dashboard/settings' },
+        { name: 'General', path: '/dashboard/settings/general' },
+        { name: 'E-Sign', path: '/dashboard/settings/esign' },
+        { name: 'Finance', path: '/dashboard/settings/finance' },
+        { name: 'Leads', path: '/dashboard/settings/leads' },
+        {
+          name: 'Admin Module',
+          path: '/admin',
+          hasSubmenu: true,
+          submenuKey: 'admin',
+          submenu: [
+            { name: 'Company Details', path: '/admin/company' },
+            { name: 'Domain Setup', path: '/admin/domain' },
+            { name: 'Users', path: '/admin/users' },
+            { name: 'Roles & Permissions', path: '/admin/permissions' },
+          ],
+        },
+      ],
     },
-    { name: 'Settings', icon: Settings, path: '/dashboard/settings' },
   ], []);
 
   const filteredNavigation = useMemo(() => {

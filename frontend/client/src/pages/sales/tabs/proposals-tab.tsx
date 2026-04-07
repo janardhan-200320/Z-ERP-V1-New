@@ -51,6 +51,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { exportProposalToPDF } from '@/lib/proposal-pdf-generator';
 import { FINANCE_DEFAULT_TAX_VALUE, getFinanceSettings, getFinanceTaxLabel } from '@/lib/finance-settings';
 import { saveProposalForStandaloneView } from '@/lib/proposal-view-storage';
+import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
 
 type ProposalLineItem = {
   id: number;
@@ -205,7 +206,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   // Mock data
   const [proposals, setProposals] = useState([
     {
-      id: 'PROP-001',
+      id: 'PRO-001',
       subject: 'Website Redesign Project',
       customer: 'Acme Corporation',
       totalAmount: '₹45,000',
@@ -238,7 +239,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       ]
     },
     {
-      id: 'PROP-002',
+      id: 'PRO-002',
       subject: 'Mobile App Development',
       customer: 'TechStart Inc.',
       totalAmount: '₹85,000',
@@ -271,7 +272,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       ]
     },
     {
-      id: 'PROP-003',
+      id: 'PRO-003',
       subject: 'Digital Marketing Campaign',
       customer: 'Global Brands Ltd.',
       totalAmount: '₹25,000',
@@ -303,7 +304,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       ]
     },
     {
-      id: 'PROP-004',
+      id: 'PRO-004',
       subject: 'ERP System Implementation',
       customer: 'Enterprise Solutions',
       totalAmount: '₹125,000',
@@ -569,6 +570,9 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState('%');
   const [adjustment, setAdjustment] = useState(0);
+  const [eSignatures, setESignatures] = useState(() => getESignatureProfiles());
+  const [selectedESignatureId, setSelectedESignatureId] = useState('');
+  const [proposalSignatureDesignation, setProposalSignatureDesignation] = useState('');
 
   // New Proposal Template Fields
   const [proposalTitle, setProposalTitle] = useState('');
@@ -826,6 +830,39 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       amount: calculateItemAmountWithTax(item, financeDefaultTaxRate),
     })));
   }, [financeDefaultTaxRate]);
+
+  useEffect(() => {
+    const refreshESignatures = () => {
+      setESignatures(getESignatureProfiles());
+    };
+
+    window.addEventListener(ESIGN_SIGNATURES_UPDATED_EVENT, refreshESignatures);
+    window.addEventListener('storage', refreshESignatures);
+
+    return () => {
+      window.removeEventListener(ESIGN_SIGNATURES_UPDATED_EVENT, refreshESignatures);
+      window.removeEventListener('storage', refreshESignatures);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedESignatureId) return;
+
+    const defaultSignature = getDefaultESignatureProfile();
+    if (!defaultSignature) return;
+
+    setSelectedESignatureId(defaultSignature.id);
+    setProposalSignatureDesignation(defaultSignature.designation || '');
+  }, [selectedESignatureId, eSignatures]);
+
+  useEffect(() => {
+    if (!selectedESignatureId) return;
+
+    const selectedSignature = eSignatures.find((signature) => signature.id === selectedESignatureId);
+    if (!selectedSignature) return;
+
+    setProposalSignatureDesignation(selectedSignature.designation || '');
+  }, [selectedESignatureId, eSignatures]);
 
   // Scope of Work Management
   const addScopeItem = () => {
@@ -1386,6 +1423,33 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         <Label htmlFor="phone" className="text-sm">Phone</Label>
                         <Input id="phone" type="tel" placeholder="Phone number" className="h-10" />
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="proposal-esignature" className="text-sm">E-Signature</Label>
+                      <Select value={selectedESignatureId} onValueChange={setSelectedESignatureId}>
+                        <SelectTrigger id="proposal-esignature" className="h-10">
+                          <SelectValue placeholder="Select signature from E-Sign Settings" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {eSignatures.map((signature) => (
+                            <SelectItem key={signature.id} value={signature.id}>
+                              {signature.signerName} - {signature.designation}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="proposal-designation" className="text-sm">Designation</Label>
+                      <Input
+                        id="proposal-designation"
+                        value={proposalSignatureDesignation}
+                        onChange={(e) => setProposalSignatureDesignation(e.target.value)}
+                        placeholder="Signer designation"
+                        className="h-10"
+                      />
                     </div>
                   </div>
                 </div>
@@ -2499,7 +2563,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="EST-">EST-</SelectItem>
-                              <SelectItem value="PROP-">PROP-</SelectItem>
+                              <SelectItem value="PRO-">PRO-</SelectItem>
                             </SelectContent>
                           </Select>
                           <Input 

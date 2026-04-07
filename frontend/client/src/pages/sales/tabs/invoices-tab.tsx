@@ -60,6 +60,8 @@ import {
   getFinanceTaxLabel,
   parseTaxPercentage,
 } from '@/lib/finance-settings';
+import { BANK_ACCOUNTS_UPDATED_EVENT, getBankAccounts } from '@/lib/bank-accounts';
+import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
 
 const calculateInvoiceItemAmountWithTax = (
   item: { qty: number; rate: number; tax: string },
@@ -142,6 +144,18 @@ export default function InvoicesTab() {
   const [adjustment, setAdjustment] = useState(0);
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<string>('');
   const [activeCatalogTab, setActiveCatalogTab] = useState<'service' | 'product'>('service');
+  const [paymentMode, setPaymentMode] = useState('cash');
+  const [bankAccountHolder, setBankAccountHolder] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankIfsc, setBankIfsc] = useState('');
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState('');
+  const [availableBankAccounts, setAvailableBankAccounts] = useState(() =>
+    getBankAccounts().filter((account) => account.status === 'active'),
+  );
+  const [eSignatures, setESignatures] = useState(() => getESignatureProfiles());
+  const [selectedESignatureId, setSelectedESignatureId] = useState('');
+  const [signatureDesignation, setSignatureDesignation] = useState('');
 
   // Mock data - Updated to match screenshot
   const [invoices, setInvoices] = useState([
@@ -314,6 +328,77 @@ export default function InvoicesTab() {
       amount: calculateInvoiceItemAmountWithTax(item, financeDefaultTaxRate),
     })));
   }, [financeDefaultTaxRate]);
+
+  useEffect(() => {
+    const refreshBankAccounts = () => {
+      setAvailableBankAccounts(getBankAccounts().filter((account) => account.status === 'active'));
+    };
+
+    window.addEventListener(BANK_ACCOUNTS_UPDATED_EVENT, refreshBankAccounts);
+    window.addEventListener('storage', refreshBankAccounts);
+
+    return () => {
+      window.removeEventListener(BANK_ACCOUNTS_UPDATED_EVENT, refreshBankAccounts);
+      window.removeEventListener('storage', refreshBankAccounts);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshESignatures = () => {
+      setESignatures(getESignatureProfiles());
+    };
+
+    window.addEventListener(ESIGN_SIGNATURES_UPDATED_EVENT, refreshESignatures);
+    window.addEventListener('storage', refreshESignatures);
+
+    return () => {
+      window.removeEventListener(ESIGN_SIGNATURES_UPDATED_EVENT, refreshESignatures);
+      window.removeEventListener('storage', refreshESignatures);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedESignatureId) return;
+
+    const defaultSignature = getDefaultESignatureProfile();
+    if (!defaultSignature) return;
+
+    setSelectedESignatureId(defaultSignature.id);
+    setSignatureDesignation(defaultSignature.designation || '');
+  }, [selectedESignatureId, eSignatures]);
+
+  useEffect(() => {
+    if (!selectedESignatureId) return;
+
+    const selectedSignature = eSignatures.find((signature) => signature.id === selectedESignatureId);
+    if (!selectedSignature) return;
+
+    setSignatureDesignation(selectedSignature.designation || '');
+  }, [selectedESignatureId, eSignatures]);
+
+  useEffect(() => {
+    if (paymentMode !== 'bank_transfer') {
+      setSelectedBankAccountId('');
+      return;
+    }
+
+    if (!selectedBankAccountId && availableBankAccounts.length > 0) {
+      const primary = availableBankAccounts.find((account) => account.isPrimary) ?? availableBankAccounts[0];
+      setSelectedBankAccountId(primary.id);
+    }
+  }, [paymentMode, selectedBankAccountId, availableBankAccounts]);
+
+  useEffect(() => {
+    if (!selectedBankAccountId) return;
+
+    const selectedAccount = availableBankAccounts.find((account) => account.id === selectedBankAccountId);
+    if (!selectedAccount) return;
+
+    setBankAccountHolder(selectedAccount.accountHolderName || '');
+    setBankName(selectedAccount.bankName || '');
+    setBankAccountNumber(selectedAccount.accountNumber || '');
+    setBankIfsc(selectedAccount.routingNumber || '');
+  }, [selectedBankAccountId, availableBankAccounts]);
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter(inv => {
@@ -532,6 +617,25 @@ export default function InvoicesTab() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-mode" className="text-sm">Payment Mode</Label>
+                    <Select value={paymentMode} onValueChange={setPaymentMode}>
+                      <SelectTrigger id="payment-mode" className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bank_transfer">Bank</SelectItem>
+                        <SelectItem value="upi">UPI</SelectItem>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="card">Card</SelectItem>
+                        <SelectItem value="cheque">Cheque</SelectItem>
+                        <SelectItem value="net_banking">Net Banking</SelectItem>
+                        <SelectItem value="wallet">Wallet</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                 </div>
@@ -794,18 +898,72 @@ export default function InvoicesTab() {
               {/* Bank Details */}
               <div className="space-y-3 pt-2">
                 <h4 className="text-sm font-semibold">Bank Details</h4>
+                {paymentMode === 'bank_transfer' && availableBankAccounts.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="bank-account-source" className="text-sm">Select Bank Account</Label>
+                    <Select value={selectedBankAccountId} onValueChange={setSelectedBankAccountId}>
+                      <SelectTrigger id="bank-account-source" className="h-10">
+                        <SelectValue placeholder="Choose bank account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableBankAccounts.map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            {account.bankName} - {account.accountNumber}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500">Bank name suggestions are shown from your saved active bank accounts.</p>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="bank-account-holder" className="text-sm">
                       <span className="text-red-500">*</span> Account Holder Name
                     </Label>
-                    <Input id="bank-account-holder" placeholder="Enter account holder name" className="h-10" />
+                    <Input
+                      id="bank-account-holder"
+                      placeholder="Enter account holder name"
+                      className="h-10"
+                      value={bankAccountHolder}
+                      onChange={(e) => setBankAccountHolder(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="bank-name" className="text-sm">
                       <span className="text-red-500">*</span> Bank Name
                     </Label>
-                    <Input id="bank-name" placeholder="Enter bank name" className="h-10" />
+                    {paymentMode === 'bank_transfer' && availableBankAccounts.length > 0 ? (
+                      <Select
+                        value={bankName || undefined}
+                        onValueChange={(value) => {
+                          setBankName(value);
+                          const selectedFromName = availableBankAccounts.find((account) => account.bankName === value);
+                          if (selectedFromName) {
+                            setSelectedBankAccountId(selectedFromName.id);
+                          }
+                        }}
+                      >
+                        <SelectTrigger id="bank-name" className="h-10">
+                          <SelectValue placeholder="Select bank name" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from(new Set(availableBankAccounts.map((account) => account.bankName))).map((name) => (
+                            <SelectItem key={name} value={name}>
+                              {name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        id="bank-name"
+                        placeholder="Enter bank name"
+                        className="h-10"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                      />
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -813,13 +971,25 @@ export default function InvoicesTab() {
                     <Label htmlFor="bank-account-number" className="text-sm">
                       <span className="text-red-500">*</span> Account Number
                     </Label>
-                    <Input id="bank-account-number" placeholder="Enter account number" className="h-10" />
+                    <Input
+                      id="bank-account-number"
+                      placeholder="Enter account number"
+                      className="h-10"
+                      value={bankAccountNumber}
+                      onChange={(e) => setBankAccountNumber(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="bank-ifsc" className="text-sm">
                       <span className="text-red-500">*</span> IFSC / SWIFT Code
                     </Label>
-                    <Input id="bank-ifsc" placeholder="Enter IFSC or SWIFT code" className="h-10" />
+                    <Input
+                      id="bank-ifsc"
+                      placeholder="Enter IFSC or SWIFT code"
+                      className="h-10"
+                      value={bankIfsc}
+                      onChange={(e) => setBankIfsc(e.target.value)}
+                    />
                   </div>
                 </div>
               </div>
@@ -827,6 +997,33 @@ export default function InvoicesTab() {
               {/* Signature Upload */}
               <div className="space-y-3 pt-2">
                 <h4 className="text-sm font-semibold">Signature</h4>
+                <div className="space-y-2">
+                  <Label htmlFor="invoice-esignature" className="text-sm">
+                    <span className="text-red-500">*</span> Select E-Signature
+                  </Label>
+                  <Select value={selectedESignatureId} onValueChange={setSelectedESignatureId}>
+                    <SelectTrigger id="invoice-esignature" className="h-10">
+                      <SelectValue placeholder="Select signature from E-Sign Settings" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eSignatures.map((signature) => (
+                        <SelectItem key={signature.id} value={signature.id}>
+                          {signature.signerName} - {signature.designation}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="invoice-signature-designation" className="text-sm">Designation</Label>
+                  <Input
+                    id="invoice-signature-designation"
+                    value={signatureDesignation}
+                    onChange={(e) => setSignatureDesignation(e.target.value)}
+                    placeholder="Signer designation"
+                    className="h-10"
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="signature-file" className="text-sm">
                     <span className="text-red-500">*</span> Upload Signature

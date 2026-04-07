@@ -71,7 +71,7 @@ interface ProposalTemplateEnhancedProps {
 }
 
 export default function ProposalTemplateEnhanced({
-  proposalId = 'PROP-001',
+  proposalId = 'PRO-001',
   date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
   preparedFor = '[Client\'s Name]',
   preparedBy = '[Your Business Name]',

@@ -42,6 +42,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from "@/lib/utils";
 import { BANK_ACCOUNTS_UPDATED_EVENT, getActiveBankAccountOptions } from '@/lib/bank-accounts';
+import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
 
 export default function PaymentsTab() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,6 +54,9 @@ export default function PaymentsTab() {
   const [recordPaymentMode, setRecordPaymentMode] = useState('bank');
   const [recordBankAccountId, setRecordBankAccountId] = useState('');
   const [bankAccountOptions, setBankAccountOptions] = useState(() => getActiveBankAccountOptions());
+  const [eSignatures, setESignatures] = useState(() => getESignatureProfiles());
+  const [recordESignatureId, setRecordESignatureId] = useState('');
+  const [recordSignatureDesignation, setRecordSignatureDesignation] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,6 +72,39 @@ export default function PaymentsTab() {
       window.removeEventListener('storage', reloadBankAccounts);
     };
   }, []);
+
+  useEffect(() => {
+    const refreshESignatures = () => {
+      setESignatures(getESignatureProfiles());
+    };
+
+    window.addEventListener(ESIGN_SIGNATURES_UPDATED_EVENT, refreshESignatures);
+    window.addEventListener('storage', refreshESignatures);
+
+    return () => {
+      window.removeEventListener(ESIGN_SIGNATURES_UPDATED_EVENT, refreshESignatures);
+      window.removeEventListener('storage', refreshESignatures);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (recordESignatureId) return;
+
+    const defaultSignature = getDefaultESignatureProfile();
+    if (!defaultSignature) return;
+
+    setRecordESignatureId(defaultSignature.id);
+    setRecordSignatureDesignation(defaultSignature.designation || '');
+  }, [recordESignatureId, eSignatures]);
+
+  useEffect(() => {
+    if (!recordESignatureId) return;
+
+    const selectedSignature = eSignatures.find((signature) => signature.id === recordESignatureId);
+    if (!selectedSignature) return;
+
+    setRecordSignatureDesignation(selectedSignature.designation || '');
+  }, [recordESignatureId, eSignatures]);
 
   // Mock data
   const [payments, setPayments] = useState([
@@ -319,6 +356,33 @@ export default function PaymentsTab() {
                       </Select>
                     </div>
                   )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="pay-esignature">E-Signature</Label>
+                      <Select value={recordESignatureId} onValueChange={setRecordESignatureId}>
+                        <SelectTrigger id="pay-esignature">
+                          <SelectValue placeholder="Select signature from E-Sign Settings" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {eSignatures.map((signature) => (
+                            <SelectItem key={signature.id} value={signature.id}>
+                              {signature.signerName} - {signature.designation}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pay-signature-designation">Designation</Label>
+                      <Input
+                        id="pay-signature-designation"
+                        value={recordSignatureDesignation}
+                        onChange={(e) => setRecordSignatureDesignation(e.target.value)}
+                        placeholder="Signer designation"
+                      />
+                    </div>
+                  </div>
 
                   {/* Transaction Details */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -965,7 +965,6 @@ export default function InvoicesTab() {
                     <Label htmlFor="bank-name" className="text-sm">
                       <span className="text-red-500">*</span> Bank Name
                     </Label>
-<<<<<<< Updated upstream
                     {paymentMode === 'bank_transfer' && availableBankAccounts.length > 0 ? (
                       <Select
                         value={bankName || undefined}
@@ -997,15 +996,6 @@ export default function InvoicesTab() {
                         onChange={(e) => setBankName(e.target.value)}
                       />
                     )}
-=======
-                    <Input
-                      id="bank-name"
-                      placeholder="Enter bank name"
-                      className="h-10"
-                      value={bankName}
-                      onChange={(e) => setBankName(e.target.value)}
-                    />
->>>>>>> Stashed changes
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1030,11 +1020,7 @@ export default function InvoicesTab() {
                       placeholder="Enter IFSC or SWIFT code"
                       className="h-10"
                       value={bankIfsc}
-<<<<<<< Updated upstream
-                      onChange={(e) => setBankIfsc(e.target.value)}
-=======
                       onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
->>>>>>> Stashed changes
                     />
                   </div>
                 </div>

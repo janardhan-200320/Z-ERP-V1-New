@@ -7,6 +7,7 @@ import { Users, DollarSign, MessageSquare, UserPlus, UserCheck, UserCircle, Mess
 import DashboardLayout from "@/components/DashboardLayout";
 import CustomersListModule from "./customers-list";
 import CommunicationLogModule from "./communication-log";
+import ProjectClientPortalTab from "@/pages/projects/tabs/project-client-portal-tab";
 
 export default function CustomersDashboard() {
   const [activeTab, setActiveTab] = useState("customers");
@@ -120,6 +121,13 @@ export default function CustomersDashboard() {
             <MessagesSquare className="h-4 w-4" />
             Communication Log
           </TabsTrigger>
+          <TabsTrigger
+            value="client-portal"
+            className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm rounded-md px-4 py-2 transition-all duration-200"
+          >
+            <MessageSquare className="h-4 w-4" />
+            Client Portal
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="customers" className="mt-0">
@@ -128,6 +136,10 @@ export default function CustomersDashboard() {
 
         <TabsContent value="communication" className="mt-0">
           <CommunicationLogModule />
+        </TabsContent>
+
+        <TabsContent value="client-portal" className="mt-0">
+          <ProjectClientPortalTab projectId={undefined} />
         </TabsContent>
       </Tabs>
     </DashboardLayout>

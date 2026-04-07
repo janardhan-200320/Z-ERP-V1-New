@@ -577,6 +577,8 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   // New Proposal Template Fields
   const [proposalTitle, setProposalTitle] = useState('');
   const [proposalOverview, setProposalOverview] = useState('');
+  const [recipientName, setRecipientName] = useState('');
+  const [showRecipientSuggestions, setShowRecipientSuggestions] = useState(false);
   const [proposalScopeItems, setProposalScopeItems] = useState([
     { id: 1, description: '', longDescription: '' }
   ]);
@@ -913,6 +915,39 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     }));
   };
 
+  const getRemainingDays = (completionDate: string) => {
+    if (!completionDate) return { label: 'N/A', tone: 'muted' as const };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endDate = new Date(`${completionDate}T00:00:00`);
+
+    if (Number.isNaN(endDate.getTime())) {
+      return { label: 'N/A', tone: 'muted' as const };
+    }
+
+    const diffDays = Math.ceil((endDate.getTime() - today.getTime()) / 86400000);
+
+    if (diffDays < 0) {
+      const overdueDays = Math.abs(diffDays);
+      return {
+        label: `${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue`,
+        tone: 'danger' as const,
+      };
+    }
+    if (diffDays === 0) return { label: 'Today', tone: 'warning' as const };
+    if (diffDays === 1) return { label: '1 day left', tone: 'warning' as const };
+
+    return { label: `${diffDays} days left`, tone: 'success' as const };
+  };
+
+  const getRemainingDaysClass = (tone: 'muted' | 'danger' | 'warning' | 'success') => {
+    if (tone === 'danger') return 'bg-red-100 text-red-700 border-red-200';
+    if (tone === 'warning') return 'bg-amber-100 text-amber-700 border-amber-200';
+    if (tone === 'success') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    return 'bg-slate-100 text-slate-600 border-slate-200';
+  };
+
   const filteredProposals = useMemo(() => {
     const normalizedCustomerFilter = (customerFilter || '').trim().toLowerCase();
 
@@ -932,6 +967,26 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       return matchesSearch && matchesStatus && matchesCustomer;
     });
   }, [searchQuery, statusFilter, proposals, customerFilter]);
+
+  const customerSuggestions = useMemo(() => {
+    const uniqueNames = new Set<string>();
+
+    proposals.forEach((proposal) => {
+      const name = (proposal.customer || proposal.preparedFor || '').trim();
+      if (name) uniqueNames.add(name);
+    });
+
+    return Array.from(uniqueNames).sort((a, b) => a.localeCompare(b));
+  }, [proposals]);
+
+  const filteredCustomerSuggestions = useMemo(() => {
+    const normalized = recipientName.trim().toLowerCase();
+    const matches = normalized
+      ? customerSuggestions.filter((name) => name.toLowerCase().includes(normalized))
+      : customerSuggestions;
+
+    return matches.slice(0, 6);
+  }, [customerSuggestions, recipientName]);
 
   const itemCatalog = useMemo<CatalogItem[]>(() => {
     const deduped = new Map<string, CatalogItem>();
@@ -1231,7 +1286,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           <span className="text-red-500">*</span> Currency
                         </Label>
                         <Select defaultValue="usd">
-                          <SelectTrigger id="currency" className="h-10 bg-white border-slate-300">
+                          <SelectTrigger id="currency" className="h-10 w-full max-w-[220px] bg-white border-slate-300">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1241,13 +1296,6 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             <SelectItem value="inr">INR ₹</SelectItem>
                           </SelectContent>
                         </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="tags" className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                          Tags
-                        </Label>
-                        <Input id="tags" placeholder="Add tags..." className="h-10 bg-white border-slate-300" />
                       </div>
 
                       <div className="flex items-center justify-between py-3 px-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -1364,11 +1412,41 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         </Select>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-2 relative">
                         <Label htmlFor="to" className="text-sm font-medium text-slate-700">
                           <span className="text-red-500">*</span> Recipient Name (Customer Name)
                         </Label>
-                        <Input id="to" placeholder="Recipient name (Customer name)" className="h-10 bg-white border-slate-300" />
+                        <Input
+                          id="to"
+                          value={recipientName}
+                          onChange={(e) => {
+                            setRecipientName(e.target.value);
+                            setShowRecipientSuggestions(true);
+                          }}
+                          onFocus={() => setShowRecipientSuggestions(true)}
+                          onBlur={() => {
+                            window.setTimeout(() => setShowRecipientSuggestions(false), 120);
+                          }}
+                          placeholder="Recipient name (Customer name)"
+                          className="h-10 bg-white border-slate-300"
+                        />
+                        {showRecipientSuggestions && filteredCustomerSuggestions.length > 0 && (
+                          <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-slate-200 bg-white shadow-lg">
+                            {filteredCustomerSuggestions.map((name) => (
+                              <button
+                                key={name}
+                                type="button"
+                                onMouseDown={() => {
+                                  setRecipientName(name);
+                                  setShowRecipientSuggestions(false);
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                              >
+                                {name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -1641,6 +1719,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           <TableHead className="w-20">Phase</TableHead>
                           <TableHead>Task</TableHead>
                           <TableHead className="w-48">Completion Date</TableHead>
+                          <TableHead className="w-40 text-right">Remaining Days</TableHead>
                           <TableHead className="w-12"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1667,6 +1746,11 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 onChange={(e) => updateTimelinePhase(phase.id, 'completionDate', e.target.value)}
                                 className="h-10"
                               />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="outline" className={getRemainingDaysClass(getRemainingDays(phase.completionDate).tone)}>
+                                {getRemainingDays(phase.completionDate).label}
+                              </Badge>
                             </TableCell>
                             <TableCell>
                               {proposalTimeline.length > 1 && (
@@ -3248,6 +3332,7 @@ onChange={(e) => setEditProposalOverview(e.target.value)}
                           <TableHead className="w-20">Phase</TableHead>
                           <TableHead>Task</TableHead>
                           <TableHead className="w-48">Completion Date</TableHead>
+                          <TableHead className="w-40 text-right">Remaining Days</TableHead>
                           <TableHead className="w-12"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -3284,6 +3369,11 @@ onChange={(e) => setEditProposalOverview(e.target.value)}
                                 }}
                                 className="h-10"
                               />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="outline" className={getRemainingDaysClass(getRemainingDays(phase.completionDate).tone)}>
+                                {getRemainingDays(phase.completionDate).label}
+                              </Badge>
                             </TableCell>
                             <TableCell>
                               {editProposalTimeline.length > 1 && (

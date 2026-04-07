@@ -137,11 +137,18 @@ export default function InvoicesTab() {
 
   // Invoice items state
   const [invoiceItems, setInvoiceItems] = useState([
-    { id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: FINANCE_DEFAULT_TAX_VALUE, amount: 0 }
+    { id: 1, description: '', longDescription: '', hsn: '', qty: 1, rate: 0, tax: FINANCE_DEFAULT_TAX_VALUE, amount: 0 }
   ]);
   const [discount, setDiscount] = useState(0);
-  const [discountType, setDiscountType] = useState('%');
   const [adjustment, setAdjustment] = useState(0);
+  const [recurringFrequency, setRecurringFrequency] = useState('no');
+  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'bank' | 'cash' | 'custom'>('bank');
+  const [customPaymentMethod, setCustomPaymentMethod] = useState('');
+  const [bankAccountHolder, setBankAccountHolder] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankIfsc, setBankIfsc] = useState('');
+  const [upiId, setUpiId] = useState('');
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<string>('');
   const [activeCatalogTab, setActiveCatalogTab] = useState<'service' | 'product'>('service');
   const [paymentMode, setPaymentMode] = useState('cash');
@@ -156,6 +163,42 @@ export default function InvoicesTab() {
   const [eSignatures, setESignatures] = useState(() => getESignatureProfiles());
   const [selectedESignatureId, setSelectedESignatureId] = useState('');
   const [signatureDesignation, setSignatureDesignation] = useState('');
+
+  const paymentMethodOptions: Array<{
+    value: 'upi' | 'bank' | 'cash' | 'custom';
+    label: string;
+    icon: any;
+    helper: string;
+  }> = [
+    { value: 'upi', label: 'UPI', icon: LinkIcon, helper: 'Instant mobile payment' },
+    { value: 'bank', label: 'Bank', icon: Building2, helper: 'Transfer to bank account' },
+    { value: 'cash', label: 'Cash', icon: DollarSign, helper: 'Collect physically' },
+    { value: 'custom', label: 'Custom', icon: FileText, helper: 'Other payment modes' },
+  ];
+
+  const selectedPaymentMethod = paymentMethodOptions.find((option) => option.value === paymentMethod);
+
+  const getMaskedAccountNumber = (value: string) => {
+    const lastFour = value.replace(/\s/g, '').slice(-4);
+    return lastFour ? `XXXX${lastFour}` : 'Not added';
+  };
+
+  const recurringOptions = [
+    { value: 'no', label: 'No' },
+    { value: 'every-1-month', label: 'Every 1 month' },
+    { value: 'every-2-month', label: 'Every 2 month' },
+    { value: 'every-3-month', label: 'Every 3 month' },
+    { value: 'every-4-month', label: 'Every 4 month' },
+    { value: 'every-5-month', label: 'Every 5 month' },
+    { value: 'every-6-month', label: 'Every 6 month' },
+    { value: 'every-7-month', label: 'Every 7 month' },
+    { value: 'every-8-month', label: 'Every 8 month' },
+    { value: 'every-9-month', label: 'Every 9 month' },
+    { value: 'every-10-month', label: 'Every 10 month' },
+    { value: 'every-11-month', label: 'Every 11 month' },
+    { value: 'every-12-month', label: 'Every 12 month' },
+    { value: 'custome', label: 'custome' },
+  ];
 
   // Mock data - Updated to match screenshot
   const [invoices, setInvoices] = useState([
@@ -189,7 +232,7 @@ export default function InvoicesTab() {
       return sum + (taxable * rates.otherPercent / 100);
     }, 0);
     const taxAmount = cgstAmount + sgstAmount + otherTaxAmount;
-    const discountAmount = discountType === '%' ? (subTotal * discount / 100) : discount;
+    const discountAmount = discount;
     const total = subTotal + taxAmount - discountAmount + adjustment;
     return { subTotal, cgstAmount, sgstAmount, otherTaxAmount, taxAmount, discountAmount, total };
   };
@@ -259,6 +302,7 @@ export default function InvoicesTab() {
       id: invoiceItems.length + 1, 
       description: '', 
       longDescription: '', 
+      hsn: '',
       qty: 1, 
       rate: 0, 
       tax: FINANCE_DEFAULT_TAX_VALUE,
@@ -280,6 +324,7 @@ export default function InvoicesTab() {
       id: invoiceItems.length + 1,
       description: selectedItem.name,
       longDescription: selectedItem.description,
+      hsn: '',
       qty: 1,
       rate: selectedItem.defaultRate,
       tax: selectedItem.defaultTax,
@@ -519,12 +564,11 @@ export default function InvoicesTab() {
                       </Label>
                       <div className="flex gap-2">
                         <Input id="invoice-number" defaultValue="00007" className="h-10" />
-                        <Select defaultValue="inv-prefix">
+                        <Select defaultValue="bill">
                           <SelectTrigger className="w-32 h-10">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="inv-prefix">INV-</SelectItem>
                             <SelectItem value="bill">BILL-</SelectItem>
                           </SelectContent>
                         </Select>
@@ -587,36 +631,24 @@ export default function InvoicesTab() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="recurring" className="text-sm">Recurring Invoice?</Label>
-                      <Select defaultValue="no">
+                      <Select value={recurringFrequency} onValueChange={setRecurringFrequency}>
                         <SelectTrigger id="recurring" className="h-10">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="no">No</SelectItem>
-                          <SelectItem value="yes">Yes</SelectItem>
+                        <SelectContent className="max-h-64 overflow-y-auto">
+                          {recurringOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="due-date" className="text-sm">Due Date</Label>
-                      <Input id="due-date" type="date" defaultValue="2025-12-07" className="h-10" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="discount-type" className="text-sm">Discount Type</Label>
-                      <Select defaultValue="no-discount" onValueChange={(val) => setDiscountType(val === 'percent' ? '%' : '$')}>
-                        <SelectTrigger id="discount-type" className="h-10">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="no-discount">No discount</SelectItem>
-                          <SelectItem value="percent">Percent (%)</SelectItem>
-                          <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="due-date" className="text-sm">Due Date</Label>
+                    <Input id="due-date" type="date" defaultValue="2025-12-07" className="h-10" />
                   </div>
 
                   <div className="space-y-2">
@@ -713,6 +745,7 @@ export default function InvoicesTab() {
                         <TableHead className="w-8"></TableHead>
                         <TableHead className="w-40">Item Name</TableHead>
                         <TableHead>Description</TableHead>
+                        <TableHead className="w-28">HSN/SAC</TableHead>
                         <TableHead className="w-24">Qty</TableHead>
                         <TableHead className="w-28">Rate</TableHead>
                         <TableHead className="w-32">Tax</TableHead>
@@ -744,6 +777,14 @@ export default function InvoicesTab() {
                               <LinkIcon className="h-3 w-3 mr-1" />
                               Link
                             </Button>
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <Input
+                              placeholder="HSN/SAC"
+                              value={item.hsn}
+                              onChange={(e) => updateInvoiceItem(item.id, 'hsn', e.target.value)}
+                              className="h-9 text-sm"
+                            />
                           </TableCell>
                           <TableCell>
                             <Input
@@ -841,15 +882,6 @@ export default function InvoicesTab() {
                         min="0"
                         placeholder="0.00"
                       />
-                      <Select value={discountType} onValueChange={setDiscountType}>
-                        <SelectTrigger className="w-16 h-9 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="%">%</SelectItem>
-                          <SelectItem value="$">$</SelectItem>
-                        </SelectContent>
-                      </Select>
                       <span className="font-semibold w-24 text-right text-sm">${calculateTotals().discountAmount.toFixed(2)}</span>
                     </div>
                   </div>
@@ -933,6 +965,7 @@ export default function InvoicesTab() {
                     <Label htmlFor="bank-name" className="text-sm">
                       <span className="text-red-500">*</span> Bank Name
                     </Label>
+<<<<<<< Updated upstream
                     {paymentMode === 'bank_transfer' && availableBankAccounts.length > 0 ? (
                       <Select
                         value={bankName || undefined}
@@ -964,6 +997,15 @@ export default function InvoicesTab() {
                         onChange={(e) => setBankName(e.target.value)}
                       />
                     )}
+=======
+                    <Input
+                      id="bank-name"
+                      placeholder="Enter bank name"
+                      className="h-10"
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                    />
+>>>>>>> Stashed changes
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -988,9 +1030,97 @@ export default function InvoicesTab() {
                       placeholder="Enter IFSC or SWIFT code"
                       className="h-10"
                       value={bankIfsc}
+<<<<<<< Updated upstream
                       onChange={(e) => setBankIfsc(e.target.value)}
+=======
+                      onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
+>>>>>>> Stashed changes
                     />
                   </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 via-blue-50/40 to-white p-3 sm:p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-sm font-semibold">Accepted Payment Method</Label>
+                    <Badge variant="outline" className="bg-white text-slate-700 border-slate-300">
+                      Selected: {selectedPaymentMethod?.label || 'Bank'}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {paymentMethodOptions.map((option) => {
+                      const Icon = option.icon;
+                      const isSelected = paymentMethod === option.value;
+                      return (
+                        <Button
+                          key={option.value}
+                          type="button"
+                          variant="outline"
+                          onClick={() => setPaymentMethod(option.value as 'upi' | 'bank' | 'cash' | 'custom')}
+                          className={cn(
+                            'h-14 flex-col items-start justify-center gap-0.5 border-slate-300 bg-white hover:bg-slate-100 px-3',
+                            isSelected && 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm hover:bg-blue-100',
+                          )}
+                        >
+                          <div className="flex items-center gap-2 text-sm font-medium leading-none">
+                            <Icon className="h-4 w-4" />
+                            <span>{option.label}</span>
+                          </div>
+                          <span className="text-[11px] text-slate-500">{option.helper}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  {paymentMethod === 'upi' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="upi-id" className="text-sm">UPI ID</Label>
+                      <Input
+                        id="upi-id"
+                        placeholder="name@bank"
+                        className="h-10"
+                        value={upiId}
+                        onChange={(e) => setUpiId(e.target.value.trim())}
+                      />
+                    </div>
+                  )}
+
+                  {paymentMethod === 'custom' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="custom-payment-method" className="text-sm">Custom Method Name</Label>
+                      <Input
+                        id="custom-payment-method"
+                        value={customPaymentMethod}
+                        onChange={(e) => setCustomPaymentMethod(e.target.value)}
+                        placeholder="e.g. Wallet, POS, Cheque"
+                        className="h-10"
+                      />
+                    </div>
+                  )}
+
+                  <div className="rounded-lg border border-blue-100 bg-white p-3 space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Payment Summary Preview</p>
+                    {paymentMethod === 'bank' && (
+                      <div className="text-sm text-slate-700 space-y-1">
+                        <p><span className="font-medium">Bank:</span> {bankName || 'Not added'}</p>
+                        <p><span className="font-medium">Account Holder:</span> {bankAccountHolder || 'Not added'}</p>
+                        <p><span className="font-medium">Account No:</span> {getMaskedAccountNumber(bankAccountNumber)}</p>
+                        <p><span className="font-medium">IFSC/SWIFT:</span> {bankIfsc || 'Not added'}</p>
+                      </div>
+                    )}
+                    {paymentMethod === 'upi' && (
+                      <p className="text-sm text-slate-700"><span className="font-medium">UPI ID:</span> {upiId || 'Not added'}</p>
+                    )}
+                    {paymentMethod === 'cash' && (
+                      <p className="text-sm text-slate-700">Customer will pay by cash. No digital details needed.</p>
+                    )}
+                    {paymentMethod === 'custom' && (
+                      <p className="text-sm text-slate-700"><span className="font-medium">Method:</span> {customPaymentMethod || 'Not added'}</p>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-slate-500">
+                    Select how the customer can pay this invoice. This keeps the payment details clear and consistent.
+                  </p>
                 </div>
               </div>
 
@@ -1555,12 +1685,11 @@ export default function InvoicesTab() {
                                         </div>
                                         <div className="space-y-2">
                                           <Label htmlFor="edit-prefix" className="text-sm font-semibold text-slate-700">Prefix</Label>
-                                          <Select defaultValue="inv">
+                                          <Select defaultValue="bill">
                                             <SelectTrigger id="edit-prefix" className="h-11 border-slate-300">
                                               <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                              <SelectItem value="inv">INV-</SelectItem>
                                               <SelectItem value="bill">BILL-</SelectItem>
                                             </SelectContent>
                                           </Select>
@@ -1652,6 +1781,7 @@ export default function InvoicesTab() {
                                           <TableHead className="w-8 text-white font-bold">#</TableHead>
                                           <TableHead className="w-48 text-white font-bold">Item</TableHead>
                                           <TableHead className="text-white font-bold">Description</TableHead>
+                                          <TableHead className="w-28 text-white font-bold">HSN/SAC</TableHead>
                                           <TableHead className="w-24 text-white font-bold text-center">Qty</TableHead>
                                           <TableHead className="w-32 text-white font-bold text-right">Rate</TableHead>
                                           <TableHead className="w-32 text-white font-bold">Tax</TableHead>
@@ -1678,6 +1808,14 @@ export default function InvoicesTab() {
                                                 className="min-h-[70px] text-sm border-slate-300 resize-none" 
                                                 rows={2}
                                                 placeholder="Detailed description"
+                                              />
+                                            </TableCell>
+                                            <TableCell>
+                                              <Input
+                                                value={item.hsn}
+                                                onChange={(e) => updateInvoiceItem(item.id, 'hsn', e.target.value)}
+                                                className="h-10 text-sm border-slate-300"
+                                                placeholder="HSN/SAC"
                                               />
                                             </TableCell>
                                             <TableCell>
@@ -1742,25 +1880,14 @@ export default function InvoicesTab() {
                                       <h3 className="text-lg font-bold text-slate-900 mb-4">Additional Information</h3>
                                       <div className="space-y-4">
                                         <div className="space-y-2">
-                                          <Label className="text-sm font-semibold text-slate-700">Discount Type</Label>
-                                          <div className="flex gap-3">
-                                            <Select value={discountType} onValueChange={setDiscountType}>
-                                              <SelectTrigger className="w-40 h-11 border-slate-300">
-                                                <SelectValue />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                <SelectItem value="%">Percentage (%)</SelectItem>
-                                                <SelectItem value="₹">Fixed Amount (₹)</SelectItem>
-                                              </SelectContent>
-                                            </Select>
-                                            <Input 
-                                              type="number" 
-                                              value={discount}
-                                              onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                                              className="w-32 h-11 border-slate-300 font-mono"
-                                              placeholder="0.00"
-                                            />
-                                          </div>
+                                          <Label className="text-sm font-semibold text-slate-700">Discount</Label>
+                                          <Input 
+                                            type="number" 
+                                            value={discount}
+                                            onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                                            className="w-48 h-11 border-slate-300 font-mono"
+                                            placeholder="0.00"
+                                          />
                                         </div>
                                         <div className="space-y-2">
                                           <Label className="text-sm font-semibold text-slate-700">Adjustment</Label>

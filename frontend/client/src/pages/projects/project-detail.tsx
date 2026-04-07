@@ -34,7 +34,6 @@ import ProjectTasksTab from './tabs/project-tasks-tab';
 import ProjectTimesheetsTab from './tabs/project-timesheets-tab';
 import ProjectTeamTab from './tabs/project-team-tab';
 import ProjectMilestonesTab from './tabs/project-milestones-tab';
-import ProjectClientPortalTab from './tabs/project-client-portal-tab';
 import ProjectFilesTab from './tabs/project-files-tab';
 import ProjectAutomationTab from './tabs/project-automation-tab';
 import ProjectReportsTab from './tabs/project-reports-tab';
@@ -218,10 +217,6 @@ export default function ProjectDetail() {
                 <Target className="h-4 w-4 mr-2" />
                 Milestones
               </TabsTrigger>
-              <TabsTrigger value="client-portal">
-                <FileText className="h-4 w-4 mr-2" />
-                Client Portal
-              </TabsTrigger>
               <TabsTrigger value="files">
                 <Upload className="h-4 w-4 mr-2" />
                 Files
@@ -255,10 +250,6 @@ export default function ProjectDetail() {
 
           <TabsContent value="milestones">
             <ProjectMilestonesTab projectId={project.id} />
-          </TabsContent>
-
-          <TabsContent value="client-portal">
-            <ProjectClientPortalTab projectId={project.id} />
           </TabsContent>
 
           <TabsContent value="files">

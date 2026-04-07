@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Plus, 
   Download, 
@@ -52,12 +53,39 @@ export default function PaymentsTab() {
   const [showReceiptView, setShowReceiptView] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [recordPaymentMode, setRecordPaymentMode] = useState('bank');
-  const [recordBankAccountId, setRecordBankAccountId] = useState('');
+  const [recordInvoiceId, setRecordInvoiceId] = useState('inv-001');
+  const [recordAmountPaid, setRecordAmountPaid] = useState(0);
+  const [selectedSuggestedBank, setSelectedSuggestedBank] = useState('');
   const [bankAccountOptions, setBankAccountOptions] = useState(() => getActiveBankAccountOptions());
   const [eSignatures, setESignatures] = useState(() => getESignatureProfiles());
   const [recordESignatureId, setRecordESignatureId] = useState('');
   const [recordSignatureDesignation, setRecordSignatureDesignation] = useState('');
   const { toast } = useToast();
+
+  const recordInvoiceOptions = [
+    { value: 'inv-001', invoice: 'INV-001', customer: 'Acme Corporation', amount: 45000 },
+    { value: 'inv-002', invoice: 'INV-002', customer: 'Global Tech', amount: 85000 },
+    { value: 'inv-003', invoice: 'INV-003', customer: 'Nexus Solutions', amount: 25000 },
+  ];
+
+  const selectedRecordInvoice =
+    recordInvoiceOptions.find((invoiceOption) => invoiceOption.value === recordInvoiceId) || recordInvoiceOptions[0];
+
+  const suggestedBankNames = useMemo(() => {
+    if (bankAccountOptions.length > 0) {
+      return bankAccountOptions.slice(0, 6).map((account) => account.name);
+    }
+    return ['State Bank of India', 'HDFC Bank', 'ICICI Bank', 'Axis Bank'];
+  }, [bankAccountOptions]);
+
+  useEffect(() => {
+    if (recordPaymentMode === 'bank' && suggestedBankNames.length > 0) {
+      const stillAvailable = suggestedBankNames.includes(selectedSuggestedBank);
+      if (!stillAvailable) {
+        setSelectedSuggestedBank(suggestedBankNames[0]);
+      }
+    }
+  }, [recordPaymentMode, suggestedBankNames, selectedSuggestedBank]);
 
   useEffect(() => {
     const reloadBankAccounts = () => {
@@ -268,37 +296,34 @@ export default function PaymentsTab() {
                   <DialogTitle>Record Payment</DialogTitle>
                   <DialogDescription>Enter payment details</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 px-6 py-4 overflow-y-auto">
+                <ScrollArea className="max-h-[calc(90vh-150px)]">
+                <div className="space-y-4 px-6 py-4">
                   {/* Payment Info */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="pay-number">Payment Number</Label>
-                      <Input id="pay-number" placeholder="PAY-001" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pay-date">Payment Date</Label>
-                      <Input id="pay-date" type="date" />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pay-date">Payment Date</Label>
+                    <Input id="pay-date" type="date" />
                   </div>
 
                   {/* Invoice & Customer */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="pay-invoice">Invoice</Label>
-                      <Select>
+                      <Select value={recordInvoiceId} onValueChange={setRecordInvoiceId}>
                         <SelectTrigger id="pay-invoice">
                           <SelectValue placeholder="Select invoice" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="inv-001">INV-001 - ₹45,000</SelectItem>
-                          <SelectItem value="inv-002">INV-002 - ₹85,000</SelectItem>
-                          <SelectItem value="inv-003">INV-003 - ₹25,000</SelectItem>
+                          {recordInvoiceOptions.map((invoiceOption) => (
+                            <SelectItem key={invoiceOption.value} value={invoiceOption.value}>
+                              {invoiceOption.invoice} - ₹{invoiceOption.amount.toLocaleString('en-IN')}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="pay-customer">Customer</Label>
-                      <Input id="pay-customer" placeholder="Auto-filled from invoice" disabled />
+                      <Input id="pay-customer" value={selectedRecordInvoice.customer} disabled />
                     </div>
                   </div>
 
@@ -306,19 +331,22 @@ export default function PaymentsTab() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="pay-amount">Amount Paid</Label>
-                      <Input id="pay-amount" type="number" placeholder="0.00" />
+                      <Input
+                        id="pay-amount"
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={recordAmountPaid === 0 ? '' : String(recordAmountPaid)}
+                        onChange={(e) => {
+                          const sanitized = e.target.value.replace(/[^0-9.]/g, '');
+                          const parsed = parseFloat(sanitized);
+                          setRecordAmountPaid(Number.isFinite(parsed) ? parsed : 0);
+                        }}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="pay-mode">Payment Mode</Label>
-                      <Select
-                        value={recordPaymentMode}
-                        onValueChange={(value) => {
-                          setRecordPaymentMode(value);
-                          if (value !== 'bank') {
-                            setRecordBankAccountId('');
-                          }
-                        }}
-                      >
+                      <Select value={recordPaymentMode} onValueChange={setRecordPaymentMode}>
                         <SelectTrigger id="pay-mode">
                           <SelectValue placeholder="Select mode" />
                         </SelectTrigger>
@@ -335,25 +363,24 @@ export default function PaymentsTab() {
 
                   {recordPaymentMode === 'bank' && (
                     <div className="space-y-2">
-                      <Label htmlFor="pay-bank-account">Bank Name</Label>
-                      <Select value={recordBankAccountId} onValueChange={setRecordBankAccountId}>
-                        <SelectTrigger id="pay-bank-account">
-                          <SelectValue placeholder="Select bank account" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {bankAccountOptions.length > 0 ? (
-                            bankAccountOptions.map((account) => (
-                              <SelectItem key={account.id} value={account.id}>
-                                {account.name}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <SelectItem value="no-bank-accounts" disabled>
-                              No active bank accounts found
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
+                      <Label>Suggested Banks</Label>
+                      <div className="flex flex-wrap gap-2 rounded-md border bg-slate-50 p-3">
+                        {suggestedBankNames.map((bankName) => (
+                          <button
+                            key={bankName}
+                            type="button"
+                            onClick={() => setSelectedSuggestedBank(bankName)}
+                            className={cn(
+                              'inline-flex items-center rounded-md border px-2.5 py-1 text-xs transition-colors',
+                              selectedSuggestedBank === bankName
+                                ? 'border-blue-600 bg-blue-100 text-blue-700'
+                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100',
+                            )}
+                          >
+                            {bankName}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -385,14 +412,10 @@ export default function PaymentsTab() {
                   </div>
 
                   {/* Transaction Details */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <div className="space-y-2">
                       <Label htmlFor="pay-txn">Transaction ID</Label>
                       <Input id="pay-txn" placeholder="TXN-2026-001" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pay-ref">Reference Number</Label>
-                      <Input id="pay-ref" placeholder="Optional" />
                     </div>
                   </div>
 
@@ -404,20 +427,27 @@ export default function PaymentsTab() {
 
                   {/* Invoice Amount Summary */}
                   <div className="p-4 bg-slate-50 rounded-lg space-y-2">
+                    {recordPaymentMode === 'bank' && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Selected Bank:</span>
+                        <span className="font-semibold">{selectedSuggestedBank || 'Not selected'}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-600">Invoice Amount:</span>
-                      <span className="font-semibold">₹45,000.00</span>
+                      <span className="font-semibold">₹{selectedRecordInvoice.amount.toLocaleString('en-IN')}.00</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-600">Amount Paid:</span>
-                      <span className="font-semibold text-green-700">₹0.00</span>
+                      <span className="font-semibold text-green-700">₹{recordAmountPaid.toLocaleString('en-IN')}.00</span>
                     </div>
                     <div className="flex justify-between text-sm font-bold pt-2 border-t">
                       <span>Amount Due:</span>
-                      <span className="text-red-700">₹45,000.00</span>
+                      <span className="text-red-700">₹{Math.max(selectedRecordInvoice.amount - recordAmountPaid, 0).toLocaleString('en-IN')}.00</span>
                     </div>
                   </div>
                 </div>
+                </ScrollArea>
                 <div className="sticky bottom-0 border-t bg-white px-6 py-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsRecordPaymentOpen(false)}>Cancel</Button>
                   <Button className="w-full sm:w-auto bg-black text-white hover:bg-black/90" onClick={() => handlePaymentAction('send')}>
@@ -438,7 +468,6 @@ export default function PaymentsTab() {
           <Table>
             <TableHeader className="bg-slate-50/50">
               <TableRow>
-                <TableHead className="px-6">Payment #</TableHead>
                 <TableHead>Invoice #</TableHead>
                 <TableHead>Payment Mode</TableHead>
                 <TableHead>Transaction ID</TableHead>
@@ -450,18 +479,18 @@ export default function PaymentsTab() {
             <TableBody>
               {filteredPayments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-slate-500">
+                  <TableCell colSpan={6} className="h-32 text-center text-slate-500">
                     No entries found
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredPayments.map((payment) => (
                   <TableRow key={payment.id} className="hover:bg-slate-50 transition-colors group">
-                    <TableCell className="px-6">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-semibold text-slate-900">{payment.id}</span>
-                        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs">
-                          <button 
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="font-medium text-blue-600 cursor-pointer hover:underline">{payment.invoice}</div>
+                        <div className="text-xs">
+                          <button
                             className="text-blue-600 hover:text-blue-800 hover:underline"
                             onClick={() => {
                               setSelectedPayment(payment);
@@ -471,7 +500,7 @@ export default function PaymentsTab() {
                             View
                           </button>
                           <span className="text-slate-300 mx-1">|</span>
-                          <button 
+                          <button
                             className="text-red-600 hover:text-red-800 hover:underline"
                             onClick={() => {
                               setPayments(payments.filter(p => p.id !== payment.id));
@@ -480,11 +509,8 @@ export default function PaymentsTab() {
                           >
                             Delete
                           </button>
-                        </span>
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell className="font-medium text-blue-600 cursor-pointer hover:underline">
-                      {payment.invoice}
                     </TableCell>
                     <TableCell className="text-sm">{payment.mode}</TableCell>
                     <TableCell className="font-mono text-xs text-slate-600">{payment.transactionId}</TableCell>

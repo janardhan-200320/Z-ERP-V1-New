@@ -69,6 +69,8 @@ export default function HRMAssets() {
   const [assetSearchQuery, setAssetSearchQuery] = useState('');
   const [assetCategoryFilter, setAssetCategoryFilter] = useState('all');
   const [assetStatusFilter, setAssetStatusFilter] = useState('all');
+  const [addAssetCategory, setAddAssetCategory] = useState('');
+  const [addCustomCategory, setAddCustomCategory] = useState('');
 
   // Mock data - Company Assets
   const [assets, setAssets] = useState([
@@ -559,7 +561,7 @@ export default function HRMAssets() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="asset-category">Category</Label>
-                      <Select>
+                      <Select value={addAssetCategory} onValueChange={setAddAssetCategory}>
                         <SelectTrigger id="asset-category">
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
@@ -569,10 +571,22 @@ export default function HRMAssets() {
                           <SelectItem value="office-equipment">Office Equipment</SelectItem>
                           <SelectItem value="furniture">Furniture</SelectItem>
                           <SelectItem value="id-card">ID Card & Access</SelectItem>
+                          <SelectItem value="custom">Custom</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
+                  {addAssetCategory === 'custom' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="custom-asset-category">Custom Category</Label>
+                      <Input
+                        id="custom-asset-category"
+                        placeholder="Type any category name"
+                        value={addCustomCategory}
+                        onChange={(e) => setAddCustomCategory(e.target.value)}
+                      />
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="asset-brand">Brand</Label>
@@ -687,6 +701,7 @@ export default function HRMAssets() {
                   <SelectItem value="Office Equipment">Office Equipment</SelectItem>
                   <SelectItem value="Furniture">Furniture</SelectItem>
                   <SelectItem value="ID & Access">ID Cards & Access</SelectItem>
+                  <SelectItem value="Custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={assetStatusFilter} onValueChange={setAssetStatusFilter}>

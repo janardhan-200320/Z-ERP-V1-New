@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Plus, Activity, UserPlus } from 'lucide-react';
+import { useNotifications } from '@/contexts/NotificationContext';
+import { Activity, UserPlus } from 'lucide-react';
 
 interface ProjectTeamTabProps {
   projectId: string | undefined;
@@ -17,11 +17,11 @@ interface ProjectTeamTabProps {
 
 export default function ProjectTeamTab({ projectId }: ProjectTeamTabProps) {
   const { toast } = useToast();
+  const { addNotification } = useNotifications();
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
   const [memberForm, setMemberForm] = useState({
     name: '',
-    email: '',
-    role: ''
+    sendNotification: true
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   // Mock data
@@ -45,14 +45,22 @@ export default function ProjectTeamTab({ projectId }: ProjectTeamTabProps) {
     { user: 'Chris Taylor', action: 'Reported bug in login flow', time: '2 days ago', avatar: 'CT' }
   ];
 
+  const staffSuggestions = [
+    'John Smith',
+    'Sarah Johnson',
+    'Mike Brown',
+    'Emily Davis',
+    'Alex Wilson',
+    'Chris Taylor',
+    'Lisa Anderson',
+    'Tom White',
+    'Riya Patel',
+    'Daniel Lee'
+  ];
+
   const validateMemberForm = () => {
     const errors: Record<string, string> = {};
     if (!memberForm.name.trim()) errors.name = 'Name is required';
-    if (!memberForm.email.trim()) errors.email = 'Email is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(memberForm.email)) {
-      errors.email = 'Please enter a valid email address';
-    }
-    if (!memberForm.role) errors.role = 'Please select a role';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -60,18 +68,32 @@ export default function ProjectTeamTab({ projectId }: ProjectTeamTabProps) {
   const resetMemberForm = () => {
     setMemberForm({
       name: '',
-      email: '',
-      role: ''
+      sendNotification: true
     });
     setFormErrors({});
   };
 
   const handleAddMember = () => {
     if (!validateMemberForm()) return;
+
+    if (memberForm.sendNotification) {
+      addNotification({
+        title: 'Added to Project Team',
+        message: `You have been added to project ${projectId ?? 'team'}.`,
+        type: 'info',
+        metadata: {
+          projectId,
+          memberName: memberForm.name,
+          category: 'project-team'
+        }
+      });
+    }
     
     toast({
       title: "Team Member Added",
-      description: `${memberForm.name} has been added to the project.`,
+      description: memberForm.sendNotification
+        ? `${memberForm.name} has been added to the project and notified.`
+        : `${memberForm.name} has been added to the project.`,
     });
     setShowAddMemberDialog(false);
     resetMemberForm();
@@ -159,46 +181,31 @@ export default function ProjectTeamTab({ projectId }: ProjectTeamTabProps) {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="member-name">Full Name *</Label>
+              <Label htmlFor="member-name">Staff Name *</Label>
               <Input
                 id="member-name"
                 value={memberForm.name}
                 onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
-                placeholder="Enter full name"
+                placeholder="Start typing staff name"
+                list="staff-name-suggestions"
                 className={formErrors.name ? 'border-red-500' : ''}
               />
+              <datalist id="staff-name-suggestions">
+                {staffSuggestions.map((staffName) => (
+                  <option key={staffName} value={staffName} />
+                ))}
+              </datalist>
               {formErrors.name && <p className="text-xs text-red-500">{formErrors.name}</p>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="member-email">Email Address *</Label>
-              <Input
-                id="member-email"
-                type="email"
-                value={memberForm.email}
-                onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
-                placeholder="Enter email address"
-                className={formErrors.email ? 'border-red-500' : ''}
+            <div className="flex items-center space-x-2 pt-1">
+              <Checkbox
+                id="notify-member"
+                checked={memberForm.sendNotification}
+                onCheckedChange={(checked) => setMemberForm({ ...memberForm, sendNotification: checked === true })}
               />
-              {formErrors.email && <p className="text-xs text-red-500">{formErrors.email}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="member-role">Role *</Label>
-              <Select value={memberForm.role} onValueChange={(value) => setMemberForm({ ...memberForm, role: value })}>
-                <SelectTrigger className={formErrors.role ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="project-manager">Project Manager</SelectItem>
-                  <SelectItem value="lead-developer">Lead Developer</SelectItem>
-                  <SelectItem value="frontend-developer">Frontend Developer</SelectItem>
-                  <SelectItem value="backend-developer">Backend Developer</SelectItem>
-                  <SelectItem value="ui-ux-designer">UI/UX Designer</SelectItem>
-                  <SelectItem value="qa-engineer">QA Engineer</SelectItem>
-                  <SelectItem value="devops-engineer">DevOps Engineer</SelectItem>
-                  <SelectItem value="business-analyst">Business Analyst</SelectItem>
-                </SelectContent>
-              </Select>
-              {formErrors.role && <p className="text-xs text-red-500">{formErrors.role}</p>}
+              <Label htmlFor="notify-member" className="font-normal text-sm text-slate-700">
+                Send notification to staff member after adding
+              </Label>
             </div>
           </div>
           <DialogFooter>

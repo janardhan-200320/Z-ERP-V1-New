@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, Calendar, DollarSign, TrendingUp, RefreshCw, CheckCircle, Send, Paperclip } from "lucide-react";
+import { Building, Calendar, IndianRupee, TrendingUp, RefreshCw, CheckCircle, Send, Paperclip } from "lucide-react";
 
 type RenewalContract = {
   id: string;
@@ -215,7 +215,7 @@ export default function ContractRenewalsModule() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 font-medium text-green-700">
-                      <DollarSign className="h-4 w-4" />
+                      <IndianRupee className="h-4 w-4" />
                       {renewal.proposedValue}
                     </div>
                     {renewal.currentValue && (

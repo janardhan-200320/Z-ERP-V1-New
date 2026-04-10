@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BarChart3, Download, FileText, TrendingUp, TrendingDown, DollarSign, Clock } from 'lucide-react';
+import { BarChart3, Download, FileText, TrendingUp, TrendingDown, IndianRupee, Clock } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 interface ProjectReportsTabProps {
@@ -17,7 +17,7 @@ export default function ProjectReportsTab({ projectId }: ProjectReportsTabProps)
 
   // Mock data
   const kpiSummary = [
-    { title: 'Budget Utilization', value: '65%', trend: 'up', change: '+5%', icon: DollarSign, color: 'text-green-600', bgColor: 'bg-green-100' },
+    { title: 'Budget Utilization', value: '65%', trend: 'up', change: '+5%', icon: IndianRupee, color: 'text-green-600', bgColor: 'bg-green-100' },
     { title: 'Time Progress', value: '58%', trend: 'up', change: '+12%', icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-100' },
     { title: 'Task Completion', value: '72%', trend: 'up', change: '+8%', icon: BarChart3, color: 'text-purple-600', bgColor: 'bg-purple-100' },
     { title: 'Team Efficiency', value: '88%', trend: 'down', change: '-3%', icon: TrendingUp, color: 'text-orange-600', bgColor: 'bg-orange-100' }

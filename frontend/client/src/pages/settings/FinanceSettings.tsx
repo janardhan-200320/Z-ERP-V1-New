@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Save, DollarSign } from "lucide-react";
+import { Save, IndianRupee } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,7 +103,7 @@ export default function FinanceSettings() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-muted-foreground" />
+              <IndianRupee className="h-5 w-5 text-muted-foreground" />
               <CardTitle>Currency & Tax Settings</CardTitle>
             </div>
             <CardDescription>Set default currency and tax configurations</CardDescription>

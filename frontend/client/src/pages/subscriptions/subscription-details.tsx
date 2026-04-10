@@ -14,7 +14,7 @@ import {
   Mail,
   MessageSquare,
   Calendar,
-  DollarSign,
+  IndianRupee,
   User,
   Building,
   Clock,
@@ -175,7 +175,7 @@ export default function SubscriptionDetails() {
       case 'reminder_sent':
         return <AlertCircle className="h-4 w-4 text-orange-600" />;
       case 'payment':
-        return <DollarSign className="h-4 w-4 text-green-600" />;
+        return <IndianRupee className="h-4 w-4 text-green-600" />;
       case 'status_change':
         return <TrendingUp className="h-4 w-4 text-purple-600" />;
       case 'edited':

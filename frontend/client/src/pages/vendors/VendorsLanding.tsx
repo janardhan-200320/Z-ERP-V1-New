@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Plus, Search, Filter, Download, Upload, Star, Phone, Mail, MapPin, FileText, AlertCircle, Calendar, DollarSign, Users, TrendingUp } from 'lucide-react';
+import { Plus, Search, Filter, Download, Upload, Star, Phone, Mail, MapPin, FileText, AlertCircle, Calendar, IndianRupee, Users, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -553,12 +553,14 @@ export default function VendorsLanding() {
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">Total Paid</p>
-                    <p className="text-2xl font-bold text-green-600">₹{totalPaidToVendor.toLocaleString()}
+                    <p className="text-2xl font-bold text-green-600">
+                      ${totalPaidToVendor.toLocaleString()}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">Outstanding Amount</p>
-                    <p className={`text-2xl font-bold ${getOutstandingAmountColor(vendor.outstanding)}`}>₹{vendor.outstanding.toLocaleString()}
+                    <p className={`text-2xl font-bold ${getOutstandingAmountColor(vendor.outstanding)}`}>
+                      ${vendor.outstanding.toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -748,7 +750,7 @@ export default function VendorsLanding() {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Total Amount</span>
-                  <span className="text-3xl font-bold">₹{bill.amount.toLocaleString()}</span>
+                  <span className="text-3xl font-bold">${bill.amount.toLocaleString()}</span>
                 </div>
               </CardContent>
             </Card>
@@ -892,7 +894,7 @@ export default function VendorsLanding() {
         <StatsCard
           title="Total Paid"
           value={`₹${totalPaid.toLocaleString()}`}
-          icon={DollarSign}
+          icon={IndianRupee}
         />
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -1008,7 +1010,8 @@ export default function VendorsLanding() {
                         </TableCell>
                         <TableCell>{renderStars(vendor.rating)}</TableCell>
                         <TableCell>
-                          <span className={`font-semibold ${getOutstandingAmountColor(vendor.outstanding)}`}>₹{vendor.outstanding.toLocaleString()}
+                          <span className={`font-semibold ${getOutstandingAmountColor(vendor.outstanding)}`}>
+                            ${vendor.outstanding.toLocaleString()}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -1074,7 +1077,8 @@ export default function VendorsLanding() {
               <CardContent>
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-5 h-5 text-orange-500" />
-                  <span className="text-2xl font-bold text-orange-600">₹{totalOutstanding.toLocaleString()}
+                  <span className="text-2xl font-bold text-orange-600">
+                    ${totalOutstanding.toLocaleString()}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -1085,7 +1089,7 @@ export default function VendorsLanding() {
             <StatsCard
               title="Total Paid"
               value={`₹${totalPaid.toLocaleString()}`}
-              icon={DollarSign}
+              icon={IndianRupee}
             />
             <StatsCard
               title="Total Bills"
@@ -1155,7 +1159,8 @@ export default function VendorsLanding() {
                     >
                       <TableCell className="font-medium">{bill.vendorName}</TableCell>
                       <TableCell className="font-mono text-sm">{bill.billNumber}</TableCell>
-                      <TableCell className="font-semibold">₹{bill.amount.toLocaleString()}
+                      <TableCell className="font-semibold">
+                        ${bill.amount.toLocaleString()}
                       </TableCell>
                       <TableCell>{bill.billDate}</TableCell>
                       <TableCell>

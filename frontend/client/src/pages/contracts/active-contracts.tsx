@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Filter, Plus, Building, DollarSign, Calendar, User, Eye, Edit, Trash2, Download, FileText, Paperclip } from "lucide-react";
+import { Search, Filter, Plus, Building, IndianRupee, Calendar, User, Eye, Edit, Trash2, Download, FileText, Paperclip } from "lucide-react";
 
 type Contract = {
   id: string;
@@ -355,7 +355,7 @@ export default function ActiveContractsModule() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 font-medium text-green-700">
-                      <DollarSign className="h-4 w-4" />
+                      <IndianRupee className="h-4 w-4" />
                       {contract.value}
                     </div>
                   </TableCell>

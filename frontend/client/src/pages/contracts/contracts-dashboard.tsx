@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { FileText, RefreshCw, DollarSign, AlertTriangle, FilePlus, FileCheck, Calendar, Bell, FileSignature } from "lucide-react";
+import { FileText, RefreshCw, IndianRupee, AlertTriangle, FilePlus, FileCheck, Calendar, Bell, FileSignature } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import ActiveContractsModule from "./active-contracts";
 import ContractRenewalsModule from "./contract-renewals";
@@ -34,7 +34,7 @@ export default function ContractsDashboard() {
       title: "Total Contract Value",
       value: "₹8.5M",
       description: "active portfolio",
-      icon: DollarSign,
+      icon: IndianRupee,
       color: "text-green-600",
       bgColor: "bg-green-50"
     },

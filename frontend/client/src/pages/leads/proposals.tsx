@@ -45,7 +45,7 @@ import {
   FileCheck, FileText, Send, Mail, MessageCircle, 
   Plus, Minus, Edit, Eye, Download, Copy, RefreshCw,
   CheckCircle, XCircle, Clock, AlertCircle, Sparkles,
-  DollarSign, Calendar, User, Building2, Trash2,
+  IndianRupee, Calendar, User, Building2, Trash2,
   MoreVertical, Search, Filter, Target, TrendingUp,
   History, Loader2, Save, ExternalLink, ArrowRight
 } from "lucide-react";
@@ -686,7 +686,7 @@ export default function LeadProposals() {
             <CardContent className="p-4">
               <div className="flex flex-col items-center text-center">
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-2">
-                  <DollarSign className="w-6 h-6 text-purple-600" />
+                  <IndianRupee className="w-6 h-6 text-purple-600" />
                 </div>
                 <p className="text-xs text-gray-600 mb-1">Total Value</p>
                 <p className="text-lg font-bold text-purple-600">{formatCurrency(stats.totalValue)}</p>

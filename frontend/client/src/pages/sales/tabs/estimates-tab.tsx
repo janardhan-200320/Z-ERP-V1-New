@@ -400,8 +400,8 @@ export default function EstimatesTab() {
     {
       id: 'EST-001',
       customer: 'Acme Corporation',
-      amount: '₹42,000',
-      tax: '₹4,200',
+      amount: 'â‚¹42,000',
+      tax: 'â‚¹4,200',
       date: '2026-01-03',
       expiryDate: '2026-02-03',
       reference: 'REF-2026-001',
@@ -412,8 +412,8 @@ export default function EstimatesTab() {
     {
       id: 'EST-002',
       customer: 'TechStart Inc.',
-      amount: '₹78,000',
-      tax: '₹7,800',
+      amount: 'â‚¹78,000',
+      tax: 'â‚¹7,800',
       date: '2026-01-06',
       expiryDate: '2026-02-06',
       reference: 'REF-2026-002',
@@ -424,8 +424,8 @@ export default function EstimatesTab() {
     {
       id: 'EST-003',
       customer: 'Global Brands Ltd.',
-      amount: '₹22,000',
-      tax: '₹2,200',
+      amount: 'â‚¹22,000',
+      tax: 'â‚¹2,200',
       date: '2026-01-09',
       expiryDate: '2026-02-09',
       reference: 'REF-2026-003',
@@ -436,8 +436,8 @@ export default function EstimatesTab() {
     {
       id: 'EST-004',
       customer: 'Enterprise Solutions',
-      amount: '₹115,000',
-      tax: '₹11,500',
+      amount: 'â‚¹115,000',
+      tax: 'â‚¹11,500',
       date: '2026-01-11',
       expiryDate: '2026-02-11',
       reference: 'REF-2026-004',
@@ -784,10 +784,10 @@ export default function EstimatesTab() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="INR">INR (₹)</SelectItem>
-                            <SelectItem value="USD">INR (₹)</SelectItem>
-                            <SelectItem value="EUR">EUR (€)</SelectItem>
-                            <SelectItem value="GBP">GBP (£)</SelectItem>
+                            <SelectItem value="INR">INR (â‚¹)</SelectItem>
+                            <SelectItem value="USD">INR (â‚¹)</SelectItem>
+                            <SelectItem value="EUR">EUR (â‚¬)</SelectItem>
+                            <SelectItem value="GBP">GBP (Â£)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1237,10 +1237,10 @@ export default function EstimatesTab() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="usd">INR ₹</SelectItem>
-                                <SelectItem value="eur">EUR €</SelectItem>
-                                <SelectItem value="gbp">GBP £</SelectItem>
-                                <SelectItem value="inr">INR ₹</SelectItem>
+                                <SelectItem value="usd">INR â‚¹</SelectItem>
+                                <SelectItem value="eur">EUR â‚¬</SelectItem>
+                                <SelectItem value="gbp">GBP Â£</SelectItem>
+                                <SelectItem value="inr">INR â‚¹</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1504,7 +1504,7 @@ export default function EstimatesTab() {
                                   </Select>
                                 </TableCell>
                                 <TableCell className="text-right font-semibold">
-                                  ₹{line.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  â‚¹{line.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </TableCell>
                                 <TableCell>
                                   {index === 0 ? (
@@ -1533,20 +1533,20 @@ export default function EstimatesTab() {
                         <div className="w-96 space-y-3">
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-600">Sub Total:</span>
-                            <span className="font-semibold">₹{calculateCreateTotals().subTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="font-semibold">â‚¹{calculateCreateTotals().subTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                           </div>
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-600">CGST:</span>
-                            <span className="font-semibold">₹{calculateCreateTotals().cgstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="font-semibold">â‚¹{calculateCreateTotals().cgstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                           </div>
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-600">SGST:</span>
-                            <span className="font-semibold">₹{calculateCreateTotals().sgstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="font-semibold">â‚¹{calculateCreateTotals().sgstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                           </div>
                           {calculateCreateTotals().otherTaxAmount > 0 && (
                             <div className="flex justify-between items-center text-sm">
                               <span className="text-slate-600">Other Tax:</span>
-                              <span className="font-semibold">₹{calculateCreateTotals().otherTaxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              <span className="font-semibold">â‚¹{calculateCreateTotals().otherTaxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
                           )}
                           <div className="flex justify-between items-center">
@@ -1568,7 +1568,7 @@ export default function EstimatesTab() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <p className="text-sm text-slate-600">₹{calculateCreateTotals().discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                            <p className="text-sm text-slate-600">â‚¹{calculateCreateTotals().discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                           </div>
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
@@ -1580,11 +1580,11 @@ export default function EstimatesTab() {
                                 className="w-24 h-8 text-sm"
                               />
                             </div>
-                            <p className="text-sm text-slate-600">₹{createAdjustment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                            <p className="text-sm text-slate-600">â‚¹{createAdjustment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                           </div>
                           <div className="flex justify-between items-center pt-3 border-t">
                             <Label className="text-lg font-bold text-blue-600">Total:</Label>
-                            <p className="text-xl font-bold text-green-700">₹{calculateCreateTotals().total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                            <p className="text-xl font-bold text-green-700">â‚¹{calculateCreateTotals().total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                           </div>
                         </div>
                       </div>

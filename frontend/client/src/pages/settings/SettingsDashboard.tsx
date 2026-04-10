@@ -6,7 +6,7 @@ import {
   Building2, 
   Mail, 
   FileSignature, 
-  DollarSign, 
+  IndianRupee, 
   Target,
   ArrowRight,
   Globe,
@@ -48,7 +48,7 @@ export default function SettingsDashboard() {
     {
       title: "Finance Settings",
       description: "Manage currency, tax rates, invoicing, and payment gateways",
-      icon: DollarSign,
+      icon: IndianRupee,
       color: "text-green-600",
       bgColor: "bg-green-50",
       path: "/dashboard/settings/finance",

@@ -16,7 +16,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  DollarSign,
+  IndianRupee,
   FileText,
   Plus,
   Users,
@@ -262,7 +262,7 @@ export default function ProjectClientPortalTab({ projectId }: ProjectClientPorta
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Budget Utilized</p>
                 <p className="mt-2 text-2xl font-bold text-slate-900">{completionPct}%</p>
               </div>
-              <DollarSign className="h-7 w-7 text-blue-600" />
+              <IndianRupee className="h-7 w-7 text-blue-600" />
             </div>
           </CardContent>
         </Card>
@@ -349,7 +349,7 @@ export default function ProjectClientPortalTab({ projectId }: ProjectClientPorta
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-emerald-600" />
+                <IndianRupee className="h-5 w-5 text-emerald-600" />
                 Project Finance Overview
               </CardTitle>
             </CardHeader>

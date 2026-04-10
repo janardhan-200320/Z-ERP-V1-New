@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { 
   FileBarChart, Download, Calendar, Filter, 
-  TrendingUp, TrendingDown, DollarSign, PieChart,
+  TrendingUp, TrendingDown, IndianRupee, PieChart,
   Target, Zap, ShieldCheck, ArrowRight, FileText,
   Activity, Briefcase, Globe, Layers, BarChart3,
   Search, ChevronRight, Settings2, Share2, Printer, Plus

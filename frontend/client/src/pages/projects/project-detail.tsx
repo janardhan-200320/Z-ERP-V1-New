@@ -12,7 +12,7 @@ import {
   MoreVertical,
   FolderKanban,
   Target,
-  DollarSign,
+  IndianRupee,
   Users,
   TrendingUp,
   Upload,

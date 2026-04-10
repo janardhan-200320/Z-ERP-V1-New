@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Users, DollarSign, MessageSquare, UserPlus, UserCheck, UserCircle, MessagesSquare, FolderTree, TrendingUp } from "lucide-react";
+import { Users, IndianRupee, MessageSquare, UserPlus, UserCheck, UserCircle, MessagesSquare, FolderTree, TrendingUp } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import CustomersListModule from "./customers-list";
 import CommunicationLogModule from "./communication-log";
@@ -34,7 +34,7 @@ export default function CustomersDashboard() {
       title: "Pipeline Value",
       value: "₹2.4M",
       description: "estimated revenue",
-      icon: DollarSign,
+      icon: IndianRupee,
       color: "text-green-600",
       bgColor: "bg-green-50"
     },

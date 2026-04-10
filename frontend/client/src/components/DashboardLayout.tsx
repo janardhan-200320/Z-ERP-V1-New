@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, ReactNode, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, ReactNode, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -36,7 +36,7 @@ import {
   Smile,
   Send,
   X,
-  DollarSign,
+  IndianRupee,
   FileText,
 } from 'lucide-react';
 import ProfileDropdown from './ProfileDropdown';
@@ -257,7 +257,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
 
     toast({
       title: 'Checked Out',
-      description: `Work time ${formatDurationClock(finalizedWorkMs)} • Break ${formatDurationClock(finalizedBreakMs)}`,
+      description: `Work time ${formatDurationClock(finalizedWorkMs)} � Break ${formatDurationClock(finalizedBreakMs)}`,
       duration: 3500,
     });
 
@@ -1042,7 +1042,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                   readOnly
                 />
                 <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs font-semibold text-slate-500 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-md shadow-sm">
-                  ⌘K
+                  ?K
                 </kbd>
               </div>
             </div>
@@ -1164,9 +1164,9 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 <p className="text-sm text-slate-500 mb-2">Start typing to search</p>
                 <div className="flex flex-wrap gap-2 justify-center text-xs text-slate-400">
                   <span>Try: Dashboard</span>
-                  <span>•</span>
+                  <span>�</span>
                   <span>Employees</span>
-                  <span>•</span>
+                  <span>�</span>
                   <span>Invoices</span>
                 </div>
               </div>
@@ -1188,7 +1188,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'} found
                   </p>
-                  <p className="text-xs text-slate-400">↑↓ Navigate • ↵ Select • ESC Close</p>
+                  <p className="text-xs text-slate-400">?? Navigate � ? Select � ESC Close</p>
                 </div>
                 <ScrollArea className="max-h-96">
                   <div className="space-y-1">
@@ -1328,7 +1328,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
 
             <div className="flex justify-center">
               <Badge className={`${isCheckedIn ? 'bg-green-600' : 'bg-slate-600'} text-white text-sm sm:text-base px-4 py-1.5 rounded-lg`}>
-                {isCheckedIn ? '✓ Working' : 'Not Checked In'}
+                {isCheckedIn ? '? Working' : 'Not Checked In'}
               </Badge>
             </div>
 

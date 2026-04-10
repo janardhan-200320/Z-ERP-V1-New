@@ -33,7 +33,7 @@ import {
   TrendingUp,
   TrendingDown,
   Users,
-  DollarSign,
+  IndianRupee,
   Percent,
   Shield,
   Printer,
@@ -274,12 +274,12 @@ export default function HRMPayroll() {
       exportToExcel(salaryData, filename);
       
       toast({
-        title: "✅ Export Successful",
+        title: "âœ… Export Successful",
         description: `Payroll data exported to ${filename}.csv`,
       });
     } catch (error) {
       toast({
-        title: "❌ Export Failed",
+        title: "âŒ Export Failed",
         description: "Failed to export payroll data. Please try again.",
         variant: "destructive"
       });
@@ -341,12 +341,12 @@ export default function HRMPayroll() {
       doc.save(filename);
       
       toast({
-        title: "✅ PDF Generated",
+        title: "âœ… PDF Generated",
         description: `Report saved as ${filename}`,
       });
     } catch (error) {
       toast({
-        title: "❌ PDF Generation Failed",
+        title: "âŒ PDF Generation Failed",
         description: "Failed to generate PDF report. Please try again.",
         variant: "destructive"
       });
@@ -385,12 +385,12 @@ export default function HRMPayroll() {
       setProcessingComplete(true);
       
       toast({
-        title: "✅ Payroll Processed Successfully",
+        title: "âœ… Payroll Processed Successfully",
         description: `${selectedMonth} payroll has been processed for ${employees.length} employees.`,
       });
     } catch (error) {
       toast({
-        title: "❌ Processing Failed",
+        title: "âŒ Processing Failed",
         description: "Failed to process payroll. Please try again.",
         variant: "destructive"
       });
@@ -487,7 +487,7 @@ export default function HRMPayroll() {
     doc.save(`Payslip_${employee.id}_${selectedMonth.replace(' ', '_')}.pdf`);
     
     toast({
-      title: "✅ Payslip Downloaded",
+      title: "âœ… Payslip Downloaded",
       description: `Payslip for ${employee.name} has been downloaded.`,
     });
   };
@@ -499,12 +499,12 @@ export default function HRMPayroll() {
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       toast({
-        title: "✅ Payslip Sent Successfully",
+        title: "âœ… Payslip Sent Successfully",
         description: `Payslip sent to ${employee.name} at ${employee.id.toLowerCase()}@company.com`,
       });
     } catch (error) {
       toast({
-        title: "❌ Failed to Send",
+        title: "âŒ Failed to Send",
         description: "Failed to send payslip. Please try again.",
         variant: "destructive"
       });
@@ -533,7 +533,7 @@ export default function HRMPayroll() {
   const sendBulkPayslips = async () => {
     if (selectedEmployees.length === 0) {
       toast({
-        title: "⚠️ No Employees Selected",
+        title: "âš ï¸ No Employees Selected",
         description: "Please select at least one employee to send payslips.",
         variant: "destructive"
       });
@@ -546,14 +546,14 @@ export default function HRMPayroll() {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       toast({
-        title: "✅ Bulk Payslips Sent",
+        title: "âœ… Bulk Payslips Sent",
         description: `Successfully sent payslips to ${selectedEmployees.length} employee${selectedEmployees.length > 1 ? 's' : ''}.`,
       });
       
       setSelectedEmployees([]);
     } catch (error) {
       toast({
-        title: "❌ Failed to Send",
+        title: "âŒ Failed to Send",
         description: "Failed to send bulk payslips. Please try again.",
         variant: "destructive"
       });
@@ -565,7 +565,7 @@ export default function HRMPayroll() {
   const downloadBulkPayslips = () => {
     if (selectedEmployees.length === 0) {
       toast({
-        title: "⚠️ No Employees Selected",
+        title: "âš ï¸ No Employees Selected",
         description: "Please select at least one employee to download payslips.",
         variant: "destructive"
       });
@@ -576,7 +576,7 @@ export default function HRMPayroll() {
     selectedEmps.forEach(emp => downloadPayslip(emp));
     
     toast({
-      title: "✅ Bulk Download Complete",
+      title: "âœ… Bulk Download Complete",
       description: `Downloaded ${selectedEmployees.length} payslip${selectedEmployees.length > 1 ? 's' : ''}.`,
     });
     
@@ -627,7 +627,7 @@ export default function HRMPayroll() {
       ));
       
       toast({
-        title: "✅ Payroll Processed Successfully",
+        title: "âœ… Payroll Processed Successfully",
         description: `Processed payroll for ${processingEmployee.name} via ${paymentMethod.replace('_', ' ').toUpperCase()} - ₹${calculateIndividualNet().toLocaleString()} paid`,
       });
       
@@ -637,7 +637,7 @@ export default function HRMPayroll() {
       setRemarks('');
     } catch (error) {
       toast({
-        title: "❌ Processing Failed",
+        title: "âŒ Processing Failed",
         description: "Failed to process payroll. Please try again.",
         variant: "destructive"
       });
@@ -776,7 +776,7 @@ export default function HRMPayroll() {
             <StatCard 
               title="Gross Payroll"
               value={`₹${payrollSummary.totalGross.toLocaleString()}`}
-              icon={<DollarSign className="h-5 w-5" />}
+              icon={<IndianRupee className="h-5 w-5" />}
               color="emerald"
               trend="up"
             />
@@ -863,7 +863,8 @@ export default function HRMPayroll() {
                       <div className="text-sm text-amber-600">Pending</div>
                     </div>
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                      <div className="text-2xl font-bold text-blue-700">₹{payrollSummary.totalNet.toLocaleString()}
+                      <div className="text-2xl font-bold text-blue-700">
+                        ${payrollSummary.totalNet.toLocaleString()}
                       </div>
                       <div className="text-sm text-blue-600">Total Net Pay</div>
                     </div>
@@ -995,7 +996,8 @@ export default function HRMPayroll() {
                                 "text-2xl font-black mb-1",
                                 monthData.status === 'paid' && "text-emerald-700",
                                 monthData.status === 'current' && "text-blue-700"
-                              )}>₹{monthData.amount.toLocaleString()}
+                              )}>
+                                ${monthData.amount.toLocaleString()}
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-slate-600">{monthData.employees} employees</span>
@@ -1014,7 +1016,7 @@ export default function HRMPayroll() {
                           ) : (
                             <>
                               <div className="text-2xl font-black text-slate-400 mb-1">
-                                ₹---,---
+                                $---,---
                               </div>
                               <div className="text-xs text-slate-400">
                                 {monthData.employees} employees (Est.)
@@ -1050,25 +1052,29 @@ export default function HRMPayroll() {
                   <div className="grid md:grid-cols-4 gap-4 p-5 bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl border border-slate-200">
                     <div className="text-center">
                       <div className="text-sm text-slate-600 mb-2">Year to Date</div>
-                      <div className="text-3xl font-black text-slate-900">₹{(548230 + 568716).toLocaleString()}
+                      <div className="text-3xl font-black text-slate-900">
+                        ${(548230 + 568716).toLocaleString()}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">2 months</div>
                     </div>
                     <div className="text-center">
                       <div className="text-sm text-slate-600 mb-2">Average Monthly</div>
-                      <div className="text-3xl font-black text-blue-700">₹{Math.round((548230 + 568716) / 2).toLocaleString()}
+                      <div className="text-3xl font-black text-blue-700">
+                        ${Math.round((548230 + 568716) / 2).toLocaleString()}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">per month</div>
                     </div>
                     <div className="text-center">
                       <div className="text-sm text-slate-600 mb-2">Remaining 2026</div>
-                      <div className="text-3xl font-black text-amber-700">₹{Math.round(((548230 + 568716) / 2) * 10).toLocaleString()}
+                      <div className="text-3xl font-black text-amber-700">
+                        ${Math.round(((548230 + 568716) / 2) * 10).toLocaleString()}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">estimated</div>
                     </div>
                     <div className="text-center">
                       <div className="text-sm text-slate-600 mb-2">Projected Annual</div>
-                      <div className="text-3xl font-black text-purple-700">₹{Math.round(((548230 + 568716) / 2) * 12).toLocaleString()}
+                      <div className="text-3xl font-black text-purple-700">
+                        ${Math.round(((548230 + 568716) / 2) * 12).toLocaleString()}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">total 2026</div>
                     </div>
@@ -1087,7 +1093,7 @@ export default function HRMPayroll() {
                         setTimeout(() => {
                           toast({
                             title: "Analysis Ready",
-                            description: "Total YTD: ₹1,116,946 | Avg: ₹558,473/month",
+                            description: "Total YTD: â‚¹1,116,946 | Avg: â‚¹558,473/month",
                           });
                         }, 1000);
                       }}
@@ -1101,8 +1107,8 @@ export default function HRMPayroll() {
                       onClick={() => {
                         const monthlyData = [
                           ['Month', 'Amount', 'Employees', 'Status'],
-                          ['January 2026', '₹548,230', '142', 'Paid'],
-                          ['February 2026', '₹568,716', '145', 'Current'],
+                          ['January 2026', 'â‚¹548,230', '142', 'Paid'],
+                          ['February 2026', 'â‚¹568,716', '145', 'Current'],
                         ];
                         toast({
                           title: "Export Complete",
@@ -1119,7 +1125,7 @@ export default function HRMPayroll() {
                       onClick={() => {
                         toast({
                           title: "Forecast Generated",
-                          description: "Projected annual payroll: ₹6,701,676 based on current trends",
+                          description: "Projected annual payroll: â‚¹6,701,676 based on current trends",
                         });
                       }}
                     >
@@ -1132,7 +1138,7 @@ export default function HRMPayroll() {
                       onClick={() => {
                         toast({
                           title: "Comparison Report",
-                          description: "Comparing February vs January: +3.7% increase (₹20,486)",
+                          description: "Comparing February vs January: +3.7% increase (â‚¹20,486)",
                         });
                       }}
                     >
@@ -1187,11 +1193,12 @@ export default function HRMPayroll() {
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3 text-amber-900">
                         <div className="p-2 bg-amber-100 rounded-lg">
-                          <DollarSign className="h-5 w-5 text-amber-600" />
+                          <IndianRupee className="h-5 w-5 text-amber-600" />
                         </div>
                         <div>
                           <div className="text-xs text-amber-600 font-medium">Total Pending Amount</div>
-                          <div className="text-2xl font-bold text-amber-700">₹{employees
+                          <div className="text-2xl font-bold text-amber-700">
+                            ${employees
                               .filter(emp => emp.status === 'pending')
                               .reduce((sum, emp) => sum + emp.netSalary, 0)
                               .toLocaleString()}
@@ -1267,7 +1274,7 @@ export default function HRMPayroll() {
                             {/* Status Badge */}
                             <div className="absolute top-4 right-4 z-10">
                               <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0 font-bold shadow-lg shadow-amber-500/30 animate-pulse">
-                                ⏳ Pending
+                                â³ Pending
                               </Badge>
                             </div>
 
@@ -1301,10 +1308,11 @@ export default function HRMPayroll() {
                             <div className="space-y-2.5 bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl p-4 mb-5 border border-slate-200 relative z-10 group-hover:border-purple-200 transition-colors duration-300">
                               <div className="flex justify-between items-center text-sm">
                                 <span className="text-slate-600 flex items-center gap-1.5">
-                                  <DollarSign className="h-3.5 w-3.5 text-slate-400" />
+                                  <IndianRupee className="h-3.5 w-3.5 text-slate-400" />
                                   Gross Salary
                                 </span>
-                                <span className="font-bold text-slate-900">₹{(employee.baseSalary + employee.allowances).toLocaleString()}
+                                <span className="font-bold text-slate-900">
+                                  ${(employee.baseSalary + employee.allowances).toLocaleString()}
                                 </span>
                               </div>
                               <div className="flex justify-between items-center text-sm">
@@ -1313,13 +1321,14 @@ export default function HRMPayroll() {
                                   Deductions
                                 </span>
                                 <span className="font-bold text-red-600">
-                                  -₹{employee.deductions.toLocaleString()}
+                                  -${employee.deductions.toLocaleString()}
                                 </span>
                               </div>
                               <div className="h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent my-2" />
                               <div className="flex justify-between items-center">
                                 <span className="text-sm font-bold text-slate-700">Net Payable</span>
-                                <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">₹{employee.netSalary.toLocaleString()}
+                                <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                                  ${employee.netSalary.toLocaleString()}
                                 </span>
                               </div>
                             </div>
@@ -1545,10 +1554,10 @@ export default function HRMPayroll() {
                               </div>
                             </TableCell>
                             <TableCell>{employee.department}</TableCell>
-                            <TableCell className="text-right">₹{employee.baseSalary.toLocaleString()}</TableCell>
-                            <TableCell className="text-right">₹{employee.allowances.toLocaleString()}</TableCell>
-                            <TableCell className="text-right">₹{employee.deductions.toLocaleString()}</TableCell>
-                            <TableCell className="text-right font-bold">₹{employee.netSalary.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">${employee.baseSalary.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">${employee.allowances.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">${employee.deductions.toLocaleString()}</TableCell>
+                            <TableCell className="text-right font-bold">${employee.netSalary.toLocaleString()}</TableCell>
                             <TableCell>
                               <Badge 
                                 className={employee.status === 'processed' 
@@ -1664,9 +1673,11 @@ export default function HRMPayroll() {
                               {revision.type}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right text-slate-600">₹{revision.previousSalary.toLocaleString()}
+                          <TableCell className="text-right text-slate-600">
+                            ${revision.previousSalary.toLocaleString()}
                           </TableCell>
-                          <TableCell className="text-right font-bold text-green-700">₹{revision.newSalary.toLocaleString()}
+                          <TableCell className="text-right font-bold text-green-700">
+                            ${revision.newSalary.toLocaleString()}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
@@ -1718,7 +1729,7 @@ export default function HRMPayroll() {
                   </div>
                   <div className="bg-indigo-50 p-4 rounded-lg">
                     <div className="text-sm text-indigo-600 font-medium">Total Impact on Payroll</div>
-                    <div className="text-2xl font-bold text-indigo-700 mt-1">+₹15,000</div>
+                    <div className="text-2xl font-bold text-indigo-700 mt-1">+â‚¹15,000</div>
                   </div>
                 </div>
               </CardContent>
@@ -1742,28 +1753,32 @@ export default function HRMPayroll() {
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div className="bg-blue-50 p-4 rounded-lg">
-                        <div className="text-lg font-bold text-blue-700">₹{payrollSummary.totalTax.toLocaleString()}
+                        <div className="text-lg font-bold text-blue-700">
+                          ${payrollSummary.totalTax.toLocaleString()}
                         </div>
                         <div className="text-sm text-blue-600">Total Income Tax (TDS)</div>
                         <div className="text-xs text-blue-500 mt-1">Avg: 16% of gross</div>
                       </div>
                       <div className="bg-green-50 p-4 rounded-lg">
-                        <div className="text-lg font-bold text-green-700">₹{payrollSummary.totalPF.toLocaleString()}
+                        <div className="text-lg font-bold text-green-700">
+                          ${payrollSummary.totalPF.toLocaleString()}
                         </div>
                         <div className="text-sm text-green-600">Total PF (Employee)</div>
                         <div className="text-xs text-green-500 mt-1">12% of basic</div>
                       </div>
                       <div className="bg-emerald-50 p-4 rounded-lg">
-                        <div className="text-lg font-bold text-emerald-700">₹{payrollSummary.totalPF.toLocaleString()}
+                        <div className="text-lg font-bold text-emerald-700">
+                          ${payrollSummary.totalPF.toLocaleString()}
                         </div>
                         <div className="text-sm text-emerald-600">Total PF (Employer)</div>
                         <div className="text-xs text-emerald-500 mt-1">12% of basic</div>
                       </div>
                       <div className="bg-purple-50 p-4 rounded-lg">
-                        <div className="text-lg font-bold text-purple-700">₹{payrollSummary.totalProfTax.toLocaleString()}
+                        <div className="text-lg font-bold text-purple-700">
+                          ${payrollSummary.totalProfTax.toLocaleString()}
                         </div>
                         <div className="text-sm text-purple-600">Professional Tax</div>
-                        <div className="text-xs text-purple-500 mt-1">Fixed: ₹200/emp</div>
+                        <div className="text-xs text-purple-500 mt-1">Fixed: â‚¹200/emp</div>
                       </div>
                     </div>
 
@@ -1775,8 +1790,8 @@ export default function HRMPayroll() {
                           <CheckCircle2 className="h-5 w-5 text-green-600" />
                         </div>
                         <div className="text-xs text-green-700">
-                          <div>✓ ECR filed for January 2026</div>
-                          <div>✓ Payment deposited on time</div>
+                          <div>âœ“ ECR filed for January 2026</div>
+                          <div>âœ“ Payment deposited on time</div>
                           <div className="mt-2 font-semibold">Next Due: 15 Mar 2026</div>
                         </div>
                       </div>
@@ -1787,8 +1802,8 @@ export default function HRMPayroll() {
                           <CheckCircle2 className="h-5 w-5 text-green-600" />
                         </div>
                         <div className="text-xs text-green-700">
-                          <div>✓ TDS challan paid for Jan</div>
-                          <div>✓ Form 24Q ready</div>
+                          <div>âœ“ TDS challan paid for Jan</div>
+                          <div>âœ“ Form 24Q ready</div>
                           <div className="mt-2 font-semibold">Next Due: 07 Mar 2026</div>
                         </div>
                       </div>
@@ -1799,8 +1814,8 @@ export default function HRMPayroll() {
                           <Calendar className="h-5 w-5 text-amber-600" />
                         </div>
                         <div className="text-xs text-amber-700">
-                          <div>⚠ Return filing pending</div>
-                          <div>✓ Contributions calculated</div>
+                          <div>âš  Return filing pending</div>
+                          <div>âœ“ Contributions calculated</div>
                           <div className="mt-2 font-semibold text-amber-800">Due: 10 Feb 2026</div>
                         </div>
                       </div>
@@ -1828,12 +1843,13 @@ export default function HRMPayroll() {
                                   <div className="text-sm text-slate-500">{employee.id}</div>
                                 </div>
                               </TableCell>
-                              <TableCell className="text-right">₹{employee.tax.toLocaleString()}</TableCell>
-                              <TableCell className="text-right">₹{employee.pf.toLocaleString()}</TableCell>
-                              <TableCell className="text-right">₹{employee.pf.toLocaleString()}</TableCell>
-                              <TableCell className="text-right">₹{employee.esi.toLocaleString()}</TableCell>
-                              <TableCell className="text-right">₹{payrollConfig.profTax}</TableCell>
-                              <TableCell className="text-right font-bold">₹{(employee.tax + employee.pf * 2 + employee.esi + payrollConfig.profTax).toLocaleString()}
+                              <TableCell className="text-right">${employee.tax.toLocaleString()}</TableCell>
+                              <TableCell className="text-right">${employee.pf.toLocaleString()}</TableCell>
+                              <TableCell className="text-right">${employee.pf.toLocaleString()}</TableCell>
+                              <TableCell className="text-right">${employee.esi.toLocaleString()}</TableCell>
+                              <TableCell className="text-right">${payrollConfig.profTax}</TableCell>
+                              <TableCell className="text-right font-bold">
+                                ${(employee.tax + employee.pf * 2 + employee.esi + payrollConfig.profTax).toLocaleString()}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -2035,16 +2051,16 @@ export default function HRMPayroll() {
                   <div className="space-y-2 bg-green-50 p-4 rounded-lg">
                     <div className="flex justify-between">
                       <span className="text-sm">Basic Salary</span>
-                      <span className="font-medium">₹{selectedEmployee.baseSalary.toLocaleString()}</span>
+                      <span className="font-medium">${selectedEmployee.baseSalary.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm">Allowances</span>
-                      <span className="font-medium">₹{selectedEmployee.allowances.toLocaleString()}</span>
+                      <span className="font-medium">${selectedEmployee.allowances.toLocaleString()}</span>
                     </div>
                     <div className="border-t-2 border-green-200 pt-2 mt-2">
                       <div className="flex justify-between font-bold text-green-700">
                         <span>Gross Salary</span>
-                        <span>₹{(selectedEmployee.baseSalary + selectedEmployee.allowances).toLocaleString()}</span>
+                        <span>${(selectedEmployee.baseSalary + selectedEmployee.allowances).toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -2059,24 +2075,24 @@ export default function HRMPayroll() {
                   <div className="space-y-2 bg-red-50 p-4 rounded-lg">
                     <div className="flex justify-between">
                       <span className="text-sm">Income Tax</span>
-                      <span className="font-medium">₹{selectedEmployee.tax.toLocaleString()}</span>
+                      <span className="font-medium">${selectedEmployee.tax.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm">Provident Fund</span>
-                      <span className="font-medium">₹{selectedEmployee.pf.toLocaleString()}</span>
+                      <span className="font-medium">${selectedEmployee.pf.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm">ESI</span>
-                      <span className="font-medium">₹{selectedEmployee.esi.toLocaleString()}</span>
+                      <span className="font-medium">${selectedEmployee.esi.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm">Professional Tax</span>
-                      <span className="font-medium">₹{payrollConfig.profTax.toLocaleString()}</span>
+                      <span className="font-medium">${payrollConfig.profTax.toLocaleString()}</span>
                     </div>
                     <div className="border-t-2 border-red-200 pt-2 mt-2">
                       <div className="flex justify-between font-bold text-red-700">
                         <span>Total Deductions</span>
-                        <span>₹{selectedEmployee.deductions.toLocaleString()}</span>
+                        <span>${selectedEmployee.deductions.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -2088,7 +2104,7 @@ export default function HRMPayroll() {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-blue-100 text-sm">Net Salary (Take Home)</p>
-                    <p className="text-3xl font-bold mt-1">₹{selectedEmployee.netSalary.toLocaleString()}</p>
+                    <p className="text-3xl font-bold mt-1">${selectedEmployee.netSalary.toLocaleString()}</p>
                   </div>
                   <CheckCircle2 className="h-12 w-12 text-blue-200" />
                 </div>
@@ -2177,7 +2193,7 @@ export default function HRMPayroll() {
             {/* Current and New Salary */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="current-salary">Current Salary (₹)</Label>
+                <Label htmlFor="current-salary">Current Salary (â‚¹)</Label>
                 <Input
                   id="current-salary"
                   type="number"
@@ -2188,7 +2204,7 @@ export default function HRMPayroll() {
                 <p className="text-xs text-slate-500">Current monthly salary</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-salary">New Salary (₹)</Label>
+                <Label htmlFor="new-salary">New Salary (â‚¹)</Label>
                 <Input
                   id="new-salary"
                   type="number"
@@ -2207,7 +2223,7 @@ export default function HRMPayroll() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-slate-600">Additional Amount</p>
-                  <p className="text-xl font-bold text-green-700">₹5,000</p>
+                  <p className="text-xl font-bold text-green-700">â‚¹5,000</p>
                 </div>
               </div>
             </div>
@@ -2345,7 +2361,7 @@ export default function HRMPayroll() {
                   </p>
                   {processingStep >= 1 && (
                     <div className="mt-2 text-xs text-blue-600 font-medium">
-                      ✓ {employees.length} employees validated • 0 errors found
+                      âœ“ {employees.length} employees validated â€¢ 0 errors found
                     </div>
                   )}
                 </div>
@@ -2370,10 +2386,10 @@ export default function HRMPayroll() {
                   {processingStep >= 2 && (
                     <div className="mt-2 space-y-1">
                       <div className="text-xs text-blue-600 font-medium">
-                        ✓ Total Gross Salary: ₹{payrollSummary.totalGross.toLocaleString()}
+                        âœ“ Total Gross Salary: ${payrollSummary.totalGross.toLocaleString()}
                       </div>
                       <div className="text-xs text-slate-500">
-                        Example: John Smith - Base: ₹75,000 + Allowances: ₹15,000 = ₹90,000
+                        Example: John Smith - Base: â‚¹75,000 + Allowances: â‚¹15,000 = â‚¹90,000
                       </div>
                     </div>
                   )}
@@ -2399,12 +2415,12 @@ export default function HRMPayroll() {
                   {processingStep >= 3 && (
                     <div className="mt-2 space-y-1">
                       <div className="text-xs text-blue-600 font-medium">
-                        ✓ Total Deductions: ₹{payrollSummary.totalDeductions.toLocaleString()}
+                        âœ“ Total Deductions: ${payrollSummary.totalDeductions.toLocaleString()}
                       </div>
                       <div className="text-xs text-slate-500 space-y-0.5">
-                        <div>• Income Tax: ₹{payrollSummary.totalTax.toLocaleString()}</div>
-                        <div>• PF: ₹{payrollSummary.totalPF.toLocaleString()}</div>
-                        <div>• Professional Tax: ₹{payrollSummary.totalProfTax.toLocaleString()}</div>
+                        <div>â€¢ Income Tax: ${payrollSummary.totalTax.toLocaleString()}</div>
+                        <div>â€¢ PF: ${payrollSummary.totalPF.toLocaleString()}</div>
+                        <div>â€¢ Professional Tax: ${payrollSummary.totalProfTax.toLocaleString()}</div>
                       </div>
                     </div>
                   )}
@@ -2429,7 +2445,7 @@ export default function HRMPayroll() {
                   </p>
                   {processingStep >= 4 && (
                     <div className="mt-2 text-xs text-blue-600 font-medium">
-                      ✓ {employees.length} payslips generated successfully
+                      âœ“ {employees.length} payslips generated successfully
                     </div>
                   )}
                 </div>
@@ -2451,7 +2467,7 @@ export default function HRMPayroll() {
                   </p>
                   {processingStep >= 5 && (
                     <div className="mt-2 text-xs text-green-600 font-medium">
-                      ✓ Payroll processing complete and recorded
+                      âœ“ Payroll processing complete and recorded
                     </div>
                   )}
                 </div>
@@ -2477,7 +2493,8 @@ export default function HRMPayroll() {
                   </div>
                   <div className="bg-white rounded-lg p-3">
                     <div className="text-xs text-slate-600">Net Payable</div>
-                    <div className="text-lg font-bold text-green-700">₹{payrollSummary.totalNet.toLocaleString()}
+                    <div className="text-lg font-bold text-green-700">
+                      ${payrollSummary.totalNet.toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -2502,7 +2519,7 @@ export default function HRMPayroll() {
                     onClick={() => {
                       exportPayrollToExcel();
                       toast({
-                        title: "📊 Exporting Payroll Data",
+                        title: "ðŸ“Š Exporting Payroll Data",
                         description: "Generating detailed CSV report..."
                       });
                     }}
@@ -2604,7 +2621,7 @@ export default function HRMPayroll() {
                         <div>
                           <Label className="text-xs text-slate-600">Base Salary</Label>
                           <div className="relative mt-1">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
                               type="number"
                               value={editedSalary.baseSalary}
@@ -2616,7 +2633,7 @@ export default function HRMPayroll() {
                         <div>
                           <Label className="text-xs text-slate-600">Allowances</Label>
                           <div className="relative mt-1">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
                               type="number"
                               value={editedSalary.allowances}
@@ -2628,7 +2645,8 @@ export default function HRMPayroll() {
                         <div className="bg-green-50 p-3 rounded-lg">
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-green-700 font-medium">Gross Salary</span>
-                            <span className="text-lg font-bold text-green-700">₹{(editedSalary.baseSalary + editedSalary.allowances).toLocaleString()}
+                            <span className="text-lg font-bold text-green-700">
+                              ${(editedSalary.baseSalary + editedSalary.allowances).toLocaleString()}
                             </span>
                           </div>
                         </div>
@@ -2645,7 +2663,7 @@ export default function HRMPayroll() {
                         <div>
                           <Label className="text-xs text-slate-600">Income Tax</Label>
                           <div className="relative mt-1">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
                               type="number"
                               value={editedSalary.tax}
@@ -2657,7 +2675,7 @@ export default function HRMPayroll() {
                         <div>
                           <Label className="text-xs text-slate-600">PF (Employee)</Label>
                           <div className="relative mt-1">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
                               type="number"
                               value={editedSalary.pf}
@@ -2669,7 +2687,7 @@ export default function HRMPayroll() {
                         <div>
                           <Label className="text-xs text-slate-600">ESI</Label>
                           <div className="relative mt-1">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
                               type="number"
                               value={editedSalary.esi}
@@ -2681,7 +2699,7 @@ export default function HRMPayroll() {
                         <div>
                           <Label className="text-xs text-slate-600">Professional Tax</Label>
                           <div className="relative mt-1">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
                               type="number"
                               value={editedSalary.profTax}
@@ -2693,7 +2711,8 @@ export default function HRMPayroll() {
                         <div className="bg-red-50 p-3 rounded-lg">
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-red-700 font-medium">Total Deductions</span>
-                            <span className="text-lg font-bold text-red-700">₹{(editedSalary.tax + editedSalary.pf + editedSalary.esi + editedSalary.profTax).toLocaleString()}
+                            <span className="text-lg font-bold text-red-700">
+                              ${(editedSalary.tax + editedSalary.pf + editedSalary.esi + editedSalary.profTax).toLocaleString()}
                             </span>
                           </div>
                         </div>
@@ -2706,9 +2725,9 @@ export default function HRMPayroll() {
                     <div className="flex justify-between items-center">
                       <div>
                         <div className="text-purple-100 text-sm">Net Take Home Salary</div>
-                        <div className="text-4xl font-bold mt-1">₹{calculateIndividualNet().toLocaleString()}</div>
+                        <div className="text-4xl font-bold mt-1">${calculateIndividualNet().toLocaleString()}</div>
                         <div className="text-purple-100 text-xs mt-2">
-                          Gross - Deductions = ₹{(editedSalary.baseSalary + editedSalary.allowances).toLocaleString()} - ₹{(editedSalary.tax + editedSalary.pf + editedSalary.esi + editedSalary.profTax).toLocaleString()}
+                          Gross - Deductions = ${(editedSalary.baseSalary + editedSalary.allowances).toLocaleString()} - ${(editedSalary.tax + editedSalary.pf + editedSalary.esi + editedSalary.profTax).toLocaleString()}
                         </div>
                       </div>
                       <CheckCircle2 className="h-16 w-16 text-purple-200" />
@@ -2885,20 +2904,21 @@ export default function HRMPayroll() {
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div className="bg-white p-3 rounded">
                             <div className="text-slate-600 text-xs">Gross Salary</div>
-                            <div className="font-bold text-slate-900 mt-1">₹{(editedSalary.baseSalary + editedSalary.allowances).toLocaleString()}
+                            <div className="font-bold text-slate-900 mt-1">
+                              ${(editedSalary.baseSalary + editedSalary.allowances).toLocaleString()}
                             </div>
                           </div>
                           <div className="bg-white p-3 rounded">
                             <div className="text-slate-600 text-xs">Total Deductions</div>
                             <div className="font-bold text-red-700 mt-1">
-                              -₹{(editedSalary.tax + editedSalary.pf + editedSalary.esi + editedSalary.profTax).toLocaleString()}
+                              -${(editedSalary.tax + editedSalary.pf + editedSalary.esi + editedSalary.profTax).toLocaleString()}
                             </div>
                           </div>
                         </div>
                         <div className="mt-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 rounded-lg">
                           <div className="flex justify-between items-center">
                             <span className="text-purple-100">Net Payable Amount</span>
-                            <span className="text-2xl font-bold">₹{calculateIndividualNet().toLocaleString()}</span>
+                            <span className="text-2xl font-bold">${calculateIndividualNet().toLocaleString()}</span>
                           </div>
                         </div>
                       </div>

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { 
-  Building2, Plus, Search, Edit, Trash2, Phone, Mail, MapPin, DollarSign,
+  Building2, Plus, Search, Edit, Trash2, Phone, Mail, MapPin, IndianRupee,
   Users, Calendar, Filter, MoreVertical
 } from "lucide-react";
 import {
@@ -354,7 +354,7 @@ export default function OrganizationsManagement() {
               {/* Subscription */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <DollarSign size={16} />
+                  <IndianRupee size={16} />
                   Subscription
                 </h3>
                 <div className="grid grid-cols-2 gap-4">

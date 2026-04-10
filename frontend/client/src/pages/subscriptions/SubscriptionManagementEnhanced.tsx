@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  RefreshCw, DollarSign, TrendingUp, Users, AlertCircle, Plus,
+  RefreshCw, IndianRupee, TrendingUp, Users, AlertCircle, Plus,
   Search, Filter, Calendar, CheckCircle, XCircle, Clock, Send, 
   FileText, Bell, Download, Eye, Edit, Phone, Mail, MessageSquare,
   Ban, TrendingDown, Activity, BarChart3, Zap
@@ -411,7 +411,7 @@ export default function SubscriptionManagement() {
                     <p className="text-2xl font-bold text-gray-900 mt-1">₹{metrics.total_renewal_revenue.toLocaleString()}
                     </p>
                   </div>
-                  <DollarSign className="w-10 h-10 text-blue-600" />
+                  <IndianRupee className="w-10 h-10 text-blue-600" />
                 </div>
               </CardContent>
             </Card>

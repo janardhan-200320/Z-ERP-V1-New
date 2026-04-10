@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, RefreshCw, Calendar, DollarSign, CreditCard, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Calendar, IndianRupee, CreditCard, CheckCircle, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '@/lib/subscription-management-utils';
 import type { Subscription, BillingCycle } from '@/lib/subscription-management-types';
 

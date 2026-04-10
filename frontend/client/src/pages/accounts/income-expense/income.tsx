@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Search, Download, TrendingUp, DollarSign, 
+import { Plus, Search, Download, TrendingUp, IndianRupee, 
   ArrowUpRight, Filter, MoreHorizontal, Eye, 
   Edit, Trash2, Calendar, Landmark, User, 
   Layers, Package, ChevronRight, CheckCircle2,
@@ -224,7 +224,7 @@ export default function Income() {
               <DialogHeader className="px-6 py-5 bg-white border-b shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-green-600 flex items-center justify-center text-white shadow-lg shadow-green-100">
-                    <DollarSign className="h-6 w-6" />
+                    <IndianRupee className="h-6 w-6" />
                   </div>
                   <div>
                     <DialogTitle className="text-xl font-bold text-slate-800">New Revenue Entry</DialogTitle>
@@ -248,7 +248,7 @@ export default function Income() {
                     <div className="space-y-2">
                       <Label className="text-xs font-black text-green-600 uppercase tracking-widest">Gross Amount *</Label>
                       <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                        <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
                         <Input 
                           type="number" 
                           placeholder="0.00" 
@@ -366,7 +366,7 @@ export default function Income() {
           </div>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-green-100 uppercase tracking-widest flex items-center gap-2">
-              <DollarSign className="h-4 w-4" /> Gross Revenue
+              <IndianRupee className="h-4 w-4" /> Gross Revenue
             </CardTitle>
           </CardHeader>
           <CardContent>

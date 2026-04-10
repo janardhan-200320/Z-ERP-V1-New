@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { 
   ArrowDownCircle, Search, Filter, Download, Plus, 
   MoreHorizontal, Eye, Mail, CheckCircle2, 
-  Clock, AlertCircle, TrendingUp, DollarSign,
+  Clock, AlertCircle, TrendingUp, IndianRupee,
   FileText, Calendar, User, ArrowRight, Trash2,
   ChevronRight, Landmark, Building2, CreditCard,
   Briefcase, FileSpreadsheet, FileText as FilePdf
@@ -262,13 +262,13 @@ export default function Receivables({ includeLayout = true }: any) {
                      {/* Financial Particulars */}
                      <div className="space-y-6">
                         <h4 className="flex items-center gap-2 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] border-b pb-2">
-                           <DollarSign className="h-3.5 w-3.5" /> Financial Summary
+                           <IndianRupee className="h-3.5 w-3.5" /> Financial Summary
                         </h4>
                         <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 grid grid-cols-1 gap-6">
                            <div className="space-y-2">
                               <Label className="text-xs font-bold text-slate-700">Total Contract Value (Gross) *</Label>
                               <div className="relative">
-                                 <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-500" />
+                                 <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-500" />
                                  <Input 
                                     type="number" 
                                     placeholder="0.00" 

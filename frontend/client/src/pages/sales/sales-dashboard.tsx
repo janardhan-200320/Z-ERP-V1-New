@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  DollarSign, 
+  IndianRupee, 
   FileText, 
   CheckCircle, 
   AlertCircle,
@@ -195,7 +195,7 @@ export default function SalesDashboard() {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => { setActiveTab('payments'); navigate('/sales/payments'); }}>
-                  <DollarSign className="mr-2 h-4 w-4 text-emerald-600" /> Record Payment
+                  <IndianRupee className="mr-2 h-4 w-4 text-emerald-600" /> Record Payment
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => { setActiveTab('credit-notes'); navigate('/sales/credit-notes'); }}>
                   <RotateCcw className="mr-2 h-4 w-4 text-amber-600" /> Issue Credit Note

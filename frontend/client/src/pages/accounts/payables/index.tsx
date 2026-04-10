@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { 
   ArrowUpCircle, Search, Filter, Download, Plus, 
   MoreHorizontal, Eye, CheckCircle2, 
-  Clock, AlertCircle, TrendingUp, DollarSign,
+  Clock, AlertCircle, TrendingUp, IndianRupee,
   FileText, Calendar, User, ArrowRight, Trash2,
   ChevronRight, Landmark, Building2, CreditCard,
   Briefcase, ShoppingCart, Power, Receipt,
@@ -200,7 +200,7 @@ export default function Payables({ includeLayout = true }: any) {
                         <div className="space-y-2">
                            <Label className="text-xs font-black text-red-600 uppercase tracking-widest">Bill Amount *</Label>
                            <div className="relative">
-                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-400" />
+                              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-400" />
                               <Input 
                                  type="number" 
                                  placeholder="0.00" 
@@ -292,7 +292,7 @@ export default function Payables({ includeLayout = true }: any) {
           </div>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-red-100 uppercase tracking-widest flex items-center gap-2">
-              <DollarSign className="h-4 w-4" /> Total Obligations
+              <IndianRupee className="h-4 w-4" /> Total Obligations
             </CardTitle>
           </CardHeader>
           <CardContent>

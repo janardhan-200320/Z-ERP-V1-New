@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Plus, Search, Filter, Grid, List, Package, DollarSign, AlertTriangle, XCircle, Upload, Download, Eye, Edit, TrendingUp, TrendingDown, Warehouse, Image as ImageIcon, Tag, Users, MapPin, Calendar, Trash2, Save } from 'lucide-react';
+import { Plus, Search, Filter, Grid, List, Package, IndianRupee, AlertTriangle, XCircle, Upload, Download, Eye, Edit, TrendingUp, TrendingDown, Warehouse, Image as ImageIcon, Tag, Users, MapPin, Calendar, Trash2, Save } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -566,7 +566,7 @@ export default function ProductsDashboard() {
           title="Inventory Value"
           value={`₹${inventoryValue.toLocaleString()}`}
           description="Total stock value"
-          icon={DollarSign}
+          icon={IndianRupee}
         />
         <StatsCard
           title="Low Stock Items"
@@ -689,7 +689,8 @@ export default function ProductsDashboard() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-semibold">₹{product.price.toFixed(2)}
+                        <TableCell className="font-semibold">
+                          ₹{product.price.toFixed(2)}
                         </TableCell>
                         <TableCell>
                           <Badge variant={getStatusBadgeVariant(product.status)}>
@@ -790,10 +791,11 @@ export default function ProductsDashboard() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Stock Value</CardTitle>
-                <DollarSign className="h-4 w-4 text-green-600" />
+                <IndianRupee className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">₹{totalValue.toFixed(2)}
+                <div className="text-2xl font-bold text-green-600">
+                  ₹{totalValue.toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">Current inventory value</p>
               </CardContent>
@@ -972,10 +974,11 @@ export default function ProductsDashboard() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <IndianRupee className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₹{products.reduce((sum, p) => sum + p.costPrice, 0).toFixed(2)}
+                <div className="text-2xl font-bold">
+                  ₹{products.reduce((sum, p) => sum + p.costPrice, 0).toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">Sum of cost prices</p>
               </CardContent>
@@ -983,10 +986,11 @@ export default function ProductsDashboard() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                <DollarSign className="h-4 w-4 text-green-600" />
+                <IndianRupee className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">₹{products.reduce((sum, p) => sum + p.price, 0).toFixed(2)}
+                <div className="text-2xl font-bold text-green-600">
+                  ₹{products.reduce((sum, p) => sum + p.price, 0).toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">Sum of selling prices</p>
               </CardContent>
@@ -1031,7 +1035,8 @@ export default function ProductsDashboard() {
                     <TableRow key={record.id}>
                       <TableCell className="font-medium">{record.productName}</TableCell>
                       <TableCell>₹{record.costPrice.toFixed(2)}</TableCell>
-                      <TableCell className="font-semibold">₹{record.sellingPrice.toFixed(2)}
+                      <TableCell className="font-semibold">
+                        ₹{record.sellingPrice.toFixed(2)}
                       </TableCell>
                       <TableCell>
                         <span className="text-green-600 font-semibold">

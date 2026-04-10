@@ -24,7 +24,7 @@ import {
   FileCheck,
   Building2,
   Calendar,
-  DollarSign,
+  IndianRupee,
   Send,
   FileSpreadsheet,
   FileText

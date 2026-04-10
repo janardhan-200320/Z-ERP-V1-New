@@ -7,7 +7,7 @@ import {
   Search, 
   MapPin, 
   Clock, 
-  IndianRupee, 
+  DollarSign, 
   Users, 
   MoreVertical,
   Filter,
@@ -178,7 +178,7 @@ export default function JobDescriptionsModule({ jobs, onViewApplicants }: Props)
                     {job.type} {job.workMode && job.workMode !== 'Not specified' && `• ${job.workMode}`}
                   </div>
                   <div className="flex items-center text-sm text-slate-600">
-                    <IndianRupee className="h-4 w-4 mr-2 text-slate-400" />
+                    <DollarSign className="h-4 w-4 mr-2 text-slate-400" />
                     {job.salaryMin && job.salaryMax ? `₹${job.salaryMin} - ₹${job.salaryMax}` : 'Not specified'}
                   </div>
                   <div className="flex items-center text-sm text-slate-600">

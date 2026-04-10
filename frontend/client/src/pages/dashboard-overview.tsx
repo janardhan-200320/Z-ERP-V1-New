@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ import {
   CheckSquare,
   AlertCircle,
   Clock,
-  IndianRupee,
+  DollarSign,
   Package,
   FileText,
   Activity,
@@ -127,9 +127,9 @@ export default function DashboardOverview() {
     { key: 'estimateOverview', label: 'Estimate Overview', icon: FileText },
     { key: 'proposalOverview', label: 'Proposal Overview', icon: FileText },
     { key: 'performanceHighlights', label: 'Performance Highlights', icon: Zap },
-    { key: 'revenueOverview', label: 'Revenue Overview', icon: IndianRupee },
+    { key: 'revenueOverview', label: 'Revenue Overview', icon: DollarSign },
     { key: 'projectAnalytics', label: 'Project Analytics', icon: PieChart },
-    { key: 'paymentReceipts', label: 'Payment Receipts', icon: IndianRupee },
+    { key: 'paymentReceipts', label: 'Payment Receipts', icon: DollarSign },
     { key: 'contractsExpiring', label: 'Contracts Expiring Soon', icon: AlertTriangle },
     { key: 'outstandingInvoices', label: 'Outstanding Invoices', icon: FileText },
     { key: 'latestActivity', label: 'Latest Activity', icon: Activity },
@@ -1038,7 +1038,7 @@ export default function DashboardOverview() {
             <CardHeader className="px-4 sm:px-6">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <IndianRupee className="h-5 w-5 text-green-600" />
+                  <DollarSign className="h-5 w-5 text-green-600" />
                   <CardTitle className="text-base sm:text-lg">Payment Receipts</CardTitle>
                 </div>
                 <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200 text-xs">
@@ -1157,8 +1157,8 @@ export default function DashboardOverview() {
                           <span>{new Date(contract.expiryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                         </div>
                         <div className="flex items-center gap-1 font-semibold text-slate-900">
-                          <IndianRupee className="h-3 w-3" />
-                          <span>{(contract.value / 1000).toFixed(0)}K</span>
+                          <DollarSign className="h-3 w-3" />
+                          <span>₹{(contract.value / 1000).toFixed(0)}K</span>
                         </div>
                       </div>
                     </div>
@@ -1278,8 +1278,7 @@ export default function DashboardOverview() {
                     <div key={index}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs sm:text-sm font-medium text-slate-700 truncate">{insight.label}</span>
-                        <span className="text-xs sm:text-sm font-semibold text-slate-900 ml-2 flex-shrink-0">
-                          ₹{(insight.amount / 1000).toFixed(1)}K
+                        <span className="text-xs sm:text-sm font-semibold text-slate-900 ml-2 flex-shrink-0">₹{(insight.amount / 1000).toFixed(1)}K
                         </span>
                       </div>
                       <div className="relative h-1.5 sm:h-2 bg-slate-100 rounded-full overflow-hidden">

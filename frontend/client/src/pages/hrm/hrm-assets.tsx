@@ -44,7 +44,7 @@ import {
   Armchair,
   Wrench,
   Calendar as CalendarIcon,
-  IndianRupee,
+  DollarSign,
   MapPin,
   CheckCircle2,
   XCircle,
@@ -767,7 +767,7 @@ export default function HRMAssets() {
                   <p className="text-xs text-emerald-600 mt-1">current valuation</p>
                 </div>
                 <div className="p-3 bg-emerald-100 rounded-xl">
-                  <IndianRupee className="h-6 w-6 text-emerald-600" />
+                  <DollarSign className="h-6 w-6 text-emerald-600" />
                 </div>
               </div>
             </CardContent>

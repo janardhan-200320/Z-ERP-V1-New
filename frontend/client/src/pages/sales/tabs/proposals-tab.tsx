@@ -209,7 +209,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       id: 'PRO-001',
       subject: 'Website Redesign Project',
       customer: 'Acme Corporation',
-      totalAmount: 'â‚¹45,000',
+      totalAmount: '₹45,000',
       date: '2026-01-05',
       validUntil: '2026-02-05',
       project: 'Web Development',
@@ -242,7 +242,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       id: 'PRO-002',
       subject: 'Mobile App Development',
       customer: 'TechStart Inc.',
-      totalAmount: 'â‚¹85,000',
+      totalAmount: '₹85,000',
       date: '2026-01-08',
       validUntil: '2026-02-08',
       project: 'Mobile App',
@@ -275,7 +275,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       id: 'PRO-003',
       subject: 'Digital Marketing Campaign',
       customer: 'Global Brands Ltd.',
-      totalAmount: 'â‚¹25,000',
+      totalAmount: '₹25,000',
       date: '2026-01-10',
       validUntil: '2026-02-10',
       project: 'Marketing',
@@ -307,7 +307,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       id: 'PRO-004',
       subject: 'ERP System Implementation',
       customer: 'Enterprise Solutions',
-      totalAmount: 'â‚¹125,000',
+      totalAmount: '₹125,000',
       date: '2026-01-12',
       validUntil: '2026-02-12',
       project: 'ERP',
@@ -1290,10 +1290,10 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="usd">USD $</SelectItem>
-                            <SelectItem value="eur">EUR â‚¬</SelectItem>
-                            <SelectItem value="gbp">GBP Â£</SelectItem>
-                            <SelectItem value="inr">INR â‚¹</SelectItem>
+                            <SelectItem value="usd">USD</SelectItem>
+                            <SelectItem value="eur">EUR €</SelectItem>
+                            <SelectItem value="gbp">GBP £</SelectItem>
+                            <SelectItem value="inr">INR ₹</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1908,8 +1908,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 </SelectContent>
                               </Select>
                             </TableCell>
-                            <TableCell className="align-top text-right font-medium pt-3">
-                              ${item.amount.toFixed(2)}
+                            <TableCell className="align-top text-right font-medium pt-3">₹{item.amount.toFixed(2)}
                             </TableCell>
                             <TableCell className="align-top">
                               {proposalItems.length > 1 && (
@@ -1934,20 +1933,20 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                     <div className="w-96 space-y-3 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-slate-600 font-medium">Sub Total:</span>
-                        <span className="font-semibold text-slate-800">${calculateTotals().subTotal.toFixed(2)}</span>
+                        <span className="font-semibold text-slate-800">₹{calculateTotals().subTotal.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-slate-600 font-medium">CGST:</span>
-                        <span className="font-semibold text-slate-800">${calculateTotals().cgstAmount.toFixed(2)}</span>
+                        <span className="font-semibold text-slate-800">₹{calculateTotals().cgstAmount.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-slate-600 font-medium">SGST:</span>
-                        <span className="font-semibold text-slate-800">${calculateTotals().sgstAmount.toFixed(2)}</span>
+                        <span className="font-semibold text-slate-800">₹{calculateTotals().sgstAmount.toFixed(2)}</span>
                       </div>
                       {calculateTotals().otherTaxAmount > 0 && (
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-slate-600 font-medium">Other Tax:</span>
-                          <span className="font-semibold text-slate-800">${calculateTotals().otherTaxAmount.toFixed(2)}</span>
+                          <span className="font-semibold text-slate-800">₹{calculateTotals().otherTaxAmount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between items-center gap-3 py-2 border-y border-dashed">
@@ -1966,10 +1965,10 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="%">%</SelectItem>
-                              <SelectItem value="$">$</SelectItem>
+                              <SelectItem value="₹">₹</SelectItem>
                             </SelectContent>
                           </Select>
-                          <span className="font-semibold w-24 text-right text-red-600">-${calculateTotals().discountAmount.toFixed(2)}</span>
+                          <span className="font-semibold w-24 text-right text-red-600">-₹{calculateTotals().discountAmount.toFixed(2)}</span>
                         </div>
                       </div>
                       <div className="flex justify-between items-center gap-3">
@@ -1981,12 +1980,12 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             onChange={(e) => setAdjustment(parseFloat(e.target.value) || 0)}
                             className="w-24 h-9 border-slate-300"
                           />
-                          <span className="font-semibold w-24 text-right text-blue-600">${adjustment.toFixed(2)}</span>
+                          <span className="font-semibold w-24 text-right text-blue-600">₹{adjustment.toFixed(2)}</span>
                         </div>
                       </div>
                       <div className="flex justify-between items-center text-lg font-bold pt-3 border-t-2 border-slate-300">
                         <span className="text-slate-800">Total:</span>
-                        <span className="text-blue-600">${calculateTotals().total.toFixed(2)}</span>
+                        <span className="text-blue-600">₹{calculateTotals().total.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -2169,7 +2168,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <p className="text-xs text-blue-700 flex items-start gap-2">
-                      <span className="font-semibold">ðŸ’¡ Tip:</span>
+                      <span className="font-semibold">💡 Tip:</span>
                       <span>
                         Add custom sections like "Payment Terms", "Guarantees", "Methodology", "Team", "References", 
                         or any other content you want to include in your proposal.
@@ -2181,14 +2180,14 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                 {/* Bottom Note */}
                 <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-lg p-4 pt-4 border-t space-y-2">
                   <h4 className="font-semibold text-sm text-indigo-900 flex items-center gap-2">
-                    <span className="text-lg">âœ¨</span>
+                    <span className="text-lg">✨</span>
                     Fully Customizable Proposal Template
                   </h4>
                   <div className="text-xs text-slate-600 space-y-1">
-                    <p>â€¢ Use <span className="font-mono bg-white px-1.5 py-0.5 rounded border">{'{'}proposal_items{'}'}</span> to include pricing table anywhere in your content</p>
-                    <p>â€¢ Add custom fields to capture any additional information you need</p>
-                    <p>â€¢ Create custom sections for payment terms, guarantees, methodology, or any content</p>
-                    <p>â€¢ Choose from text, list, or table formats for maximum flexibility</p>
+                    <p>• Use <span className="font-mono bg-white px-1.5 py-0.5 rounded border">{'{'}proposal_items{'}'}</span> to include pricing table anywhere in your content</p>
+                    <p>• Add custom fields to capture any additional information you need</p>
+                    <p>• Create custom sections for payment terms, guarantees, methodology, or any content</p>
+                    <p>• Choose from text, list, or table formats for maximum flexibility</p>
                   </div>
                 </div>
               </div>
@@ -2425,7 +2424,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           'Revisions beyond the agreed scope will be billed separately',
                           'Project timeline is subject to timely feedback and approvals'
                         ]}
-                        currency="$"
+                        currency="₹"
                         saleAgent="Zeruns ERP Admin"
                       />
                     )}
@@ -2529,11 +2528,11 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           <ul className="space-y-3">
                             {selectedProposal.scopeOfWork.map((item: any) => (
                               <li key={item.id} className="flex gap-3">
-                                <span className="text-indigo-600 mt-1">â€¢</span>
+                                <span className="text-indigo-600 mt-1">•</span>
                                 <div>
                                   <span className="font-semibold text-slate-900">{item.description}</span>
                                   {item.longDescription && (
-                                    <span className="text-slate-600"> â€“ {item.longDescription}</span>
+                                    <span className="text-slate-600"> – {item.longDescription}</span>
                                   )}
                                 </div>
                               </li>
@@ -2690,7 +2689,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-sm flex items-center gap-1">
-                          <span className="text-slate-500">â—</span> Tags
+                          <span className="text-slate-500">●</span> Tags
                         </Label>
                         <Input 
                           value={editTags}
@@ -2709,9 +2708,9 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="usd">INR â‚¹</SelectItem>
-                            <SelectItem value="eur">EUR â‚¬</SelectItem>
-                            <SelectItem value="inr">INR â‚¹</SelectItem>
+                            <SelectItem value="usd">INR ₹</SelectItem>
+                            <SelectItem value="eur">EUR €</SelectItem>
+                            <SelectItem value="inr">INR ₹</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -3027,7 +3026,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                     <Table>
                       <TableHeader className="bg-slate-50">
                         <TableRow>
-                          <TableHead className="w-8 text-center">â—</TableHead>
+                          <TableHead className="w-8 text-center">●</TableHead>
                           <TableHead className="w-40">Item</TableHead>
                           <TableHead>Description</TableHead>
                           <TableHead className="w-24 text-center">Qty</TableHead>
@@ -3101,8 +3100,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 </SelectContent>
                               </Select>
                             </TableCell>
-                            <TableCell className="align-top text-right font-medium text-sm pt-3">
-                              ${item.amount.toFixed(2)}
+                            <TableCell className="align-top text-right font-medium text-sm pt-3">₹{item.amount.toFixed(2)}
                             </TableCell>
                             <TableCell className="align-top">
                               <div className="flex items-center gap-1">
@@ -3137,20 +3135,20 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                   <div className="w-96 space-y-3">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600">Sub Total:</span>
-                      <span className="font-semibold">${calculateEditTotals().subTotal.toFixed(2)}</span>
+                      <span className="font-semibold">₹{calculateEditTotals().subTotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600">CGST:</span>
-                      <span className="font-semibold">${calculateEditTotals().cgstAmount.toFixed(2)}</span>
+                      <span className="font-semibold">₹{calculateEditTotals().cgstAmount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600">SGST:</span>
-                      <span className="font-semibold">${calculateEditTotals().sgstAmount.toFixed(2)}</span>
+                      <span className="font-semibold">₹{calculateEditTotals().sgstAmount.toFixed(2)}</span>
                     </div>
                     {calculateEditTotals().otherTaxAmount > 0 && (
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-slate-600">Other Tax:</span>
-                        <span className="font-semibold">${calculateEditTotals().otherTaxAmount.toFixed(2)}</span>
+                        <span className="font-semibold">₹{calculateEditTotals().otherTaxAmount.toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex justify-between items-center gap-3">
@@ -3164,16 +3162,16 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           min="0"
                           placeholder="0.00"
                         />
-                        <Select value={editDiscountType === 'percent' ? '%' : '$'}>
+                        <Select value={editDiscountType === 'percent' ? '%' : '₹'}>
                           <SelectTrigger className="w-16 h-9 text-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="%">%</SelectItem>
-                            <SelectItem value="$">$</SelectItem>
+                            <SelectItem value="₹">₹</SelectItem>
                           </SelectContent>
                         </Select>
-                        <span className="font-semibold w-24 text-right text-sm">${calculateEditTotals().discountAmount.toFixed(2)}</span>
+                        <span className="font-semibold w-24 text-right text-sm">₹{calculateEditTotals().discountAmount.toFixed(2)}</span>
                       </div>
                     </div>
                     <div className="flex justify-between items-center gap-3">
@@ -3186,12 +3184,12 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           className="w-24 h-9 text-sm text-blue-600"
                           placeholder="0.00"
                         />
-                        <span className="font-semibold w-24 text-right text-sm">${editAdjustment.toFixed(2)}</span>
+                        <span className="font-semibold w-24 text-right text-sm">₹{editAdjustment.toFixed(2)}</span>
                       </div>
                     </div>
                     <div className="flex justify-between items-center text-base font-bold pt-2 border-t">
                       <span>Total:</span>
-                      <span>${calculateEditTotals().total.toFixed(2)}</span>
+                      <span>₹{calculateEditTotals().total.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -3679,7 +3677,7 @@ onChange={(e) => setEditProposalOverview(e.target.value)}
                     
                     setIsEditOpen(false);
                     toast({ 
-                      title: "âœ… Saved", 
+                      title: "✅ Saved", 
                       description: "Proposal has been updated successfully with all customizations." 
                     });
                   }}

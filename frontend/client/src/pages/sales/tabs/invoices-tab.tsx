@@ -18,7 +18,7 @@ import {
   Eye,
   Edit,
   Printer,
-  IndianRupee,
+  DollarSign,
   FileText,
   Paperclip,
   MoreVertical,
@@ -168,7 +168,7 @@ export default function InvoicesTab() {
   }> = [
     { value: 'upi', label: 'UPI', icon: LinkIcon, helper: 'Instant mobile payment' },
     { value: 'bank', label: 'Bank', icon: Building2, helper: 'Transfer to bank account' },
-    { value: 'cash', label: 'Cash', icon: IndianRupee, helper: 'Collect physically' },
+    { value: 'cash', label: 'Cash', icon: DollarSign, helper: 'Collect physically' },
     { value: 'custom', label: 'Custom', icon: FileText, helper: 'Other payment modes' },
   ];
 

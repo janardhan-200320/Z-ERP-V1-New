@@ -1290,7 +1290,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="usd">USD $</SelectItem>
+                            <SelectItem value="usd">USD</SelectItem>
                             <SelectItem value="eur">EUR €</SelectItem>
                             <SelectItem value="gbp">GBP £</SelectItem>
                             <SelectItem value="inr">INR ₹</SelectItem>
@@ -1908,8 +1908,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 </SelectContent>
                               </Select>
                             </TableCell>
-                            <TableCell className="align-top text-right font-medium pt-3">
-                              ${item.amount.toFixed(2)}
+                            <TableCell className="align-top text-right font-medium pt-3">₹{item.amount.toFixed(2)}
                             </TableCell>
                             <TableCell className="align-top">
                               {proposalItems.length > 1 && (
@@ -1934,20 +1933,20 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                     <div className="w-96 space-y-3 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-slate-600 font-medium">Sub Total:</span>
-                        <span className="font-semibold text-slate-800">${calculateTotals().subTotal.toFixed(2)}</span>
+                        <span className="font-semibold text-slate-800">₹{calculateTotals().subTotal.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-slate-600 font-medium">CGST:</span>
-                        <span className="font-semibold text-slate-800">${calculateTotals().cgstAmount.toFixed(2)}</span>
+                        <span className="font-semibold text-slate-800">₹{calculateTotals().cgstAmount.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-slate-600 font-medium">SGST:</span>
-                        <span className="font-semibold text-slate-800">${calculateTotals().sgstAmount.toFixed(2)}</span>
+                        <span className="font-semibold text-slate-800">₹{calculateTotals().sgstAmount.toFixed(2)}</span>
                       </div>
                       {calculateTotals().otherTaxAmount > 0 && (
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-slate-600 font-medium">Other Tax:</span>
-                          <span className="font-semibold text-slate-800">${calculateTotals().otherTaxAmount.toFixed(2)}</span>
+                          <span className="font-semibold text-slate-800">₹{calculateTotals().otherTaxAmount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between items-center gap-3 py-2 border-y border-dashed">
@@ -1966,10 +1965,10 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="%">%</SelectItem>
-                              <SelectItem value="$">$</SelectItem>
+                              <SelectItem value="₹">₹</SelectItem>
                             </SelectContent>
                           </Select>
-                          <span className="font-semibold w-24 text-right text-red-600">-${calculateTotals().discountAmount.toFixed(2)}</span>
+                          <span className="font-semibold w-24 text-right text-red-600">-₹{calculateTotals().discountAmount.toFixed(2)}</span>
                         </div>
                       </div>
                       <div className="flex justify-between items-center gap-3">
@@ -1981,12 +1980,12 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             onChange={(e) => setAdjustment(parseFloat(e.target.value) || 0)}
                             className="w-24 h-9 border-slate-300"
                           />
-                          <span className="font-semibold w-24 text-right text-blue-600">${adjustment.toFixed(2)}</span>
+                          <span className="font-semibold w-24 text-right text-blue-600">₹{adjustment.toFixed(2)}</span>
                         </div>
                       </div>
                       <div className="flex justify-between items-center text-lg font-bold pt-3 border-t-2 border-slate-300">
                         <span className="text-slate-800">Total:</span>
-                        <span className="text-blue-600">${calculateTotals().total.toFixed(2)}</span>
+                        <span className="text-blue-600">₹{calculateTotals().total.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -2425,7 +2424,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           'Revisions beyond the agreed scope will be billed separately',
                           'Project timeline is subject to timely feedback and approvals'
                         ]}
-                        currency="$"
+                        currency="₹"
                         saleAgent="Zeruns ERP Admin"
                       />
                     )}
@@ -3101,8 +3100,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 </SelectContent>
                               </Select>
                             </TableCell>
-                            <TableCell className="align-top text-right font-medium text-sm pt-3">
-                              ${item.amount.toFixed(2)}
+                            <TableCell className="align-top text-right font-medium text-sm pt-3">₹{item.amount.toFixed(2)}
                             </TableCell>
                             <TableCell className="align-top">
                               <div className="flex items-center gap-1">
@@ -3137,20 +3135,20 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                   <div className="w-96 space-y-3">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600">Sub Total:</span>
-                      <span className="font-semibold">${calculateEditTotals().subTotal.toFixed(2)}</span>
+                      <span className="font-semibold">₹{calculateEditTotals().subTotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600">CGST:</span>
-                      <span className="font-semibold">${calculateEditTotals().cgstAmount.toFixed(2)}</span>
+                      <span className="font-semibold">₹{calculateEditTotals().cgstAmount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600">SGST:</span>
-                      <span className="font-semibold">${calculateEditTotals().sgstAmount.toFixed(2)}</span>
+                      <span className="font-semibold">₹{calculateEditTotals().sgstAmount.toFixed(2)}</span>
                     </div>
                     {calculateEditTotals().otherTaxAmount > 0 && (
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-slate-600">Other Tax:</span>
-                        <span className="font-semibold">${calculateEditTotals().otherTaxAmount.toFixed(2)}</span>
+                        <span className="font-semibold">₹{calculateEditTotals().otherTaxAmount.toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex justify-between items-center gap-3">
@@ -3164,16 +3162,16 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           min="0"
                           placeholder="0.00"
                         />
-                        <Select value={editDiscountType === 'percent' ? '%' : '$'}>
+                        <Select value={editDiscountType === 'percent' ? '%' : '₹'}>
                           <SelectTrigger className="w-16 h-9 text-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="%">%</SelectItem>
-                            <SelectItem value="$">$</SelectItem>
+                            <SelectItem value="₹">₹</SelectItem>
                           </SelectContent>
                         </Select>
-                        <span className="font-semibold w-24 text-right text-sm">${calculateEditTotals().discountAmount.toFixed(2)}</span>
+                        <span className="font-semibold w-24 text-right text-sm">₹{calculateEditTotals().discountAmount.toFixed(2)}</span>
                       </div>
                     </div>
                     <div className="flex justify-between items-center gap-3">
@@ -3186,12 +3184,12 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           className="w-24 h-9 text-sm text-blue-600"
                           placeholder="0.00"
                         />
-                        <span className="font-semibold w-24 text-right text-sm">${editAdjustment.toFixed(2)}</span>
+                        <span className="font-semibold w-24 text-right text-sm">₹{editAdjustment.toFixed(2)}</span>
                       </div>
                     </div>
                     <div className="flex justify-between items-center text-base font-bold pt-2 border-t">
                       <span>Total:</span>
-                      <span>${calculateEditTotals().total.toFixed(2)}</span>
+                      <span>₹{calculateEditTotals().total.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -3668,7 +3666,7 @@ onChange={(e) => setEditProposalOverview(e.target.value)}
                         customSections: editCustomSections,
                         customFields: editCustomFields,
                         // Calculate total
-                        totalAmount: `$${calculateEditTotals().total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`,
+                        totalAmount: `₹${calculateEditTotals().total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`,
                       };
 
                       // Update in proposals list

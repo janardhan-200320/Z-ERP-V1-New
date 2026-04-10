@@ -33,14 +33,14 @@ export default function ProjectOverviewTab({ project }: ProjectOverviewTabProps)
     },
     {
       title: 'Budget',
-      value: `$${(project.budget / 1000).toFixed(0)}K`,
+      value: `₹${(project.budget / 1000).toFixed(0)}K`,
       icon: DollarSign,
       color: 'text-green-600',
       bgColor: 'bg-green-100'
     },
     {
       title: 'Spent',
-      value: `$${(project.spent / 1000).toFixed(0)}K`,
+      value: `₹${(project.spent / 1000).toFixed(0)}K`,
       icon: DollarSign,
       color: 'text-orange-600',
       bgColor: 'bg-orange-100'

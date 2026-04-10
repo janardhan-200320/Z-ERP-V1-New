@@ -234,8 +234,7 @@ export default function ExpenseCategories() {
                   <div className="space-y-3">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Total Expenses</p>
-                      <p className="text-2xl font-bold">
-                        ${category.totalExpenses.toLocaleString()}
+                      <p className="text-2xl font-bold">₹{category.totalExpenses.toLocaleString()}
                       </p>
                     </div>
                     <div className="flex items-center justify-end gap-2 pt-2 border-t">
@@ -269,8 +268,7 @@ export default function ExpenseCategories() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Total Expenses</p>
-                <p className="text-3xl font-bold">
-                  ${categories.reduce((sum, cat) => sum + cat.totalExpenses, 0).toLocaleString()}
+                <p className="text-3xl font-bold">₹{categories.reduce((sum, cat) => sum + cat.totalExpenses, 0).toLocaleString()}
                 </p>
               </div>
               <div>

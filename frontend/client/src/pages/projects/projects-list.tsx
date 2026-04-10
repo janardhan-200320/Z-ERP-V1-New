@@ -782,7 +782,7 @@ export default function ProjectsList() {
                 <div className="space-y-1.5">
                   <Label htmlFor="totalRate" className="text-xs font-bold text-slate-600 uppercase">Total Rate</Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
                     <Input
                       id="totalRate"
                       value={projectForm.totalRate}
@@ -1097,7 +1097,7 @@ export default function ProjectsList() {
                 <div className="space-y-1.5">
                   <Label htmlFor="edit-totalRate" className="text-xs font-bold text-slate-600 uppercase">Total Rate</Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
                     <Input
                       id="edit-totalRate"
                       value={projectForm.totalRate}

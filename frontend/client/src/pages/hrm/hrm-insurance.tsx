@@ -394,7 +394,7 @@ export default function Insurance() {
                   <FileText className="h-6 w-6 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-slate-900">${Math.round(policies.reduce((acc, p) => acc + parseInt(p.coverage.replace(/[$, ]/g, '')), 0) / 1000)}K</p>
+                  <p className="text-2xl font-bold text-slate-900">₹{Math.round(policies.reduce((acc, p) => acc + parseInt(p.coverage.replace(/[₹$, ]/g, '')), 0) / 1000)}K</p>
                   <p className="text-xs text-slate-600">Total Coverage</p>
                 </div>
               </div>
@@ -718,8 +718,7 @@ export default function Insurance() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Total Coverage</p>
-                      <h3 className="text-3xl font-black text-blue-700">
-                        ${Math.round(policies.reduce((acc, p) => acc + parseInt(p.coverage.replace(/[$, ]/g, '')), 0) / 1000)}K
+                      <h3 className="text-3xl font-black text-blue-700">₹{Math.round(policies.reduce((acc, p) => acc + parseInt(p.coverage.replace(/[₹$, ]/g, '')), 0) / 1000)}K
                       </h3>
                       <p className="text-xs text-blue-600 mt-1">across all policies</p>
                     </div>
@@ -734,8 +733,7 @@ export default function Insurance() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Health Coverage</p>
-                      <h3 className="text-3xl font-black text-emerald-700">
-                        ${Math.round(policies.filter(p => p.policyType === 'Health Insurance').reduce((acc, p) => acc + parseInt(p.coverage.replace(/[$, ]/g, '')), 0) / 1000)}K
+                      <h3 className="text-3xl font-black text-emerald-700">₹{Math.round(policies.filter(p => p.policyType === 'Health Insurance').reduce((acc, p) => acc + parseInt(p.coverage.replace(/[₹$, ]/g, '')), 0) / 1000)}K
                       </h3>
                       <p className="text-xs text-emerald-600 mt-1">{policies.filter(p => p.policyType === 'Health Insurance').length} policies</p>
                     </div>
@@ -750,8 +748,7 @@ export default function Insurance() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold text-violet-600 uppercase tracking-wider mb-1">Life Coverage</p>
-                      <h3 className="text-3xl font-black text-violet-700">
-                        ${Math.round(policies.filter(p => p.policyType === 'Life Insurance').reduce((acc, p) => acc + parseInt(p.coverage.replace(/[$, ]/g, '')), 0) / 1000)}K
+                      <h3 className="text-3xl font-black text-violet-700">₹{Math.round(policies.filter(p => p.policyType === 'Life Insurance').reduce((acc, p) => acc + parseInt(p.coverage.replace(/[₹$, ]/g, '')), 0) / 1000)}K
                       </h3>
                       <p className="text-xs text-violet-600 mt-1">{policies.filter(p => p.policyType === 'Life Insurance').length} policies</p>
                     </div>
@@ -766,8 +763,7 @@ export default function Insurance() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Avg Per Employee</p>
-                      <h3 className="text-3xl font-black text-amber-700">
-                        ${Math.round((policies.reduce((acc, p) => acc + parseInt(p.coverage.replace(/[$, ]/g, '')), 0) / policies.length) / 1000)}K
+                      <h3 className="text-3xl font-black text-amber-700">₹{Math.round((policies.reduce((acc, p) => acc + parseInt(p.coverage.replace(/[₹$, ]/g, '')), 0) / policies.length) / 1000)}K
                       </h3>
                       <p className="text-xs text-amber-600 mt-1">coverage amount</p>
                     </div>
@@ -792,14 +788,14 @@ export default function Insurance() {
                 <CardContent className="space-y-4">
                   {['Health Insurance', 'Life Insurance', 'Accident Insurance'].map(type => {
                     const typePolicies = policies.filter(p => p.policyType === type);
-                    const totalCoverage = typePolicies.reduce((acc, p) => acc + parseInt(p.coverage.replace(/[$, ]/g, '')), 0);
-                    const percentage = (totalCoverage / policies.reduce((acc, p) => acc + parseInt(p.coverage.replace(/[$, ]/g, '')), 0)) * 100;
+                    const totalCoverage = typePolicies.reduce((acc, p) => acc + parseInt(p.coverage.replace(/[₹$, ]/g, '')), 0);
+                    const percentage = (totalCoverage / policies.reduce((acc, p) => acc + parseInt(p.coverage.replace(/[₹$, ]/g, '')), 0)) * 100;
                     
                     return (
                       <div key={type} className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-medium text-slate-700">{type}</span>
-                          <span className="font-bold text-slate-900">${(totalCoverage / 1000).toFixed(0)}K</span>
+                          <span className="font-bold text-slate-900">₹{(totalCoverage / 1000).toFixed(0)}K</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <Progress 
@@ -829,9 +825,9 @@ export default function Insurance() {
                 <CardContent className="space-y-4">
                   {Array.from(new Set(policies.map(p => p.provider))).map(provider => {
                     const providerPolicies = policies.filter(p => p.provider === provider);
-                    const totalCoverage = providerPolicies.reduce((acc, p) => acc + parseInt(p.coverage.replace(/[$, ]/g, '')), 0);
+                    const totalCoverage = providerPolicies.reduce((acc, p) => acc + parseInt(p.coverage.replace(/[₹$, ]/g, '')), 0);
                     const maxCoverage = Math.max(...Array.from(new Set(policies.map(p => p.provider))).map(prov => 
-                      policies.filter(p => p.provider === prov).reduce((acc, p) => acc + parseInt(p.coverage.replace(/[$, ]/g, '')), 0)
+                      policies.filter(p => p.provider === prov).reduce((acc, p) => acc + parseInt(p.coverage.replace(/[₹$, ]/g, '')), 0)
                     ));
                     const percentage = (totalCoverage / maxCoverage) * 100;
                     
@@ -840,7 +836,7 @@ export default function Insurance() {
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-medium text-slate-700">{provider}</span>
                           <div className="text-right">
-                            <span className="font-bold text-slate-900">${(totalCoverage / 1000).toFixed(0)}K</span>
+                            <span className="font-bold text-slate-900">₹{(totalCoverage / 1000).toFixed(0)}K</span>
                             <span className="text-xs text-slate-500 ml-2">({providerPolicies.length} policies)</span>
                           </div>
                         </div>

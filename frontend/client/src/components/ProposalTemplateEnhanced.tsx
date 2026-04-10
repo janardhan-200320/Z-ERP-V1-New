@@ -111,7 +111,7 @@ export default function ProposalTemplateEnhanced({
     'All deliverables are subject to client approval',
     'Revisions beyond the agreed scope will be billed separately'
   ],
-  currency = '$',
+  currency = '₹',
   saleAgent = 'Sales Representative',
   onAccept,
   canAccept = false,

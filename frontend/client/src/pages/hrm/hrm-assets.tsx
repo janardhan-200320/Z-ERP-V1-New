@@ -762,8 +762,7 @@ export default function HRMAssets() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Total Value</p>
-                  <h3 className="text-3xl font-black text-emerald-700">
-                    ${Math.round(filteredAssets.reduce((acc, a) => acc + parseInt(a.currentValue.replace(/[$,]/g, '')), 0) / 1000)}K
+                  <h3 className="text-3xl font-black text-emerald-700">₹{Math.round(filteredAssets.reduce((acc, a) => acc + parseInt(a.currentValue.replace(/[₹$,]/g, '')), 0) / 1000)}K
                   </h3>
                   <p className="text-xs text-emerald-600 mt-1">current valuation</p>
                 </div>
@@ -997,7 +996,7 @@ export default function HRMAssets() {
             <CardContent className="space-y-4">
               {['IT Equipment', 'Vehicle', 'Office Equipment', 'Furniture', 'ID & Access'].map(category => {
                 const categoryAssets = assets.filter(a => a.category === category);
-                const totalValue = categoryAssets.reduce((acc, a) => acc + parseInt(a.currentValue.replace(/[$,]/g, '')), 0);
+                const totalValue = categoryAssets.reduce((acc, a) => acc + parseInt(a.currentValue.replace(/[₹$,]/g, '')), 0);
                 const percentage = (categoryAssets.length / assets.length) * 100;
                 const icon = category === 'IT Equipment' ? Laptop : 
                             category === 'Vehicle' ? Car : 
@@ -1013,7 +1012,7 @@ export default function HRMAssets() {
                         <span className="font-medium text-slate-700">{category}</span>
                       </div>
                       <div className="text-right">
-                        <span className="font-bold text-slate-900">${(totalValue / 1000).toFixed(1)}K</span>
+                        <span className="font-bold text-slate-900">₹{(totalValue / 1000).toFixed(1)}K</span>
                         <span className="text-xs text-slate-500 ml-2">({categoryAssets.length} items)</span>
                       </div>
                     </div>
@@ -1048,14 +1047,12 @@ export default function HRMAssets() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-xs text-blue-600 font-bold uppercase mb-1">Purchase Value</p>
-                  <p className="text-2xl font-black text-blue-700">
-                    ${Math.round(assets.reduce((acc, a) => acc + parseInt(a.purchaseValue.replace(/[$,]/g, '')), 0) / 1000)}K
+                  <p className="text-2xl font-black text-blue-700">₹{Math.round(assets.reduce((acc, a) => acc + parseInt(a.purchaseValue.replace(/[₹$,]/g, '')), 0) / 1000)}K
                   </p>
                 </div>
                 <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
                   <p className="text-xs text-emerald-600 font-bold uppercase mb-1">Current Value</p>
-                  <p className="text-2xl font-black text-emerald-700">
-                    ${Math.round(assets.reduce((acc, a) => acc + parseInt(a.currentValue.replace(/[$,]/g, '')), 0) / 1000)}K
+                  <p className="text-2xl font-black text-emerald-700">₹{Math.round(assets.reduce((acc, a) => acc + parseInt(a.currentValue.replace(/[₹$,]/g, '')), 0) / 1000)}K
                   </p>
                 </div>
               </div>
@@ -1063,17 +1060,16 @@ export default function HRMAssets() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-red-600 font-bold uppercase mb-1">Total Depreciation</p>
-                    <p className="text-2xl font-black text-red-700">
-                      ${Math.round((assets.reduce((acc, a) => acc + parseInt(a.purchaseValue.replace(/[$,]/g, '')), 0) - 
-                        assets.reduce((acc, a) => acc + parseInt(a.currentValue.replace(/[$,]/g, '')), 0)) / 1000)}K
+                    <p className="text-2xl font-black text-red-700">₹{Math.round((assets.reduce((acc, a) => acc + parseInt(a.purchaseValue.replace(/[₹$,]/g, '')), 0) - 
+                        assets.reduce((acc, a) => acc + parseInt(a.currentValue.replace(/[₹$,]/g, '')), 0)) / 1000)}K
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-red-600 font-bold uppercase mb-1">Average</p>
                     <p className="text-xl font-black text-red-700">
-                      {(((assets.reduce((acc, a) => acc + parseInt(a.purchaseValue.replace(/[$,]/g, '')), 0) - 
-                        assets.reduce((acc, a) => acc + parseInt(a.currentValue.replace(/[$,]/g, '')), 0)) / 
-                        assets.reduce((acc, a) => acc + parseInt(a.purchaseValue.replace(/[$,]/g, '')), 0)) * 100).toFixed(1)}%
+                      {(((assets.reduce((acc, a) => acc + parseInt(a.purchaseValue.replace(/[₹$,]/g, '')), 0) - 
+                        assets.reduce((acc, a) => acc + parseInt(a.currentValue.replace(/[₹$,]/g, '')), 0)) / 
+                        assets.reduce((acc, a) => acc + parseInt(a.purchaseValue.replace(/[₹$,]/g, '')), 0)) * 100).toFixed(1)}%
                     </p>
                   </div>
                 </div>

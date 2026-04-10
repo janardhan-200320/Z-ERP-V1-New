@@ -349,7 +349,7 @@ export default function EstimatesTab() {
     setEditExpiryDate(estimate.expiryDate || '');
     setEditClientNote('');
     setEditTerms('');
-    const amountNum = parseFloat(estimate.amount?.replace(/[$,]/g, '') || '0');
+    const amountNum = parseFloat(estimate.amount?.replace(/[₹$,]/g, '') || '0');
     setEditItems([
       { id: 1, item: 'Item 1', description: estimate.project || '', qty: 1, rate: amountNum, tax: 'No Tax', amount: amountNum }
     ]);
@@ -500,8 +500,8 @@ export default function EstimatesTab() {
       id: `${editEstimatePrefix}${editEstimateNumber}`,
       customer: editCustomer,
       project: editProject,
-      amount: `$${total.toLocaleString()}`,
-      tax: `$${taxAmount.toLocaleString()}`,
+      amount: `₹${total.toLocaleString()}`,
+      tax: `₹${taxAmount.toLocaleString()}`,
       date: editEstimateDate,
       expiryDate: editExpiryDate,
       reference: editReference,
@@ -596,8 +596,7 @@ export default function EstimatesTab() {
                   </div>
                   <div className="flex justify-between items-center pt-3 border-t border-slate-200">
                     <span className="text-lg font-bold text-slate-900">Total Amount:</span>
-                    <span className="text-2xl font-bold text-green-700">
-                      ${(parseFloat(viewEstimate.amount.replace(/[$,]/g, '')) + parseFloat(viewEstimate.tax.replace(/[$,]/g, ''))).toLocaleString()}
+                    <span className="text-2xl font-bold text-green-700">₹{(parseFloat(viewEstimate.amount.replace(/[₹$,]/g, '')) + parseFloat(viewEstimate.tax.replace(/[₹$,]/g, ''))).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -975,8 +974,7 @@ export default function EstimatesTab() {
                                 </SelectContent>
                               </Select>
                             </TableCell>
-                            <TableCell className="text-right font-semibold">
-                              ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            <TableCell className="text-right font-semibold">₹{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell>
                               {index === 0 ? (
@@ -1016,13 +1014,13 @@ export default function EstimatesTab() {
                         </div>
                         <div className="text-right">
                           <Label className="text-xs text-slate-500">Sub Total</Label>
-                          <p className="font-semibold">${calculateEditTotals().subTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                          <p className="font-semibold">₹{calculateEditTotals().subTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                         </div>
                       </div>
                       <div className="flex justify-between items-center">
                         <div></div>
                         <div className="text-right">
-                          <p className="text-sm text-slate-600">${calculateEditTotals().discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                          <p className="text-sm text-slate-600">₹{calculateEditTotals().discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                         </div>
                       </div>
                       <div className="flex justify-between items-center">
@@ -1035,11 +1033,11 @@ export default function EstimatesTab() {
                             className="w-24 h-8 text-sm"
                           />
                         </div>
-                        <p className="text-sm text-slate-600">${editAdjustment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        <p className="text-sm text-slate-600">₹{editAdjustment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                       </div>
                       <div className="flex justify-between items-center pt-3 border-t">
                         <Label className="text-lg font-bold">Total</Label>
-                        <p className="text-2xl font-bold text-green-700">${calculateEditTotals().total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        <p className="text-2xl font-bold text-green-700">₹{calculateEditTotals().total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                       </div>
                     </div>
                   </div>
@@ -1566,7 +1564,7 @@ export default function EstimatesTab() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="percent">%</SelectItem>
-                                  <SelectItem value="fixed">$</SelectItem>
+                                  <SelectItem value="fixed">₹</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>

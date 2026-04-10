@@ -67,7 +67,7 @@ export interface InvoiceData {
   igstPercent?: number;
   igstAmount?: number;
   discount: number;
-  discountType: '%' | '$';
+  discountType: '%' | '₹';
   adjustment?: number;
   total: number;
   amountDue: number;

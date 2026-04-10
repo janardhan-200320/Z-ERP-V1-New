@@ -408,8 +408,7 @@ export default function SubscriptionManagement() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Renewal Revenue</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">
-                      ${metrics.total_renewal_revenue.toLocaleString()}
+                    <p className="text-2xl font-bold text-gray-900 mt-1">₹{metrics.total_renewal_revenue.toLocaleString()}
                     </p>
                   </div>
                   <DollarSign className="w-10 h-10 text-blue-600" />
@@ -508,8 +507,7 @@ export default function SubscriptionManagement() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-3xl font-bold text-indigo-600">
-                                ${subscription.subscription_amount}
+                              <p className="text-3xl font-bold text-indigo-600">₹{subscription.subscription_amount}
                               </p>
                               <p className="text-sm text-gray-500">
                                 {BILLING_CYCLE_LABELS[subscription.billing_cycle]}
@@ -668,8 +666,7 @@ export default function SubscriptionManagement() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-3xl font-bold text-indigo-600">
-                                ${renewal.amount}
+                              <p className="text-3xl font-bold text-indigo-600">₹{renewal.amount}
                               </p>
                               <p className="text-sm text-gray-500 mt-1">
                                 Expires: {new Date(renewal.expiry_date).toLocaleDateString()}
@@ -776,14 +773,12 @@ export default function SubscriptionManagement() {
                       <div className="space-y-4">
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">Monthly Recurring Revenue</span>
-                          <span className="text-2xl font-bold text-gray-900">
-                            ${metrics.monthly_recurring_revenue.toLocaleString()}
+                          <span className="text-2xl font-bold text-gray-900">₹{metrics.monthly_recurring_revenue.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">Annual Recurring Revenue</span>
-                          <span className="text-2xl font-bold text-gray-900">
-                            ${metrics.yearly_recurring_revenue.toLocaleString()}
+                          <span className="text-2xl font-bold text-gray-900">₹{metrics.yearly_recurring_revenue.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -992,8 +987,7 @@ export default function SubscriptionManagement() {
                 </div>
                 <div className="p-4 bg-indigo-50 rounded-lg">
                   <p className="text-sm text-gray-600">Amount to Charge:</p>
-                  <p className="text-3xl font-bold text-indigo-600">
-                    ${selectedSubscription.subscription_amount}
+                  <p className="text-3xl font-bold text-indigo-600">₹{selectedSubscription.subscription_amount}
                   </p>
                 </div>
               </div>
@@ -1075,7 +1069,7 @@ function SubscriptionListView({
                       {SUBSCRIPTION_TYPE_LABELS[sub.subscription_type]}
                     </td>
                     <td className="p-3">
-                      <p className="font-semibold text-gray-900">${sub.subscription_amount}</p>
+                      <p className="font-semibold text-gray-900">₹{sub.subscription_amount}</p>
                       <p className="text-xs text-gray-500">
                         {BILLING_CYCLE_LABELS[sub.billing_cycle]}
                       </p>
@@ -1374,8 +1368,7 @@ function SubscriptionDetailsView({ subscription }: { subscription: Subscription 
       <div className="grid md:grid-cols-3 gap-4">
         <div>
           <Label className="text-gray-500">Amount</Label>
-          <p className="font-semibold text-2xl text-indigo-600">
-            ${subscription.subscription_amount}
+          <p className="font-semibold text-2xl text-indigo-600">₹{subscription.subscription_amount}
           </p>
           <p className="text-sm text-gray-500">
             {BILLING_CYCLE_LABELS[subscription.billing_cycle]}

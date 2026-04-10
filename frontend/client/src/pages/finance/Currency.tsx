@@ -39,7 +39,7 @@ export default function Currency() {
       id: "1",
       code: "USD",
       name: "US Dollar",
-      symbol: "$",
+      symbol: "₹",
       exchangeRate: 1.0,
       isDefault: true,
       active: true,
@@ -132,7 +132,7 @@ export default function Currency() {
                         <Label htmlFor="symbol">
                           Symbol <span className="text-red-500">*</span>
                         </Label>
-                        <Input id="symbol" placeholder="$" />
+                        <Input id="symbol" placeholder="₹" />
                       </div>
                     </div>
                     <div className="space-y-2">

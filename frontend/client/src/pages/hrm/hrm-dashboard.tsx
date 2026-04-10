@@ -587,7 +587,7 @@ export default function HRMDashboard() {
         }
         
         requestId = `EXP-${Date.now().toString().slice(-6)}`;
-        message = `Expense claim of $${expenseAmount} submitted for approval`;
+        message = `Expense claim of ₹${expenseAmount} submitted for approval`;
         isValid = true;
         break;
 
@@ -624,7 +624,7 @@ export default function HRMDashboard() {
         }
         
         requestId = `ADV-${Date.now().toString().slice(-6)}`;
-        message = `Salary advance request of $${advAmount} submitted for approval`;
+        message = `Salary advance request of ₹${advAmount} submitted for approval`;
         isValid = true;
         break;
 

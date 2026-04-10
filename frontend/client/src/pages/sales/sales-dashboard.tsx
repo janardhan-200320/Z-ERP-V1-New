@@ -273,7 +273,7 @@ export default function SalesDashboard() {
                       axisLine={false} 
                       tickLine={false} 
                       tick={{fill: '#64748b', fontSize: 12}}
-                      tickFormatter={(value) => `$${value/1000}k`}
+                      tickFormatter={(value) => `₹${value/1000}k`}
                     />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}

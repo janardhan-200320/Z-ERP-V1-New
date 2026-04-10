@@ -236,8 +236,8 @@ export default function TravelExpense() {
 
       const tableData = data.map((item: any) => 
         activeTab === 'travel' 
-          ? [item.id, item.employee, item.destination, item.fromDate, item.status, `$${item.estimatedCost}`]
-          : [item.id, item.employee, item.category, item.claimDate, item.status, `$${item.amount.toFixed(2)}`]
+          ? [item.id, item.employee, item.destination, item.fromDate, item.status, `₹${item.estimatedCost}`]
+          : [item.id, item.employee, item.category, item.claimDate, item.status, `₹${item.amount.toFixed(2)}`]
       );
 
       autoTable(doc, {
@@ -492,7 +492,7 @@ export default function TravelExpense() {
                             setClaims([newClaim, ...claims]);
                             toast({ 
                               title: "✅ Claim Submitted Successfully", 
-                              description: `Expense claim ${newClaim.id} created for $${amount.toFixed(2)}` 
+                              description: `Expense claim ${newClaim.id} created for ₹${amount.toFixed(2)}` 
                             });
                             setIsClaimDialogOpen(false);
                             
@@ -517,7 +517,7 @@ export default function TravelExpense() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pb-2">
               <StatCard 
                 title="Total Expenses"
-                value={`$${claims.reduce((acc, c) => acc + c.amount, 0).toFixed(2)}`}
+                value={`₹${claims.reduce((acc, c) => acc + c.amount, 0).toFixed(2)}`}
                 description="All submitted claims"
                 icon={DollarSign}
                 color="bg-pink-100 text-pink-600"
@@ -538,7 +538,7 @@ export default function TravelExpense() {
               />
               <StatCard 
                 title="Monthly Spend"
-                value={`$${Math.round(claims.filter(c => c.status === 'approved').reduce((acc, c) => acc + c.amount, 0)).toLocaleString()}`}
+                value={`₹${Math.round(claims.filter(c => c.status === 'approved').reduce((acc, c) => acc + c.amount, 0)).toLocaleString()}`}
                 trend={{ value: '+12% vs last month', positive: false }}
                 icon={Wallet}
                 color="bg-slate-100 text-slate-600"
@@ -615,7 +615,7 @@ export default function TravelExpense() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <p className="font-bold text-slate-900">${req.estimatedCost.toLocaleString()}</p>
+                            <p className="font-bold text-slate-900">₹{req.estimatedCost.toLocaleString()}</p>
                           </TableCell>
                           <TableCell>
                             <Badge className={`${status.class} border shadow-none flex items-center w-fit gap-1.5 px-2.5 py-0.5`}>
@@ -715,7 +715,7 @@ export default function TravelExpense() {
                             <span className="text-sm font-medium">{claim.claimDate}</span>
                           </TableCell>
                           <TableCell>
-                            <p className="font-bold text-slate-900">${claim.amount.toFixed(2)}</p>
+                            <p className="font-bold text-slate-900">₹{claim.amount.toFixed(2)}</p>
                           </TableCell>
                           <TableCell>
                             {claim.billAttached ? (
@@ -788,7 +788,7 @@ export default function TravelExpense() {
                          <TableCell className="font-bold">{adv.id}</TableCell>
                          <TableCell className="font-medium">{adv.employee}</TableCell>
                          <TableCell className="text-slate-500 font-bold">{adv.tripId}</TableCell>
-                         <TableCell className="font-black text-indigo-600">${adv.amount}</TableCell>
+                         <TableCell className="font-black text-indigo-600">₹{adv.amount}</TableCell>
                          <TableCell>
                            <Badge className={adv.status === 'disbursed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
                              {adv.status}
@@ -834,7 +834,7 @@ export default function TravelExpense() {
                           </div>
                           <div>
                              <p className="text-[10px] text-slate-400 font-black uppercase mb-1">Est. Budget</p>
-                             <p className="font-black text-lg text-slate-900">${selectedRequest.estimatedCost.toLocaleString()}</p>
+                             <p className="font-black text-lg text-slate-900">₹{selectedRequest.estimatedCost.toLocaleString()}</p>
                           </div>
                           <div>
                              <p className="text-[10px] text-slate-400 font-black uppercase mb-1">Departure</p>
@@ -882,7 +882,7 @@ export default function TravelExpense() {
                        <div className="flex justify-between items-center py-4 border-b border-slate-100">
                           <div>
                             <p className="text-[10px] text-slate-400 font-black uppercase mb-1">Claim Amount</p>
-                            <p className="text-3xl font-black text-emerald-600">${selectedClaim.amount.toFixed(2)}</p>
+                            <p className="text-3xl font-black text-emerald-600">₹{selectedClaim.amount.toFixed(2)}</p>
                           </div>
                           <Badge className={cn("rounded-xl px-3 py-1 font-black uppercase text-[10px]", statusConfig[selectedClaim.status].class)}>
                             {statusConfig[selectedClaim.status].label}

@@ -272,7 +272,7 @@ export default function ProjectClientPortalTab({ projectId }: ProjectClientPorta
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Total Invoiced</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">${financeSummary.invoiced.toLocaleString()}</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">₹{financeSummary.invoiced.toLocaleString()}</p>
               </div>
               <Receipt className="h-7 w-7 text-emerald-600" />
             </div>
@@ -356,20 +356,20 @@ export default function ProjectClientPortalTab({ projectId }: ProjectClientPorta
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="space-y-3 rounded-xl border border-slate-200 p-4">
                 <p className="text-sm text-slate-500">Total Budget</p>
-                <p className="text-2xl font-bold text-slate-900">${financeSummary.totalBudget.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-slate-900">₹{financeSummary.totalBudget.toLocaleString()}</p>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span>Spent</span><span>${financeSummary.spent.toLocaleString()}</span></div>
-                  <div className="flex justify-between"><span>Committed</span><span>${financeSummary.committed.toLocaleString()}</span></div>
-                  <div className="flex justify-between font-semibold"><span>Remaining</span><span>${remainingBudget.toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span>Spent</span><span>₹{financeSummary.spent.toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span>Committed</span><span>₹{financeSummary.committed.toLocaleString()}</span></div>
+                  <div className="flex justify-between font-semibold"><span>Remaining</span><span>₹{remainingBudget.toLocaleString()}</span></div>
                 </div>
               </div>
 
               <div className="space-y-3 rounded-xl border border-slate-200 p-4">
                 <p className="text-sm text-slate-500">Collections</p>
-                <p className="text-2xl font-bold text-slate-900">${financeSummary.collected.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-slate-900">₹{financeSummary.collected.toLocaleString()}</p>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span>Total Invoiced</span><span>${financeSummary.invoiced.toLocaleString()}</span></div>
-                  <div className="flex justify-between"><span>Outstanding</span><span>${(financeSummary.invoiced - financeSummary.collected).toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span>Total Invoiced</span><span>₹{financeSummary.invoiced.toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span>Outstanding</span><span>₹{(financeSummary.invoiced - financeSummary.collected).toLocaleString()}</span></div>
                   <div className="flex justify-between font-semibold"><span>Collection Rate</span><span>{Math.round((financeSummary.collected / financeSummary.invoiced) * 100)}%</span></div>
                 </div>
               </div>
@@ -525,7 +525,7 @@ export default function ProjectClientPortalTab({ projectId }: ProjectClientPorta
                     <p className="text-xs text-slate-500">{invoice.id} • Due {invoice.dueDate}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-slate-900">${invoice.amount.toLocaleString()}</p>
+                    <p className="font-semibold text-slate-900">₹{invoice.amount.toLocaleString()}</p>
                     <Badge variant="outline" className={invoiceStatusConfig[invoice.status] || 'bg-slate-100 text-slate-700 border-slate-200'}>{invoice.status}</Badge>
                   </div>
                 </div>

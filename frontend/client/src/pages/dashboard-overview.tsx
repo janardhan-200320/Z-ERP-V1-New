@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -1158,7 +1158,7 @@ export default function DashboardOverview() {
                         </div>
                         <div className="flex items-center gap-1 font-semibold text-slate-900">
                           <DollarSign className="h-3 w-3" />
-                          <span>${(contract.value / 1000).toFixed(0)}K</span>
+                          <span>₹{(contract.value / 1000).toFixed(0)}K</span>
                         </div>
                       </div>
                     </div>
@@ -1191,7 +1191,7 @@ export default function DashboardOverview() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-red-600">Amount</p>
-                    <p className="text-sm font-semibold text-red-700">${(outstandingInvoices.overdueAmount / 1000).toFixed(0)}K</p>
+                    <p className="text-sm font-semibold text-red-700">₹{(outstandingInvoices.overdueAmount / 1000).toFixed(0)}K</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-100">
@@ -1201,7 +1201,7 @@ export default function DashboardOverview() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-orange-600">Amount</p>
-                    <p className="text-sm font-semibold text-orange-700">${(outstandingInvoices.dueThisWeekAmount / 1000).toFixed(0)}K</p>
+                    <p className="text-sm font-semibold text-orange-700">₹{(outstandingInvoices.dueThisWeekAmount / 1000).toFixed(0)}K</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
@@ -1211,7 +1211,7 @@ export default function DashboardOverview() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-slate-600">Amount</p>
-                    <p className="text-sm font-semibold text-slate-700">${(outstandingInvoices.amount / 1000).toFixed(0)}K</p>
+                    <p className="text-sm font-semibold text-slate-700">₹{(outstandingInvoices.amount / 1000).toFixed(0)}K</p>
                   </div>
                 </div>
               </div>
@@ -1278,8 +1278,7 @@ export default function DashboardOverview() {
                     <div key={index}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs sm:text-sm font-medium text-slate-700 truncate">{insight.label}</span>
-                        <span className="text-xs sm:text-sm font-semibold text-slate-900 ml-2 flex-shrink-0">
-                          ${(insight.amount / 1000).toFixed(1)}K
+                        <span className="text-xs sm:text-sm font-semibold text-slate-900 ml-2 flex-shrink-0">₹{(insight.amount / 1000).toFixed(1)}K
                         </span>
                       </div>
                       <div className="relative h-1.5 sm:h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -1444,7 +1443,7 @@ export default function DashboardOverview() {
                           <TrendingUp className="h-3 w-3" />
                           {performer.performance}%
                         </div>
-                        <p className="text-xs text-slate-500">${(performer.revenue / 1000).toFixed(0)}K</p>
+                        <p className="text-xs text-slate-500">₹{(performer.revenue / 1000).toFixed(0)}K</p>
                       </div>
                     </div>
                     <div className="mt-2 flex items-center justify-between text-xs">
@@ -1487,7 +1486,7 @@ export default function DashboardOverview() {
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs text-slate-600">
                             {typeof goal.current === 'number' && goal.current > 1000 
-                              ? `$${(goal.current / 1000).toFixed(0)}K / $${(goal.target / 1000).toFixed(0)}K`
+                              ? `₹${(goal.current / 1000).toFixed(0)}K / ₹${(goal.target / 1000).toFixed(0)}K`
                               : `${goal.current} / ${goal.target}${goal.goal.includes('Rate') || goal.goal.includes('Margin') ? '%' : ''}`
                             }
                           </span>

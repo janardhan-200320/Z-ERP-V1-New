@@ -564,7 +564,7 @@ export default function ProductsDashboard() {
         />
         <StatsCard
           title="Inventory Value"
-          value={`$${inventoryValue.toLocaleString()}`}
+          value={`₹${inventoryValue.toLocaleString()}`}
           description="Total stock value"
           icon={DollarSign}
         />
@@ -689,8 +689,7 @@ export default function ProductsDashboard() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-semibold">
-                          ${product.price.toFixed(2)}
+                        <TableCell className="font-semibold">₹{product.price.toFixed(2)}
                         </TableCell>
                         <TableCell>
                           <Badge variant={getStatusBadgeVariant(product.status)}>
@@ -757,7 +756,7 @@ export default function ProductsDashboard() {
                         <p className="text-sm text-muted-foreground font-mono">{product.sku}</p>
                         <div className="flex items-center justify-between">
                           <Badge variant="outline">{product.category}</Badge>
-                          <span className="font-semibold">${product.price.toFixed(2)}</span>
+                          <span className="font-semibold">₹{product.price.toFixed(2)}</span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Stock: {product.stock}</span>
@@ -794,8 +793,7 @@ export default function ProductsDashboard() {
                 <DollarSign className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  ${totalValue.toFixed(2)}
+                <div className="text-2xl font-bold text-green-600">₹{totalValue.toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">Current inventory value</p>
               </CardContent>
@@ -977,8 +975,7 @@ export default function ProductsDashboard() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  ${products.reduce((sum, p) => sum + p.costPrice, 0).toFixed(2)}
+                <div className="text-2xl font-bold">₹{products.reduce((sum, p) => sum + p.costPrice, 0).toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">Sum of cost prices</p>
               </CardContent>
@@ -989,8 +986,7 @@ export default function ProductsDashboard() {
                 <DollarSign className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  ${products.reduce((sum, p) => sum + p.price, 0).toFixed(2)}
+                <div className="text-2xl font-bold text-green-600">₹{products.reduce((sum, p) => sum + p.price, 0).toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">Sum of selling prices</p>
               </CardContent>
@@ -1034,9 +1030,8 @@ export default function ProductsDashboard() {
                   {pricingRecords.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell className="font-medium">{record.productName}</TableCell>
-                      <TableCell>${record.costPrice.toFixed(2)}</TableCell>
-                      <TableCell className="font-semibold">
-                        ${record.sellingPrice.toFixed(2)}
+                      <TableCell>₹{record.costPrice.toFixed(2)}</TableCell>
+                      <TableCell className="font-semibold">₹{record.sellingPrice.toFixed(2)}
                       </TableCell>
                       <TableCell>
                         <span className="text-green-600 font-semibold">
@@ -1215,11 +1210,11 @@ export default function ProductsDashboard() {
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Cost Price</p>
-                    <p className="text-xl font-semibold">${selectedProduct.costPrice.toFixed(2)}</p>
+                    <p className="text-xl font-semibold">₹{selectedProduct.costPrice.toFixed(2)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Selling Price</p>
-                    <p className="text-xl font-semibold text-green-600">${selectedProduct.price.toFixed(2)}</p>
+                    <p className="text-xl font-semibold text-green-600">₹{selectedProduct.price.toFixed(2)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Margin</p>
@@ -1246,7 +1241,7 @@ export default function ProductsDashboard() {
                   </div>
                   <div className="col-span-2">
                     <p className="text-sm text-muted-foreground">Stock Value</p>
-                    <p className="text-xl font-semibold">${(selectedProduct.price * selectedProduct.stock).toFixed(2)}</p>
+                    <p className="text-xl font-semibold">₹{(selectedProduct.price * selectedProduct.stock).toFixed(2)}</p>
                   </div>
                 </div>
               </div>

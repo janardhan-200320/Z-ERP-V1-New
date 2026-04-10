@@ -409,7 +409,7 @@ export default function BankAccounts() {
                     <div className="space-y-1.5 text-blue-900 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
                       <Label htmlFor="balance" className="text-xs font-bold text-blue-700 uppercase">Opening Balance *</Label>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 font-bold text-sm">$</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 font-bold text-sm">₹</span>
                         <Input 
                           id="balance" 
                           type="number" 

@@ -179,9 +179,9 @@ export function exportEnhancedPDF(config: DocumentConfig): void {
   const tableData = config.items.map((item) => [
     item.description,
     item.quantity.toString(),
-    `$${item.rate.toFixed(2)}`,
+    `₹${item.rate.toFixed(2)}`,
     item.tax || 'N/A',
-    `$${item.amount.toFixed(2)}`,
+    `₹${item.amount.toFixed(2)}`,
   ]);
 
   autoTable(doc, {
@@ -221,18 +221,18 @@ export function exportEnhancedPDF(config: DocumentConfig): void {
   doc.setFontSize(10);
 
   doc.text('Subtotal:', totalsX, yPos, { align: 'right' });
-  doc.text(`$${config.subtotal.toFixed(2)}`, pageWidth - 15, yPos, { align: 'right' });
+  doc.text(`₹${config.subtotal.toFixed(2)}`, pageWidth - 15, yPos, { align: 'right' });
   yPos += 7;
 
   if (config.tax) {
     doc.text('Tax:', totalsX, yPos, { align: 'right' });
-    doc.text(`$${config.tax.toFixed(2)}`, pageWidth - 15, yPos, { align: 'right' });
+    doc.text(`₹${config.tax.toFixed(2)}`, pageWidth - 15, yPos, { align: 'right' });
     yPos += 7;
   }
 
   if (config.discount) {
     doc.text('Discount:', totalsX, yPos, { align: 'right' });
-    doc.text(`-$${config.discount.toFixed(2)}`, pageWidth - 15, yPos, { align: 'right' });
+    doc.text(`-₹${config.discount.toFixed(2)}`, pageWidth - 15, yPos, { align: 'right' });
     yPos += 7;
   }
 
@@ -243,7 +243,7 @@ export function exportEnhancedPDF(config: DocumentConfig): void {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.text('TOTAL:', totalsX, yPos + 3, { align: 'right' });
-  doc.text(`$${config.total.toFixed(2)}`, pageWidth - 15, yPos + 3, { align: 'right' });
+  doc.text(`₹${config.total.toFixed(2)}`, pageWidth - 15, yPos + 3, { align: 'right' });
 
   yPos += 20;
 

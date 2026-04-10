@@ -2063,7 +2063,7 @@ export default function LeadsModule() {
                   <div className="flex items-center justify-between mb-2">
                     <DollarSign className="w-5 h-5 text-green-600" />
                   </div>
-                  <p className="text-2xl font-bold text-gray-900 truncate">{formatCurrency(stats.totalValue).replace('$', '$')}</p>
+                  <p className="text-2xl font-bold text-gray-900 truncate">{formatCurrency(stats.totalValue).replace('$', '₹')}</p>
                   <p className="text-sm text-gray-600">Total Value</p>
                 </CardContent>
               </Card>
@@ -3636,7 +3636,7 @@ function LeadDetailModal({
       id: proposal.id || `PROP-${index + 1}`,
       subject: proposal.title || `Proposal ${index + 1}`,
       customer: customerName,
-      totalAmount: `$${(proposal.total || 0).toLocaleString()}`,
+      totalAmount: `₹${(proposal.total || 0).toLocaleString()}`,
       date: proposal.createdAt || '',
       validUntil: proposal.validUntil || '',
       project: lead.company || 'Lead Proposal',
@@ -4358,15 +4358,15 @@ Status: ${proposal.status.toUpperCase()}
 LINE ITEMS:
 --------------------------------------
 ${proposal.lineItems.map((item, index) => 
-  `${index + 1}. ${item.description}\n   Quantity: ${item.quantity} x $${item.unitPrice} = $${item.total}`
+  `${index + 1}. ${item.description}\n   Quantity: ${item.quantity} x ₹${item.unitPrice} = ₹${item.total}`
 ).join('\n\n')}
 
 --------------------------------------
 SUMMARY:
 --------------------------------------
-Subtotal: $${proposal.subtotal.toFixed(2)}
-Tax (10%): $${proposal.tax.toFixed(2)}
-Total: $${proposal.total.toFixed(2)}
+Subtotal: ₹${proposal.subtotal.toFixed(2)}
+Tax (10%): ₹${proposal.tax.toFixed(2)}
+Total: ₹${proposal.total.toFixed(2)}
 
 ${proposal.notes ? `--------------------------------------\nNOTES:\n--------------------------------------\n${proposal.notes}` : ''}
 
@@ -5244,11 +5244,11 @@ Generated: ${new Date().toLocaleString()}
                                             {index + 1}. {item.description}
                                           </p>
                                           <p className="text-xs text-gray-500 mt-0.5">
-                                            Qty: {item.quantity} × ${item.unitPrice.toLocaleString()}
+                                            Qty: {item.quantity} × ₹{item.unitPrice.toLocaleString()}
                                           </p>
                                         </div>
                                         <span className="text-xs font-bold text-gray-900 ml-2 whitespace-nowrap">
-                                          ${item.total.toLocaleString()}
+                                          ₹{item.total.toLocaleString()}
                                         </span>
                                       </div>
                                     ))}
@@ -5265,11 +5265,11 @@ Generated: ${new Date().toLocaleString()}
                               <div className="p-4 bg-white rounded-xl border-2 border-rose-200 mb-4 space-y-2">
                                 <div className="flex items-center justify-between text-sm">
                                   <span className="text-gray-600">Subtotal:</span>
-                                  <span className="font-semibold text-gray-800">${proposal.subtotal.toLocaleString()}</span>
+                                  <span className="font-semibold text-gray-800">₹{proposal.subtotal.toLocaleString()}</span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
                                   <span className="text-gray-600">Tax (10%):</span>
-                                  <span className="font-semibold text-gray-800">${proposal.tax.toLocaleString()}</span>
+                                  <span className="font-semibold text-gray-800">₹{proposal.tax.toLocaleString()}</span>
                                 </div>
                                 <Separator className="my-2" />
                                 <div className="flex items-center justify-between">
@@ -5277,7 +5277,7 @@ Generated: ${new Date().toLocaleString()}
                                     💰 Total Amount:
                                   </span>
                                   <span className="text-xl font-bold text-rose-600">
-                                    ${proposal.total.toLocaleString()}
+                                    ₹{proposal.total.toLocaleString()}
                                   </span>
                                 </div>
                               </div>

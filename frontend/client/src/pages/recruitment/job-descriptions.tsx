@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -179,7 +179,7 @@ export default function JobDescriptionsModule({ jobs, onViewApplicants }: Props)
                   </div>
                   <div className="flex items-center text-sm text-slate-600">
                     <DollarSign className="h-4 w-4 mr-2 text-slate-400" />
-                    {job.salaryMin && job.salaryMax ? `$${job.salaryMin} - $${job.salaryMax}` : 'Not specified'}
+                    {job.salaryMin && job.salaryMax ? `₹${job.salaryMin} - ₹${job.salaryMax}` : 'Not specified'}
                   </div>
                   <div className="flex items-center text-sm text-slate-600">
                     <Calendar className="h-4 w-4 mr-2 text-slate-400" />

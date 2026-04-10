@@ -84,8 +84,8 @@ export function generatePRHtml(data: PurchaseRequisitionData, header: DocumentHe
         <td style="padding: 8px; border: 1px solid #e2e8f0;">${idx + 1}</td>
         <td style="padding: 8px; border: 1px solid #e2e8f0;">${item.name}</td>
         <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: center;">${item.quantity}</td>
-        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">$${item.unitPrice.toFixed(2)}</td>
-        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">$${item.totalPrice.toFixed(2)}</td>
+        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">₹${item.unitPrice.toFixed(2)}</td>
+        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">₹${item.totalPrice.toFixed(2)}</td>
       </tr>
     `
     )
@@ -163,7 +163,7 @@ export function generatePRHtml(data: PurchaseRequisitionData, header: DocumentHe
             ${itemsHtml}
             <tr class="total-row">
               <td colspan="4" style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">TOTAL:</td>
-              <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">$${data.totalAmount.toFixed(2)}</td>
+              <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">₹${data.totalAmount.toFixed(2)}</td>
             </tr>
           </tbody>
         </table>
@@ -189,8 +189,8 @@ export function generatePOHtml(data: PurchaseOrderData, header: DocumentHeader):
         <td style="padding: 8px; border: 1px solid #e2e8f0;">${idx + 1}</td>
         <td style="padding: 8px; border: 1px solid #e2e8f0;">${item.name}</td>
         <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: center;">${item.quantity}</td>
-        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">$${item.unitPrice.toFixed(2)}</td>
-        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">$${item.totalPrice.toFixed(2)}</td>
+        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">₹${item.unitPrice.toFixed(2)}</td>
+        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">₹${item.totalPrice.toFixed(2)}</td>
       </tr>
     `
     )
@@ -260,12 +260,12 @@ export function generatePOHtml(data: PurchaseOrderData, header: DocumentHeader):
         <div class="total-section">
           <div class="total-row">
             <span>Subtotal:</span>
-            <span>$${data.totalAmount.toFixed(2)}</span>
+            <span>₹${data.totalAmount.toFixed(2)}</span>
           </div>
-          ${data.taxAmount ? `<div class="total-row"><span>Tax:</span><span>$${data.taxAmount.toFixed(2)}</span></div>` : ''}
+          ${data.taxAmount ? `<div class="total-row"><span>Tax:</span><span>₹${data.taxAmount.toFixed(2)}</span></div>` : ''}
           <div class="total-row grand-total">
             <span>Grand Total:</span>
-            <span>$${data.grandTotal.toFixed(2)}</span>
+            <span>₹${data.grandTotal.toFixed(2)}</span>
           </div>
         </div>
 

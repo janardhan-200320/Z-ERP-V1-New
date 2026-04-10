@@ -815,8 +815,7 @@ export default function InvoicesTab() {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell className="text-right font-medium text-sm">
-                            ${item.amount.toFixed(2)}
+                          <TableCell className="text-right font-medium text-sm">₹{item.amount.toFixed(2)}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
@@ -851,20 +850,20 @@ export default function InvoicesTab() {
                 <div className="w-96 space-y-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">Sub Total :</span>
-                    <span className="font-semibold">${calculateTotals().subTotal.toFixed(2)}</span>
+                    <span className="font-semibold">₹{calculateTotals().subTotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">CGST :</span>
-                    <span className="font-semibold">${calculateTotals().cgstAmount.toFixed(2)}</span>
+                    <span className="font-semibold">₹{calculateTotals().cgstAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">SGST :</span>
-                    <span className="font-semibold">${calculateTotals().sgstAmount.toFixed(2)}</span>
+                    <span className="font-semibold">₹{calculateTotals().sgstAmount.toFixed(2)}</span>
                   </div>
                   {calculateTotals().otherTaxAmount > 0 && (
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600">Other Tax :</span>
-                      <span className="font-semibold">${calculateTotals().otherTaxAmount.toFixed(2)}</span>
+                      <span className="font-semibold">₹{calculateTotals().otherTaxAmount.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center gap-3">
@@ -878,7 +877,7 @@ export default function InvoicesTab() {
                         min="0"
                         placeholder="0.00"
                       />
-                      <span className="font-semibold w-24 text-right text-sm">${calculateTotals().discountAmount.toFixed(2)}</span>
+                      <span className="font-semibold w-24 text-right text-sm">₹{calculateTotals().discountAmount.toFixed(2)}</span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center gap-3">
@@ -891,12 +890,12 @@ export default function InvoicesTab() {
                         className="w-24 h-9 text-sm"
                         placeholder="0.00"
                       />
-                      <span className="font-semibold w-24 text-right text-sm">${adjustment.toFixed(2)}</span>
+                      <span className="font-semibold w-24 text-right text-sm">₹{adjustment.toFixed(2)}</span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center text-base font-bold pt-2 border-t">
                     <span>Total :</span>
-                    <span>${calculateTotals().total.toFixed(2)}</span>
+                    <span>₹{calculateTotals().total.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -1833,8 +1832,7 @@ export default function InvoicesTab() {
                                                 </SelectContent>
                                               </Select>
                                             </TableCell>
-                                            <TableCell className="text-right font-semibold text-slate-900 font-mono">
-                                              ${item.amount.toFixed(2)}
+                                            <TableCell className="text-right font-semibold text-slate-900 font-mono">₹{item.amount.toFixed(2)}
                                             </TableCell>
                                             <TableCell>
                                               {invoiceItems.length > 1 && (
@@ -1887,33 +1885,33 @@ export default function InvoicesTab() {
                                       <div className="space-y-3">
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">Sub Total:</span>
-                                          <span className="font-bold text-slate-900 font-mono">${calculateTotals().subTotal.toFixed(2)}</span>
+                                          <span className="font-bold text-slate-900 font-mono">₹{calculateTotals().subTotal.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">CGST:</span>
-                                          <span className="font-bold text-slate-900 font-mono">${calculateTotals().cgstAmount.toFixed(2)}</span>
+                                          <span className="font-bold text-slate-900 font-mono">₹{calculateTotals().cgstAmount.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">SGST:</span>
-                                          <span className="font-bold text-slate-900 font-mono">${calculateTotals().sgstAmount.toFixed(2)}</span>
+                                          <span className="font-bold text-slate-900 font-mono">₹{calculateTotals().sgstAmount.toFixed(2)}</span>
                                         </div>
                                         {calculateTotals().otherTaxAmount > 0 && (
                                           <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                             <span className="text-sm font-semibold text-slate-700">Other Tax:</span>
-                                            <span className="font-bold text-slate-900 font-mono">${calculateTotals().otherTaxAmount.toFixed(2)}</span>
+                                            <span className="font-bold text-slate-900 font-mono">₹{calculateTotals().otherTaxAmount.toFixed(2)}</span>
                                           </div>
                                         )}
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">Discount:</span>
-                                          <span className="font-bold text-red-600 font-mono">-${calculateTotals().discountAmount.toFixed(2)}</span>
+                                          <span className="font-bold text-red-600 font-mono">-₹{calculateTotals().discountAmount.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">Adjustment:</span>
-                                          <span className="font-bold text-slate-900 font-mono">${adjustment.toFixed(2)}</span>
+                                          <span className="font-bold text-slate-900 font-mono">₹{adjustment.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center pt-3 border-t-2 border-blue-600">
                                           <span className="text-lg font-bold text-slate-900">Total Amount:</span>
-                                          <span className="text-2xl font-black text-blue-600 font-mono">${calculateTotals().total.toFixed(2)}</span>
+                                          <span className="text-2xl font-black text-blue-600 font-mono">₹{calculateTotals().total.toFixed(2)}</span>
                                         </div>
                                       </div>
                                     </div>

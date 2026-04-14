@@ -91,6 +91,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
 
   type WorkLocation = AttendanceWorkLocation;
   type BreakReason = 'lunch' | 'tea' | 'short' | 'meeting' | 'other';
+  type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+  type TaskStatus = 'not-started' | 'in-progress' | 'testing' | 'complete';
 
   const [location, navigate] = useLocation();
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
@@ -123,6 +125,18 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [checkInAt, setCheckInAt] = useState<Date | null>(null);
   const [breakStartedAt, setBreakStartedAt] = useState<Date | null>(null);
   const [accumulatedBreakMs, setAccumulatedBreakMs] = useState(0);
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    description: '',
+    assignee: '',
+    follower: '',
+    priority: 'medium' as TaskPriority,
+    dueDate: '',
+    status: 'not-started' as TaskStatus,
+    estimatedHours: '',
+    attachments: [] as File[],
+  });
+  const [taskFormErrors, setTaskFormErrors] = useState<Record<string, string>>({});
   const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const lastSidebarScrollTop = useRef(0);
 
@@ -257,7 +271,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
 
     toast({
       title: 'Checked Out',
-      description: `Work time ${formatDurationClock(finalizedWorkMs)} • Break ${formatDurationClock(finalizedBreakMs)}`,
+      description: `Work time ${formatDurationClock(finalizedWorkMs)} ï¿½ Break ${formatDurationClock(finalizedBreakMs)}`,
       duration: 3500,
     });
 
@@ -265,10 +279,43 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   };
 
   const handleCreateTask = () => {
+    const errors: Record<string, string> = {};
+
+    if (!taskForm.title.trim()) {
+      errors.title = 'Task title is required';
+    }
+    if (!taskForm.assignee) {
+      errors.assignee = 'Please select an assignee';
+    }
+    if (!taskForm.dueDate) {
+      errors.dueDate = 'Due date is required';
+    }
+    if (taskForm.estimatedHours && (isNaN(Number(taskForm.estimatedHours)) || Number(taskForm.estimatedHours) < 0)) {
+      errors.estimatedHours = 'Please enter a valid number of hours';
+    }
+
+    setTaskFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
     setTaskDialogOpen(false);
+    setTaskForm({
+      title: '',
+      description: '',
+      assignee: '',
+      follower: '',
+      priority: 'medium',
+      dueDate: '',
+      status: 'not-started',
+      estimatedHours: '',
+      attachments: [],
+    });
+    setTaskFormErrors({});
+
     toast({
       title: "Task Created!",
-      description: "Your new task has been added successfully.",
+      description: `Task "${taskForm.title.trim()}" has been added successfully.`,
       duration: 3000,
     });
   };
@@ -1092,15 +1139,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
               </Button>
 
-              {/* Add Task Button */}
-              <Button
-                className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-                onClick={() => setTaskDialogOpen(true)}
-              >
-                <Plus size={18} />
-                <span className="hidden sm:inline">Add Task</span>
-              </Button>
-
               <ProfileDropdown />
             </div>
           </div>
@@ -1164,9 +1202,9 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 <p className="text-sm text-slate-500 mb-2">Start typing to search</p>
                 <div className="flex flex-wrap gap-2 justify-center text-xs text-slate-400">
                   <span>Try: Dashboard</span>
-                  <span>•</span>
+                  <span>ï¿½</span>
                   <span>Employees</span>
-                  <span>•</span>
+                  <span>ï¿½</span>
                   <span>Invoices</span>
                 </div>
               </div>
@@ -1188,7 +1226,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'} found
                   </p>
-                  <p className="text-xs text-slate-400">?? Navigate • ? Select • ESC Close</p>
+                  <p className="text-xs text-slate-400">?? Navigate ï¿½ ? Select ï¿½ ESC Close</p>
                 </div>
                 <ScrollArea className="max-h-96">
                   <div className="space-y-1">
@@ -1490,78 +1528,188 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       </Dialog>
 
       {/* Add Task Dialog */}
-      <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      <Dialog
+        open={taskDialogOpen}
+        onOpenChange={(open) => {
+          setTaskDialogOpen(open);
+          if (!open) {
+            setTaskForm({
+              title: '',
+              description: '',
+              assignee: '',
+              follower: '',
+              priority: 'medium',
+              dueDate: '',
+              status: 'not-started',
+              estimatedHours: '',
+              attachments: [],
+            });
+            setTaskFormErrors({});
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[85vh]">
           <DialogHeader>
-            <DialogTitle>Add New Task</DialogTitle>
-            <DialogDescription>Create a new task and assign it to team members</DialogDescription>
+            <DialogTitle>Create New Task</DialogTitle>
+            <DialogDescription>Add a new task to this project.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Task Title *</Label>
-              <Input placeholder="Enter task title" />
-            </div>
-            <div>
-              <Label>Description</Label>
-              <Textarea placeholder="Describe the task..." rows={4} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Assign To</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select team member" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="john">John Doe</SelectItem>
-                    <SelectItem value="sarah">Sarah Johnson</SelectItem>
-                    <SelectItem value="mike">Mike Smith</SelectItem>
-                  </SelectContent>
-                </Select>
+          <ScrollArea className="max-h-[65vh] pr-2">
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="dashboard-task-title">Task Title *</Label>
+                <Input
+                  id="dashboard-task-title"
+                  value={taskForm.title}
+                  onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                  placeholder="Enter task title"
+                  className={taskFormErrors.title ? 'border-red-500' : ''}
+                />
+                {taskFormErrors.title && <p className="text-xs text-red-500">{taskFormErrors.title}</p>}
               </div>
-              <div>
-                <Label>Priority</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2">
+                <Label htmlFor="dashboard-task-description">Description</Label>
+                <Textarea
+                  id="dashboard-task-description"
+                  value={taskForm.description}
+                  onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+                  placeholder="Enter task description"
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="dashboard-task-assignee">Assigned To *</Label>
+                  <Select value={taskForm.assignee} onValueChange={(value) => setTaskForm({ ...taskForm, assignee: value })}>
+                    <SelectTrigger className={taskFormErrors.assignee ? 'border-red-500' : ''}>
+                      <SelectValue placeholder="Select assigned to" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="john-doe">John Doe</SelectItem>
+                      <SelectItem value="sarah-johnson">Sarah Johnson</SelectItem>
+                      <SelectItem value="mike-smith">Mike Smith</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {taskFormErrors.assignee && <p className="text-xs text-red-500">{taskFormErrors.assignee}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dashboard-task-priority">Priority</Label>
+                  <Select
+                    value={taskForm.priority}
+                    onValueChange={(value: TaskPriority) => setTaskForm({ ...taskForm, priority: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="dashboard-task-dueDate">Due Date *</Label>
+                  <Input
+                    id="dashboard-task-dueDate"
+                    type="date"
+                    value={taskForm.dueDate}
+                    onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+                    className={taskFormErrors.dueDate ? 'border-red-500' : ''}
+                  />
+                  {taskFormErrors.dueDate && <p className="text-xs text-red-500">{taskFormErrors.dueDate}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dashboard-task-hours">Estimated Hours</Label>
+                  <Input
+                    id="dashboard-task-hours"
+                    type="number"
+                    value={taskForm.estimatedHours}
+                    onChange={(e) => setTaskForm({ ...taskForm, estimatedHours: e.target.value })}
+                    placeholder="e.g., 8"
+                    className={taskFormErrors.estimatedHours ? 'border-red-500' : ''}
+                  />
+                  {taskFormErrors.estimatedHours && <p className="text-xs text-red-500">{taskFormErrors.estimatedHours}</p>}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="dashboard-task-status">Status</Label>
+                  <Select
+                    value={taskForm.status}
+                    onValueChange={(value: TaskStatus) => setTaskForm({ ...taskForm, status: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="not-started">Mark as Not Started</SelectItem>
+                      <SelectItem value="in-progress">Mark as In Progress</SelectItem>
+                      <SelectItem value="testing">Mark as Testing</SelectItem>
+                      <SelectItem value="complete">Mark as Complete</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dashboard-task-follower">Follower</Label>
+                  <Select value={taskForm.follower} onValueChange={(value) => setTaskForm({ ...taskForm, follower: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select follower" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="john-doe">John Doe</SelectItem>
+                      <SelectItem value="sarah-johnson">Sarah Johnson</SelectItem>
+                      <SelectItem value="mike-smith">Mike Smith</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Due Date</Label>
-                <Input type="date" />
-              </div>
-              <div>
-                <Label>Project</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="project1">Project Alpha</SelectItem>
-                    <SelectItem value="project2">Project Beta</SelectItem>
-                    <SelectItem value="project3">Project Gamma</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex gap-2 pt-4">
-              <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700" onClick={handleCreateTask}>
-                <Plus size={16} className="mr-2" />
-                Create Task
-              </Button>
-              <Button variant="outline" onClick={() => setTaskDialogOpen(false)}>
-                Cancel
-              </Button>
-            </div>
+          </ScrollArea>
+          <div className="space-y-2 border-t border-slate-200 pt-3">
+            <Label htmlFor="dashboard-task-attachments">Attach File</Label>
+            <Input
+              id="dashboard-task-attachments"
+              type="file"
+              multiple
+              onChange={(e) => {
+                const files = e.target.files ? Array.from(e.target.files) : [];
+                setTaskForm({ ...taskForm, attachments: files });
+              }}
+            />
+            <p className="text-xs text-slate-500">
+              {taskForm.attachments.length > 0
+                ? `${taskForm.attachments.length} file(s) selected`
+                : 'No file selected'}
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setTaskDialogOpen(false);
+                setTaskForm({
+                  title: '',
+                  description: '',
+                  assignee: '',
+                  follower: '',
+                  priority: 'medium',
+                  dueDate: '',
+                  status: 'not-started',
+                  estimatedHours: '',
+                  attachments: [],
+                });
+                setTaskFormErrors({});
+              }}
+            >
+              Cancel
+            </Button>
+            <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleCreateTask}>
+              <Plus size={16} className="mr-2" />
+              Create Task
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

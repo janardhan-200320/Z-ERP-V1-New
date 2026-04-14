@@ -75,10 +75,13 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     title: '',
     description: '',
     assignee: '',
+    follower: '',
     priority: 'medium',
+    startDate: '',
     dueDate: '',
     status: 'not-started',
-    estimatedHours: ''
+    estimatedHours: '',
+    attachments: [] as File[]
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -227,7 +230,11 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     const errors: Record<string, string> = {};
     if (!taskForm.title.trim()) errors.title = 'Task title is required';
     if (!taskForm.assignee) errors.assignee = 'Please select an assignee';
+    if (!taskForm.startDate) errors.startDate = 'Start date is required';
     if (!taskForm.dueDate) errors.dueDate = 'Due date is required';
+    if (taskForm.startDate && taskForm.dueDate && taskForm.dueDate < taskForm.startDate) {
+      errors.dueDate = 'Due date cannot be earlier than start date';
+    }
     if (taskForm.estimatedHours && (isNaN(Number(taskForm.estimatedHours)) || Number(taskForm.estimatedHours) < 0)) {
       errors.estimatedHours = 'Please enter a valid number of hours';
     }
@@ -240,10 +247,13 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       title: '',
       description: '',
       assignee: '',
+      follower: '',
       priority: 'medium',
+      startDate: '',
       dueDate: '',
       status: 'not-started',
-      estimatedHours: ''
+      estimatedHours: '',
+      attachments: []
     });
     setFormErrors({});
   };
@@ -569,10 +579,13 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
   return (
     <div className="space-y-6">
       {/* Header with New Task Button */}
-      <div className="flex justify-end">
-        <Button size="sm" onClick={() => setShowNewTaskDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Task
+      <div className="flex items-center justify-end">
+        <Button
+          className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+          onClick={() => setShowNewTaskDialog(true)}
+        >
+          <Plus size={18} />
+          <span className="hidden sm:inline">Add Task</span>
         </Button>
       </div>
 
@@ -961,6 +974,17 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
+                <Label htmlFor="task-startDate">Start Date *</Label>
+                <Input
+                  id="task-startDate"
+                  type="date"
+                  value={taskForm.startDate}
+                  onChange={(e) => setTaskForm({ ...taskForm, startDate: e.target.value })}
+                  className={formErrors.startDate ? 'border-red-500' : ''}
+                />
+                {formErrors.startDate && <p className="text-xs text-red-500">{formErrors.startDate}</p>}
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="task-dueDate">Due Date *</Label>
                 <Input
                   id="task-dueDate"
@@ -971,6 +995,8 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                 />
                 {formErrors.dueDate && <p className="text-xs text-red-500">{formErrors.dueDate}</p>}
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="task-hours">Estimated Hours</Label>
                 <Input
@@ -983,20 +1009,52 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                 />
                 {formErrors.estimatedHours && <p className="text-xs text-red-500">{formErrors.estimatedHours}</p>}
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="task-status">Status</Label>
-              <Select value={taskForm.status} onValueChange={(value) => setTaskForm({ ...taskForm, status: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
+              <div className="space-y-2">
+                <Label htmlFor="task-status">Status</Label>
+                <Select value={taskForm.status} onValueChange={(value) => setTaskForm({ ...taskForm, status: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
                     <SelectItem value="not-started">Mark as Not Started</SelectItem>
                     <SelectItem value="in-progress">Mark as In Progress</SelectItem>
                     <SelectItem value="testing">Mark as Testing</SelectItem>
                     <SelectItem value="complete">Mark as complete</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-follower">Follower</Label>
+              <Select value={taskForm.follower} onValueChange={(value) => setTaskForm({ ...taskForm, follower: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select follower" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="john-smith">John Smith</SelectItem>
+                  <SelectItem value="sarah-johnson">Sarah Johnson</SelectItem>
+                  <SelectItem value="mike-brown">Mike Brown</SelectItem>
+                  <SelectItem value="emily-davis">Emily Davis</SelectItem>
+                  <SelectItem value="alex-wilson">Alex Wilson</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-attachments">Attach File</Label>
+              <Input
+                id="task-attachments"
+                type="file"
+                multiple
+                onChange={(e) => {
+                  const files = e.target.files ? Array.from(e.target.files) : [];
+                  setTaskForm({ ...taskForm, attachments: files });
+                }}
+              />
+              <p className="text-xs text-slate-500">
+                {taskForm.attachments.length > 0
+                  ? `${taskForm.attachments.length} file(s) selected`
+                  : 'No file selected'}
+              </p>
             </div>
           </div>
           </ScrollArea>

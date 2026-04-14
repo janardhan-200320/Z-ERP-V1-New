@@ -8,6 +8,9 @@ interface ProposalItem {
   id: number;
   description: string;
   longDescription?: string;
+  qty?: number;
+  rate?: number;
+  amount?: number;
 }
 
 interface TimelinePhase {
@@ -25,6 +28,7 @@ interface ProposalTemplateProps {
   overview?: string;
   scopeOfWork?: ProposalItem[];
   timeline?: TimelinePhase[];
+  items?: ProposalItem[];
   status?: string;
   customer?: string;
   totalAmount?: string;
@@ -53,6 +57,7 @@ export default function ProposalTemplate({
   overview = 'This proposal outlines the development of a unique and cohesive brand identity for your business.',
   scopeOfWork = [],
   timeline = [],
+  items = [],
   status,
   customer,
   totalAmount,
@@ -175,10 +180,55 @@ export default function ProposalTemplate({
         )}
 
         {/* Project Timeline Section */}
+        {items && items.length > 0 && (
+          <div className="pdf-section-items mb-10">
+            <h3 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+              <span className="text-slate-400">{scopeOfWork && scopeOfWork.length > 0 ? '3.' : '2.'}</span>
+              PRICING & ITEMS
+            </h3>
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-slate-900 text-white">
+                    <th className="text-left py-4 px-6 font-bold w-16">#</th>
+                    <th className="text-left py-4 px-6 font-bold">Description</th>
+                    <th className="text-right py-4 px-6 font-bold w-24">Qty</th>
+                    <th className="text-right py-4 px-6 font-bold w-32">Rate</th>
+                    <th className="text-right py-4 px-6 font-bold w-32">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, index) => (
+                    <tr
+                      key={item.id}
+                      className={cn(
+                        "border-b border-slate-200 last:border-0",
+                        index % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+                      )}
+                    >
+                      <td className="py-4 px-6 font-medium">{index + 1}</td>
+                      <td className="py-4 px-6">
+                        <p className="font-semibold text-slate-900">{item.description}</p>
+                        {item.longDescription && <p className="text-sm text-slate-600 mt-1">{item.longDescription}</p>}
+                      </td>
+                      <td className="py-4 px-6 text-right">{item.qty || 1}</td>
+                      <td className="py-4 px-6 text-right">Rs {(item.rate || 0).toFixed(2)}</td>
+                      <td className="py-4 px-6 text-right font-semibold">Rs {(item.amount ?? ((item.qty || 1) * (item.rate || 0))).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Project Timeline Section */}
         {timeline && timeline.length > 0 && (
           <div className="pdf-section-timeline mb-10">
             <h3 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-              <span className="text-slate-400">{scopeOfWork && scopeOfWork.length > 0 ? '3.' : '2.'}</span>
+              <span className="text-slate-400">
+                {items && items.length > 0 ? (scopeOfWork && scopeOfWork.length > 0 ? '4.' : '3.') : (scopeOfWork && scopeOfWork.length > 0 ? '3.' : '2.')}
+              </span>
               PROJECT TIMELINE
             </h3>
             <div className="overflow-x-auto rounded-lg border border-slate-200">

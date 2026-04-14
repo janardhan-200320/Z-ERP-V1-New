@@ -912,8 +912,7 @@ export default function EstimatesTab() {
                       <TableHeader>
                         <TableRow className="bg-slate-50">
                           <TableHead className="w-8"></TableHead>
-                          <TableHead className="text-blue-600 font-medium">Item</TableHead>
-                          <TableHead className="text-slate-600">Description</TableHead>
+                          <TableHead className="text-blue-600 font-medium">Item Details</TableHead>
                           <TableHead className="text-slate-600 w-24">{showQtyAs === 'hours' ? 'Hours' : 'Qty'}</TableHead>
                           <TableHead className="text-slate-600 w-28">Rate</TableHead>
                           <TableHead className="text-blue-600 font-medium w-32">Tax</TableHead>
@@ -925,21 +924,22 @@ export default function EstimatesTab() {
                         {editItems.map((item, index) => (
                           <TableRow key={item.id} className="border-l-2 border-l-blue-500">
                             <TableCell className="text-xs text-slate-400 font-medium">{index + 1}</TableCell>
-                            <TableCell>
-                              <Textarea 
-                                placeholder="Item name"
-                                value={item.item}
-                                onChange={(e) => updateEditItem(item.id, 'item', e.target.value)}
-                                className="min-h-[60px] resize-none text-sm"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Textarea 
-                                placeholder="Long description"
-                                value={item.description}
-                                onChange={(e) => updateEditItem(item.id, 'description', e.target.value)}
-                                className="min-h-[60px] resize-none text-sm text-emerald-600"
-                              />
+                            <TableCell className="align-top">
+                              <div className="space-y-2">
+                                <Input
+                                  placeholder="Item name"
+                                  value={item.item}
+                                  onChange={(e) => updateEditItem(item.id, 'item', e.target.value)}
+                                  className="h-10 text-sm"
+                                />
+                                <Textarea 
+                                  placeholder="Long description"
+                                  value={item.description}
+                                  onChange={(e) => updateEditItem(item.id, 'description', e.target.value)}
+                                  className="min-h-[130px] resize-y text-sm text-emerald-600"
+                                  rows={5}
+                                />
+                              </div>
                             </TableCell>
                             <TableCell>
                               <Input 
@@ -1441,8 +1441,7 @@ export default function EstimatesTab() {
                           <TableHeader>
                             <TableRow className="bg-slate-50">
                               <TableHead className="w-8"></TableHead>
-                              <TableHead className="text-blue-600 font-medium">Item Name</TableHead>
-                              <TableHead className="text-slate-600">Description</TableHead>
+                              <TableHead className="text-blue-600 font-medium">Item Details</TableHead>
                               <TableHead className="text-slate-600 w-24">Qty</TableHead>
                               <TableHead className="text-slate-600 w-28">Rate</TableHead>
                               <TableHead className="text-blue-600 font-medium w-32">Tax</TableHead>
@@ -1455,20 +1454,21 @@ export default function EstimatesTab() {
                               <TableRow key={line.id} className="border-l-2 border-l-transparent">
                                 <TableCell className="text-xs text-slate-400 font-medium">{index + 1}</TableCell>
                                 <TableCell className="align-top">
-                                  <Input
-                                    placeholder="Item name"
-                                    value={line.item}
-                                    onChange={(e) => updateCreateItem(line.id, 'item', e.target.value)}
-                                    className="h-10 text-sm"
-                                  />
-                                </TableCell>
-                                <TableCell className="align-top">
-                                  <Textarea
-                                    placeholder="Description of item"
-                                    value={line.description}
-                                    onChange={(e) => updateCreateItem(line.id, 'description', e.target.value)}
-                                    className="min-h-[60px] resize-y text-sm"
-                                  />
+                                  <div className="space-y-2">
+                                    <Input
+                                      placeholder="Item name"
+                                      value={line.item}
+                                      onChange={(e) => updateCreateItem(line.id, 'item', e.target.value)}
+                                      className="h-10 text-sm"
+                                    />
+                                    <Textarea
+                                      placeholder="Description of item"
+                                      value={line.description}
+                                      onChange={(e) => updateCreateItem(line.id, 'description', e.target.value)}
+                                      className="min-h-[130px] resize-y text-sm"
+                                      rows={5}
+                                    />
+                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   <Input

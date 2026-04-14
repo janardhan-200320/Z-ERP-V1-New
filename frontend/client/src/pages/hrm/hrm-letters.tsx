@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -35,22 +35,63 @@ import {
   ShieldCheck,
   Send,
   Check,
-  X
+  X,
+  Pencil
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 import { exportToExcel } from '@/lib/exportUtils';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import recruitmentApi from '@/lib/recruitment-api';
+
+type LetterCandidate = {
+  id: string;
+  name: string;
+  empId: string;
+  email: string;
+  designation: string;
+  department: string;
+  joiningDate: string;
+  interviewStatus: string;
+};
+
+type LetterTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: string;
+  color: string;
+  defaultSubject: string;
+  defaultBody: string;
+  requiresAttachment: boolean;
+  requiresApproval: boolean;
+  isActive: boolean;
+};
 
 export default function HRLetters() {
   const [, setLocation] = useLocation();
+  const { selectedWorkspace: currentWorkspace } = useWorkspace();
   const [activeTab, setActiveTab] = useState('templates');
   const [searchQuery, setSearchQuery] = useState('');
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+  const [isLetterEditorOpen, setIsLetterEditorOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [selectedTemplateForEditor, setSelectedTemplateForEditor] = useState<any>(null);
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [letterEditor, setLetterEditor] = useState({
+    templateId: '',
+    candidateId: '',
+    recipientEmail: '',
+    subject: '',
+    content: '',
+    date: new Date().toISOString().split('T')[0],
+    format: 'pdf'
+  });
+  const [uploadedDocuments, setUploadedDocuments] = useState<File[]>([]);
   const [generationForm, setGenerationForm] = useState({
     template: '',
     employee: '',
@@ -68,14 +109,19 @@ export default function HRLetters() {
   const { toast } = useToast();
 
   // Letter templates
-  const letterTemplates = [
+  const [letterTemplates, setLetterTemplates] = useState<LetterTemplate[]>([
     {
       id: 'TEMP001',
       name: 'Offer Letter',
       description: 'Employment offer letter for new hires',
       category: 'Hiring',
       icon: '📝',
-      color: 'bg-blue-100 text-blue-700'
+      color: 'bg-blue-100 text-blue-700',
+      defaultSubject: 'Offer Letter - {candidate_name}',
+      defaultBody: 'Dear {candidate_name},\n\nWe are pleased to offer you the position of {candidate_designation} at Z-ERP Solutions.\n\nRegards,\nHR Team',
+      requiresAttachment: true,
+      requiresApproval: true,
+      isActive: true
     },
     {
       id: 'TEMP002',
@@ -83,7 +129,12 @@ export default function HRLetters() {
       description: 'Official appointment confirmation',
       category: 'Hiring',
       icon: '✅',
-      color: 'bg-green-100 text-green-700'
+      color: 'bg-green-100 text-green-700',
+      defaultSubject: 'Appointment Letter - {candidate_name}',
+      defaultBody: 'Dear {candidate_name},\n\nYour appointment as {candidate_designation} is confirmed effective {issue_date}.\n\nRegards,\nHR Team',
+      requiresAttachment: false,
+      requiresApproval: true,
+      isActive: true
     },
     {
       id: 'TEMP003',
@@ -91,7 +142,12 @@ export default function HRLetters() {
       description: 'Work experience certificate',
       category: 'Exit',
       icon: '🎓',
-      color: 'bg-purple-100 text-purple-700'
+      color: 'bg-purple-100 text-purple-700',
+      defaultSubject: 'Experience Letter - {candidate_name}',
+      defaultBody: 'This is to certify that {candidate_name} has worked with us as {candidate_designation}.\n\nRegards,\nHR Team',
+      requiresAttachment: false,
+      requiresApproval: false,
+      isActive: true
     },
     {
       id: 'TEMP004',
@@ -99,7 +155,12 @@ export default function HRLetters() {
       description: 'Employee relieving certificate',
       category: 'Exit',
       icon: '🚪',
-      color: 'bg-orange-100 text-orange-700'
+      color: 'bg-orange-100 text-orange-700',
+      defaultSubject: 'Relieving Letter - {candidate_name}',
+      defaultBody: 'This is to confirm that {candidate_name} is relieved from duties effective {issue_date}.\n\nRegards,\nHR Team',
+      requiresAttachment: false,
+      requiresApproval: true,
+      isActive: true
     },
     {
       id: 'TEMP005',
@@ -107,7 +168,12 @@ export default function HRLetters() {
       description: 'Salary proof for employees',
       category: 'General',
       icon: '💰',
-      color: 'bg-yellow-100 text-yellow-700'
+      color: 'bg-yellow-100 text-yellow-700',
+      defaultSubject: 'Salary Certificate - {candidate_name}',
+      defaultBody: 'This certifies that {candidate_name} is employed as {candidate_designation}.\n\nRegards,\nHR Team',
+      requiresAttachment: false,
+      requiresApproval: false,
+      isActive: true
     },
     {
       id: 'TEMP006',
@@ -115,7 +181,12 @@ export default function HRLetters() {
       description: 'No objection certificate',
       category: 'General',
       icon: '📋',
-      color: 'bg-cyan-100 text-cyan-700'
+      color: 'bg-cyan-100 text-cyan-700',
+      defaultSubject: 'NOC Letter - {candidate_name}',
+      defaultBody: 'This is to state that we have no objection regarding {candidate_name} for the stated purpose.\n\nRegards,\nHR Team',
+      requiresAttachment: true,
+      requiresApproval: false,
+      isActive: true
     },
     {
       id: 'TEMP007',
@@ -123,9 +194,33 @@ export default function HRLetters() {
       description: 'Formal leave application for planned absence',
       category: 'Attendance',
       icon: '🗓️',
-      color: 'bg-emerald-100 text-emerald-700'
+      color: 'bg-emerald-100 text-emerald-700',
+      defaultSubject: 'Leave Request - {candidate_name}',
+      defaultBody: 'This letter records a leave request submitted by {candidate_name}.\n\nRegards,\nHR Team',
+      requiresAttachment: false,
+      requiresApproval: true,
+      isActive: true
     }
-  ];
+  ]);
+  const [selectedSettingsTemplateId, setSelectedSettingsTemplateId] = useState('TEMP001');
+  const [templateEditorDraft, setTemplateEditorDraft] = useState({
+    name: '',
+    description: '',
+    category: '',
+    defaultSubject: '',
+    defaultBody: '',
+    requiresAttachment: 'no',
+    requiresApproval: 'yes',
+    isActive: 'yes'
+  });
+  const [letterPolicySettings, setLetterPolicySettings] = useState({
+    approvalFlow: 'HR Manager',
+    autoSendAfterApproval: 'yes',
+    allowDocxFormat: 'yes',
+    requireDigitalSignature: 'no',
+    reminderDaysBeforeDue: '3',
+    retentionPeriodMonths: '24'
+  });
 
   // Letter history
   const [history, setHistory] = useState([
@@ -137,7 +232,8 @@ export default function HRLetters() {
       generatedDate: '2025-06-10',
       generatedBy: 'Emily Davis',
       status: 'sent',
-      format: 'PDF'
+      format: 'PDF',
+      recipientEmail: 'john.smith@zervos.app'
     },
     {
       id: 'LET002',
@@ -147,7 +243,8 @@ export default function HRLetters() {
       generatedDate: '2025-06-12',
       generatedBy: 'Emily Davis',
       status: 'sent',
-      format: 'PDF'
+      format: 'PDF',
+      recipientEmail: 'mike.brown@zervos.app'
     },
     {
       id: 'LET003',
@@ -157,15 +254,231 @@ export default function HRLetters() {
       generatedDate: '2025-06-14',
       generatedBy: 'Emily Davis',
       status: 'draft',
-      format: 'PDF'
+      format: 'PDF',
+      recipientEmail: 'alex.wilson@zervos.app'
     }
   ]);
 
   const [employees] = useState([
-    { id: 'emp1', name: 'John Smith', empId: 'EMP001', designation: 'Senior Engineer', department: 'Engineering', salary: '85000', joiningDate: '2022-03-15' },
-    { id: 'emp2', name: 'Sarah Johnson', empId: 'EMP002', designation: 'Product Manager', department: 'Product', salary: '95000', joiningDate: '2021-06-01' },
-    { id: 'emp3', name: 'Mike Brown', empId: 'EMP003', designation: 'UI/UX Designer', department: 'Design', salary: '75000', joiningDate: '2023-01-10' }
+    { id: 'emp1', name: 'John Smith', empId: 'EMP001', email: 'john.smith@zervos.app', designation: 'Senior Engineer', department: 'Engineering', salary: '85000', joiningDate: '2022-03-15', interviewStatus: 'Completed' },
+    { id: 'emp2', name: 'Sarah Johnson', empId: 'EMP002', email: 'sarah.johnson@zervos.app', designation: 'Product Manager', department: 'Product', salary: '95000', joiningDate: '2021-06-01', interviewStatus: 'In Progress' },
+    { id: 'emp3', name: 'Mike Brown', empId: 'EMP003', email: 'mike.brown@zervos.app', designation: 'UI/UX Designer', department: 'Design', salary: '75000', joiningDate: '2023-01-10', interviewStatus: 'Completed' }
   ]);
+
+  const [recruitmentCompletedCandidates, setRecruitmentCompletedCandidates] = useState<LetterCandidate[]>([]);
+
+  useEffect(() => {
+    const loadCompletedCandidates = async () => {
+      if (!currentWorkspace?.id) {
+        return;
+      }
+
+      try {
+        const interviews = await recruitmentApi.getInterviews(currentWorkspace.id, { status: 'Completed' });
+        const uniqueCandidates = new Map<string, LetterCandidate>();
+
+        interviews.forEach((interview) => {
+          const application = interview.application;
+          if (!application?.id || !application.applicant_name || !application.applicant_email) {
+            return;
+          }
+
+          uniqueCandidates.set(application.id, {
+            id: application.id,
+            name: application.applicant_name,
+            empId: `APP-${application.id.slice(0, 6).toUpperCase()}`,
+            email: application.applicant_email,
+            designation: interview.job_title || 'Candidate',
+            department: 'Recruitment',
+            joiningDate: new Date().toISOString().split('T')[0],
+            interviewStatus: interview.status
+          });
+        });
+
+        setRecruitmentCompletedCandidates(Array.from(uniqueCandidates.values()));
+      } catch (error) {
+        console.error('Unable to load completed interview candidates for HR letters:', error);
+      }
+    };
+
+    loadCompletedCandidates();
+  }, [currentWorkspace?.id]);
+
+  const fallbackCompletedCandidates = useMemo<LetterCandidate[]>(
+    () => employees
+      .filter((candidate) => candidate.interviewStatus === 'Completed')
+      .map((candidate) => ({
+        id: candidate.id,
+        name: candidate.name,
+        empId: candidate.empId,
+        email: candidate.email,
+        designation: candidate.designation,
+        department: candidate.department,
+        joiningDate: candidate.joiningDate,
+        interviewStatus: candidate.interviewStatus
+      })),
+    [employees]
+  );
+
+  const completedCandidates = useMemo(
+    () => recruitmentCompletedCandidates.length > 0 ? recruitmentCompletedCandidates : fallbackCompletedCandidates,
+    [fallbackCompletedCandidates, recruitmentCompletedCandidates]
+  );
+
+  const selectedSettingsTemplate = useMemo(
+    () => letterTemplates.find((template) => template.id === selectedSettingsTemplateId),
+    [letterTemplates, selectedSettingsTemplateId]
+  );
+
+  useEffect(() => {
+    if (!selectedSettingsTemplate) {
+      return;
+    }
+
+    setTemplateEditorDraft({
+      name: selectedSettingsTemplate.name,
+      description: selectedSettingsTemplate.description,
+      category: selectedSettingsTemplate.category,
+      defaultSubject: selectedSettingsTemplate.defaultSubject,
+      defaultBody: selectedSettingsTemplate.defaultBody,
+      requiresAttachment: selectedSettingsTemplate.requiresAttachment ? 'yes' : 'no',
+      requiresApproval: selectedSettingsTemplate.requiresApproval ? 'yes' : 'no',
+      isActive: selectedSettingsTemplate.isActive ? 'yes' : 'no'
+    });
+  }, [selectedSettingsTemplate]);
+
+  const applyTemplateVariables = (text: string, candidate: LetterCandidate, issueDate: string, templateName: string) => {
+    return text
+      .replaceAll('{candidate_name}', candidate.name)
+      .replaceAll('{candidate_designation}', candidate.designation)
+      .replaceAll('{candidate_id}', candidate.empId)
+      .replaceAll('{issue_date}', issueDate)
+      .replaceAll('{template_name}', templateName);
+  };
+
+  const buildLetterContent = (templateName: string, candidate: LetterCandidate, issueDate: string) => {
+    const template = letterTemplates.find((item) => item.name === templateName);
+    if (!template) {
+      return `Date: ${issueDate}\n\nTo,\n${candidate.name}\n${candidate.designation}\nEmployee ID: ${candidate.empId}\n\nSubject: ${templateName}\n\nDear ${candidate.name},\n\nThis letter confirms your ${templateName.toLowerCase()} with Z-ERP Solutions.\n\nDetails:\n- Designation: ${candidate.designation}\n- Department: ${candidate.department}\n- Joining Date: ${candidate.joiningDate}\n\nPlease review the details and contact HR for any clarifications.\n\nRegards,\nHR Team\nZ-ERP Solutions`;
+    }
+
+    return applyTemplateVariables(template.defaultBody, candidate, issueDate, template.name);
+  };
+
+  const openLetterEditor = (templateId: string) => {
+    const template = letterTemplates.find((item) => item.id === templateId);
+    const candidate = completedCandidates[0];
+
+    if (!template) {
+      return;
+    }
+
+    if (!candidate) {
+      toast({
+        title: 'No interview-completed candidates',
+        description: 'Mark a candidate interview as Completed in Recruitment to enable direct HR letter send.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setSelectedTemplateForEditor(template);
+    setLetterEditor({
+      templateId: template.id,
+      candidateId: candidate.id,
+      recipientEmail: candidate.email,
+      subject: applyTemplateVariables(template.defaultSubject, candidate, new Date().toISOString().split('T')[0], template.name),
+      content: buildLetterContent(template.name, candidate, new Date().toISOString().split('T')[0]),
+      date: new Date().toISOString().split('T')[0],
+      format: 'pdf'
+    });
+    setUploadedDocuments([]);
+    setIsLetterEditorOpen(true);
+  };
+
+  const handleEditorCandidateChange = (candidateId: string) => {
+    const candidate = completedCandidates.find((item) => item.id === candidateId);
+    const template = letterTemplates.find((item) => item.id === letterEditor.templateId);
+
+    if (!candidate || !template) {
+      return;
+    }
+
+    setLetterEditor((prev) => ({
+      ...prev,
+      candidateId,
+      recipientEmail: candidate.email,
+      subject: applyTemplateVariables(template.defaultSubject, candidate, prev.date, template.name),
+      content: buildLetterContent(template.name, candidate, prev.date)
+    }));
+  };
+
+  const handleSaveTemplateSettings = () => {
+    setLetterTemplates((prev) => prev.map((template) => {
+      if (template.id !== selectedSettingsTemplateId) {
+        return template;
+      }
+
+      return {
+        ...template,
+        name: templateEditorDraft.name,
+        description: templateEditorDraft.description,
+        category: templateEditorDraft.category,
+        defaultSubject: templateEditorDraft.defaultSubject,
+        defaultBody: templateEditorDraft.defaultBody,
+        requiresAttachment: templateEditorDraft.requiresAttachment === 'yes',
+        requiresApproval: templateEditorDraft.requiresApproval === 'yes',
+        isActive: templateEditorDraft.isActive === 'yes'
+      };
+    }));
+
+    toast({
+      title: 'Template updated',
+      description: 'HR letter template settings were saved successfully.'
+    });
+  };
+
+  const handleSaveLetterPolicies = () => {
+    toast({
+      title: 'Letter policies saved',
+      description: 'Approval, delivery, and retention settings were updated.'
+    });
+  };
+
+  const handleSendEditedLetter = () => {
+    const template = letterTemplates.find((item) => item.id === letterEditor.templateId);
+    const candidate = completedCandidates.find((item) => item.id === letterEditor.candidateId);
+
+    if (!template || !candidate || !letterEditor.recipientEmail || !letterEditor.content.trim()) {
+      toast({
+        title: 'Missing required details',
+        description: 'Template, completed candidate, recipient email, and content are required before sending.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const newLetter = {
+      id: `LET${String(history.length + 1).padStart(3, '0')}`,
+      employee: candidate.name,
+      empId: candidate.empId,
+      letterType: template.name,
+      generatedDate: letterEditor.date,
+      generatedBy: 'Emily Davis',
+      status: 'sent',
+      format: letterEditor.format.toUpperCase(),
+      recipientEmail: letterEditor.recipientEmail
+    };
+
+    setHistory((prev) => [newLetter, ...prev]);
+    const attachmentText = uploadedDocuments.length > 0 ? ` with ${uploadedDocuments.length} attachment(s)` : '';
+    setUploadedDocuments([]);
+    setIsLetterEditorOpen(false);
+    toast({
+      title: 'Letter sent',
+      description: `${template.name} sent to ${candidate.name} at ${letterEditor.recipientEmail}${attachmentText}.`
+    });
+  };
 
   const handleGenerate = () => {
     if (!generationForm.template || !generationForm.employee) {
@@ -201,7 +514,8 @@ export default function HRLetters() {
         generatedDate: generationForm.date,
         generatedBy: 'Emily Davis',
         status: 'sent',
-        format: generationForm.format.toUpperCase()
+        format: generationForm.format.toUpperCase(),
+        recipientEmail: selectedEmp?.email || ''
       };
       setHistory([newLetter, ...history]);
       setIsGenerateDialogOpen(false);
@@ -361,14 +675,27 @@ export default function HRLetters() {
                           <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 h-12 font-bold">
                             <SelectValue placeholder="Select staff member" />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="emp1">John Smith (EMP001)</SelectItem>
-                            <SelectItem value="emp2">Sarah Johnson (EMP002)</SelectItem>
-                            <SelectItem value="emp3">Mike Brown (EMP003)</SelectItem>
-                          </SelectContent>
+                              <SelectContent>
+                                {employees.map((employee) => (
+                                  <SelectItem key={employee.id} value={employee.id}>
+                                    {employee.name} ({employee.empId})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
                         </Select>
                       </div>
                     </div>
+
+                    {generationForm.employee && (
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Recipient Email</Label>
+                        <Input
+                          readOnly
+                          value={employees.find((emp) => emp.id === generationForm.employee)?.email || ''}
+                          className="rounded-xl border-slate-200 bg-slate-100 h-12 font-bold"
+                        />
+                      </div>
+                    )}
                     
                     <div className="grid grid-cols-2 gap-4">
                        <div className="space-y-2">
@@ -577,6 +904,7 @@ export default function HRLetters() {
           <TabsList>
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="history">Letter History</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="templates" className="space-y-4 mt-6">
@@ -598,7 +926,7 @@ export default function HRLetters() {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-3 mt-8 pt-6 border-t border-slate-50">
+                    <div className="grid grid-cols-3 gap-3 mt-8 pt-6 border-t border-slate-50">
                       <Button 
                         variant="outline" 
                         size="lg" 
@@ -608,9 +936,18 @@ export default function HRLetters() {
                         <Eye className="h-4 w-4 mr-2" />
                         Preview
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={() => openLetterEditor(template.id)}
+                        className="rounded-xl border-slate-200 font-bold hover:bg-slate-50 text-slate-600 h-11"
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
                       <Button 
                         size="lg" 
-                        onClick={() => openGenerateWithTemplate(template.id)}
+                        onClick={() => openLetterEditor(template.id)}
                         className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold h-11 transition-all active:scale-95"
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -703,6 +1040,153 @@ export default function HRLetters() {
                     </div>
                   </>
                 )}
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isLetterEditorOpen} onOpenChange={setIsLetterEditorOpen}>
+              <DialogContent className="max-w-3xl max-h-[90vh] rounded-[2rem] p-0 overflow-y-auto border-none shadow-2xl">
+                <div className="bg-slate-900 p-8 text-white">
+                  <DialogTitle className="text-2xl font-black">Edit & Send Letter</DialogTitle>
+                  <DialogDescription className="text-slate-300 font-medium">
+                    Candidate details are prefilled from interview-completed records. Update content and send directly.
+                  </DialogDescription>
+                </div>
+                <div className="p-8 space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Template</Label>
+                      <Input value={selectedTemplateForEditor?.name || ''} readOnly className="rounded-xl border-slate-200 bg-slate-100 h-12 font-bold" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Interview Status Scope</Label>
+                      <Input value="Completed Candidates" readOnly className="rounded-xl border-slate-200 bg-slate-100 h-12 font-bold text-green-700" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Candidate</Label>
+                      <Select value={letterEditor.candidateId} onValueChange={handleEditorCandidateChange}>
+                        <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 h-12 font-bold">
+                          <SelectValue placeholder="Select interview-completed candidate" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {completedCandidates.map((candidate) => (
+                            <SelectItem key={candidate.id} value={candidate.id}>
+                              {candidate.name} ({candidate.empId})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Send To Email</Label>
+                      <Input
+                        value={letterEditor.recipientEmail}
+                        onChange={(e) => setLetterEditor((prev) => ({ ...prev, recipientEmail: e.target.value }))}
+                        placeholder="candidate email"
+                        className="rounded-xl border-slate-200 bg-slate-50 h-12 font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Issue Date</Label>
+                      <Input
+                        type="date"
+                        value={letterEditor.date}
+                        onChange={(e) => {
+                          const nextDate = e.target.value;
+                          const candidate = completedCandidates.find((item) => item.id === letterEditor.candidateId);
+                          const template = selectedTemplateForEditor;
+                          setLetterEditor((prev) => ({
+                            ...prev,
+                            date: nextDate,
+                            content: candidate && template
+                              ? buildLetterContent(template.name, candidate, nextDate)
+                              : prev.content
+                          }));
+                        }}
+                        className="rounded-xl border-slate-200 bg-slate-50 h-12 font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Format</Label>
+                      <Select
+                        value={letterEditor.format}
+                        onValueChange={(value) => setLetterEditor((prev) => ({ ...prev, format: value }))}
+                      >
+                        <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 h-12 font-bold">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pdf">Professional PDF</SelectItem>
+                          <SelectItem value="docx">Editable DOCX</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Subject</Label>
+                    <Input
+                      value={letterEditor.subject}
+                      onChange={(e) => setLetterEditor((prev) => ({ ...prev, subject: e.target.value }))}
+                      className="rounded-xl border-slate-200 bg-slate-50 h-12 font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Upload Supporting Documents</Label>
+                    <Input
+                      type="file"
+                      multiple
+                      onChange={(e) => setUploadedDocuments(Array.from(e.target.files || []))}
+                      className="rounded-xl border-slate-200 bg-slate-50 font-medium"
+                    />
+                    {uploadedDocuments.length > 0 && (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Selected Files</p>
+                        <div className="space-y-1">
+                          {uploadedDocuments.map((file) => (
+                            <p key={`${file.name}-${file.size}`} className="text-xs text-slate-600 font-medium truncate">
+                              {file.name}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Letter Content</Label>
+                    <Textarea
+                      value={letterEditor.content}
+                      onChange={(e) => setLetterEditor((prev) => ({ ...prev, content: e.target.value }))}
+                      className="rounded-xl border-slate-200 bg-slate-50 min-h-[280px] font-medium"
+                    />
+                  </div>
+
+                  <div className="p-5 bg-green-50 rounded-2xl border border-green-100 flex gap-4">
+                    <div className="p-2 bg-white rounded-lg shadow-sm h-fit">
+                      <Mail className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-green-900 mb-0.5">Direct Candidate Send</p>
+                      <p className="text-[10px] text-green-700 font-medium">This letter will be sent to the candidate's registered email after final review.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="px-8 pb-8 flex gap-3">
+                  <Button variant="ghost" onClick={() => { setUploadedDocuments([]); setIsLetterEditorOpen(false); }} className="flex-1 rounded-xl h-12 font-bold text-slate-500">
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSendEditedLetter} className="flex-1 bg-cyan-600 hover:bg-cyan-700 rounded-xl h-12 font-bold shadow-lg shadow-cyan-100">
+                    <Send className="h-4 w-4 mr-2" />
+                    Send Letter
+                  </Button>
+                </div>
               </DialogContent>
             </Dialog>
           </TabsContent>
@@ -910,7 +1394,7 @@ export default function HRLetters() {
                                 variant="ghost" 
                                 size="sm" 
                                 className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-bold rounded-lg"
-                                onClick={() => toast({ title: "Email Queued", description: `Sending letter to ${letter.employee.split(' ')[0].toLowerCase()}@example.com` })}
+                                onClick={() => toast({ title: "Email Queued", description: `Sending letter to ${letter.recipientEmail}` })}
                               >
                                 <Mail className="h-3.5 w-3.5 mr-1.5" />
                                 Mail
@@ -922,6 +1406,254 @@ export default function HRLetters() {
                     )}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-cyan-600" />
+                  Template Configuration
+                </CardTitle>
+                <CardDescription>Edit HR letter template content, subject tokens, and activation controls.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Template</Label>
+                    <Select value={selectedSettingsTemplateId} onValueChange={setSelectedSettingsTemplateId}>
+                      <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {letterTemplates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Category</Label>
+                    <Input
+                      value={templateEditorDraft.category}
+                      onChange={(e) => setTemplateEditorDraft((prev) => ({ ...prev, category: e.target.value }))}
+                      className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Template Name</Label>
+                    <Input
+                      value={templateEditorDraft.name}
+                      onChange={(e) => setTemplateEditorDraft((prev) => ({ ...prev, name: e.target.value }))}
+                      className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Active</Label>
+                    <Select
+                      value={templateEditorDraft.isActive}
+                      onValueChange={(value) => setTemplateEditorDraft((prev) => ({ ...prev, isActive: value }))}
+                    >
+                      <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Template Description</Label>
+                  <Textarea
+                    value={templateEditorDraft.description}
+                    onChange={(e) => setTemplateEditorDraft((prev) => ({ ...prev, description: e.target.value }))}
+                    className="rounded-xl border-slate-200 bg-slate-50 min-h-[90px]"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Default Subject</Label>
+                  <Input
+                    value={templateEditorDraft.defaultSubject}
+                    onChange={(e) => setTemplateEditorDraft((prev) => ({ ...prev, defaultSubject: e.target.value }))}
+                    className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Default Body</Label>
+                  <Textarea
+                    value={templateEditorDraft.defaultBody}
+                    onChange={(e) => setTemplateEditorDraft((prev) => ({ ...prev, defaultBody: e.target.value }))}
+                    className="rounded-xl border-slate-200 bg-slate-50 min-h-[180px]"
+                  />
+                  <p className="text-[10px] text-slate-500 font-medium">Supported tokens: {'{candidate_name}'}, {'{candidate_designation}'}, {'{candidate_id}'}, {'{issue_date}'}, {'{template_name}'}</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Require Attachment</Label>
+                    <Select
+                      value={templateEditorDraft.requiresAttachment}
+                      onValueChange={(value) => setTemplateEditorDraft((prev) => ({ ...prev, requiresAttachment: value }))}
+                    >
+                      <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Require Approval</Label>
+                    <Select
+                      value={templateEditorDraft.requiresApproval}
+                      onValueChange={(value) => setTemplateEditorDraft((prev) => ({ ...prev, requiresApproval: value }))}
+                    >
+                      <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveTemplateSettings} className="bg-cyan-600 hover:bg-cyan-700 rounded-xl font-bold px-6">
+                    <Check className="h-4 w-4 mr-2" />
+                    Save Template
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                  Delivery & Compliance
+                </CardTitle>
+                <CardDescription>Manage approval flow, signature policy, format permissions, and retention period.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Approval Flow</Label>
+                    <Select
+                      value={letterPolicySettings.approvalFlow}
+                      onValueChange={(value) => setLetterPolicySettings((prev) => ({ ...prev, approvalFlow: value }))}
+                    >
+                      <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="HR Manager">HR Manager</SelectItem>
+                        <SelectItem value="Department Head">Department Head</SelectItem>
+                        <SelectItem value="Dual Approval (HR + Legal)">Dual Approval (HR + Legal)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Auto Send After Approval</Label>
+                    <Select
+                      value={letterPolicySettings.autoSendAfterApproval}
+                      onValueChange={(value) => setLetterPolicySettings((prev) => ({ ...prev, autoSendAfterApproval: value }))}
+                    >
+                      <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Allow DOCX Format</Label>
+                    <Select
+                      value={letterPolicySettings.allowDocxFormat}
+                      onValueChange={(value) => setLetterPolicySettings((prev) => ({ ...prev, allowDocxFormat: value }))}
+                    >
+                      <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Require Digital Signature</Label>
+                    <Select
+                      value={letterPolicySettings.requireDigitalSignature}
+                      onValueChange={(value) => setLetterPolicySettings((prev) => ({ ...prev, requireDigitalSignature: value }))}
+                    >
+                      <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Reminder (Days Before)</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={letterPolicySettings.reminderDaysBeforeDue}
+                      onChange={(e) => setLetterPolicySettings((prev) => ({ ...prev, reminderDaysBeforeDue: e.target.value }))}
+                      className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Retention Period (Months)</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={letterPolicySettings.retentionPeriodMonths}
+                      onChange={(e) => setLetterPolicySettings((prev) => ({ ...prev, retentionPeriodMonths: e.target.value }))}
+                      className="rounded-xl border-slate-200 bg-slate-50 h-11 font-bold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Policy Status</Label>
+                    <Input readOnly value="Active and applied for all HR letters" className="rounded-xl border-slate-200 bg-slate-100 h-11 font-bold text-emerald-700" />
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-cyan-100 bg-cyan-50">
+                  <p className="text-xs font-bold text-cyan-900">Important</p>
+                  <p className="text-[11px] text-cyan-700 font-medium">Template edits in this section are applied across Template cards, New Letter generation, and Edit & Send workflow.</p>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveLetterPolicies} className="bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold px-6">
+                    <ShieldCheck className="h-4 w-4 mr-2" />
+                    Save Policies
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

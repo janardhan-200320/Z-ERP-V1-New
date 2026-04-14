@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRoute } from 'wouter';
 import ProposalTemplate from '@/components/ProposalTemplate';
 import { FINANCE_DEFAULT_TAX_VALUE, getFinanceSettings, parseTaxPercentage } from '@/lib/finance-settings';
@@ -12,7 +12,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { MessageSquare, Send } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MessageSquare, PenLine, Send, Upload } from 'lucide-react';
 
 type ProposalItem = {
   id: number;
@@ -21,6 +22,7 @@ type ProposalItem = {
   qty?: number;
   rate?: number;
   tax?: string;
+  amount?: number;
 };
 
 const toNumber = (value: unknown) => {
@@ -58,6 +60,13 @@ export default function ProposalViewPage() {
   const [proposal, setProposal] = useState(() => getProposalForStandaloneView(proposalId));
   const proposalContentRef = useRef<HTMLDivElement | null>(null);
   const [discussionMessage, setDiscussionMessage] = useState('');
+  const [isSignDialogOpen, setIsSignDialogOpen] = useState(false);
+  const [signatureMode, setSignatureMode] = useState<'draw' | 'upload'>('draw');
+  const [signerName, setSignerName] = useState('');
+  const [signatureDataUrl, setSignatureDataUrl] = useState('');
+  const [isDrawing, setIsDrawing] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 
   const isExpired = useMemo(() => {
     if (!proposal?.validUntil) return false;
@@ -71,15 +80,120 @@ export default function ProposalViewPage() {
     return expiryDate < today;
   }, [proposal?.validUntil]);
 
-  const isAccepted = proposal?.status === 'accepted';
+  const isSigned = proposal?.status === 'signed';
+  const isAccepted = proposal?.status === 'accepted' || isSigned;
   const isDeclined = proposal?.status === 'declined';
-  const computedStatus = isAccepted ? 'accepted' : isExpired ? 'expired' : (proposal?.status || 'sent');
+  const computedStatus = isSigned ? 'signed' : isAccepted ? 'accepted' : isExpired ? 'expired' : (proposal?.status || 'sent');
+
+  const initializeSignatureCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(640, Math.floor(rect.width));
+    canvas.height = 220;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  };
+
+  useEffect(() => {
+    if (isSignDialogOpen && signatureMode === 'draw') {
+      requestAnimationFrame(() => initializeSignatureCanvas());
+    }
+  }, [isSignDialogOpen, signatureMode]);
+
+  const getCanvasPoint = (event: any) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    const source = event.touches?.[0] || event.changedTouches?.[0] || event;
+    return {
+      x: source.clientX - rect.left,
+      y: source.clientY - rect.top,
+    };
+  };
+
+  const startDrawing = (event: any) => {
+    const point = getCanvasPoint(event);
+    if (!point) return;
+    setIsDrawing(true);
+    lastPointRef.current = point;
+  };
+
+  const drawStroke = (event: any) => {
+    if (!isDrawing) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    const point = getCanvasPoint(event);
+
+    if (!canvas || !ctx || !point || !lastPointRef.current) return;
+
+    ctx.beginPath();
+    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+    lastPointRef.current = point;
+    setSignatureDataUrl(canvas.toDataURL('image/png'));
+  };
+
+  const endDrawing = () => {
+    setIsDrawing(false);
+    lastPointRef.current = null;
+  };
+
+  const clearDrawnSignature = () => {
+    initializeSignatureCanvas();
+    setSignatureDataUrl('');
+  };
+
+  const handleSignatureUpload = (event: any) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+      setSignatureDataUrl(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const proposalItems = useMemo<ProposalItem[]>(() => {
+    const sourceItems = Array.isArray(proposal?.items) ? proposal.items : [];
+
+    return sourceItems
+      .map((item: any, index: number) => {
+        const qty = toNumber(item?.qty) || 1;
+        const rate = toNumber(item?.rate);
+        const description = (item?.description || item?.item || item?.name || '').toString().trim();
+
+        return {
+          id: toNumber(item?.id) || index + 1,
+          description,
+          longDescription: (item?.longDescription || item?.details || '').toString().trim(),
+          qty,
+          rate,
+          tax: (item?.tax || 'No Tax').toString(),
+          amount: toNumber(item?.amount) || (qty * rate),
+        };
+        })
+        .filter((item: ProposalItem) => item.description.length > 0);
+  }, [proposal]);
 
   const summary = useMemo(() => {
-    const items: ProposalItem[] = Array.isArray(proposal?.items) ? proposal.items : [];
     const financeDefaultTaxRate = getFinanceSettings().defaultTaxRate;
 
-    const totals = items.reduce(
+    const totals = proposalItems.reduce(
       (acc, item) => {
         const qty = toNumber(item.qty) || 1;
         const rate = toNumber(item.rate);
@@ -96,7 +210,7 @@ export default function ProposalViewPage() {
     );
 
     return totals;
-  }, [proposal]);
+  }, [proposalItems]);
 
   if (!proposal) {
     return (
@@ -125,7 +239,9 @@ export default function ProposalViewPage() {
     if (isAccepted) {
       toast({
         title: 'Already accepted',
-        description: `Proposal ${proposal.id} has already been accepted.`,
+        description: isSigned
+          ? `Proposal ${proposal.id} has already been signed by the client.`
+          : `Proposal ${proposal.id} has already been accepted.`,
       });
       return;
     }
@@ -148,18 +264,64 @@ export default function ProposalViewPage() {
       return;
     }
 
+    setSignerName(proposal.preparedFor || proposal.customer || '');
+    setSignatureMode('draw');
+    setSignatureDataUrl('');
+    setIsSignDialogOpen(true);
+  };
+
+  const handleApproveAndSign = () => {
+    if (!signerName.trim()) {
+      toast({
+        title: 'Signer name required',
+        description: 'Please enter the client name before signing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!signatureDataUrl) {
+      toast({
+        title: 'Signature required',
+        description: 'Please draw or upload a signature to continue.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const signedAt = new Date().toISOString();
+    const updatedDiscussion = [
+      ...discussionThread,
+      {
+        id: `msg-sign-${Date.now()}`,
+        sender: 'system',
+        senderName: 'System',
+        message: `Client ${signerName.trim()} approved and signed this proposal on ${new Date(signedAt).toLocaleString()}.`,
+        timestamp: signedAt,
+      },
+    ];
+
     const updated = updateProposalForStandaloneView(proposal.id, {
-      status: 'accepted',
-      acceptedAt: new Date().toISOString(),
+      status: 'signed',
+      acceptedAt: proposal.acceptedAt || signedAt,
+      signedAt,
+      clientSignature: {
+        signerName: signerName.trim(),
+        method: signatureMode,
+        imageDataUrl: signatureDataUrl,
+      },
+      discussion: updatedDiscussion,
     });
 
     if (updated) {
       setProposal(updated);
     }
 
+    setIsSignDialogOpen(false);
+
     toast({
-      title: 'Proposal accepted',
-      description: `Thank you. Proposal ${proposal.id} has been accepted successfully.`,
+      title: 'Proposal signed and sent',
+      description: `Proposal ${proposal.id} was signed by ${signerName.trim()} and sent back to the company.`,
     });
   };
 
@@ -175,7 +337,7 @@ export default function ProposalViewPage() {
     if (isAccepted) {
       toast({
         title: 'Proposal accepted',
-        description: `Proposal ${proposal.id} has already been accepted and cannot be declined.`,
+        description: `Proposal ${proposal.id} has already been accepted/signed and cannot be declined.`,
         variant: 'destructive',
       });
       return;
@@ -334,6 +496,7 @@ export default function ProposalViewPage() {
         target.querySelector('.pdf-section-header') as HTMLElement | null,
         target.querySelector('.pdf-section-overview') as HTMLElement | null,
         target.querySelector('.pdf-section-scope') as HTMLElement | null,
+        target.querySelector('.pdf-section-items') as HTMLElement | null,
         target.querySelector('.pdf-section-timeline') as HTMLElement | null,
       ].filter((section): section is HTMLElement => Boolean(section));
 
@@ -374,6 +537,7 @@ export default function ProposalViewPage() {
           overview={proposal.overview}
           scopeOfWork={proposal.scopeOfWork || []}
           timeline={proposal.timeline || []}
+          items={proposalItems}
           status={computedStatus}
           customer={proposal.customer}
           totalAmount={proposal.totalAmount}
@@ -389,7 +553,7 @@ export default function ProposalViewPage() {
           onDecline={handleDecline}
           canAccept={!isExpired && !isAccepted && !isDeclined}
           canDecline={!isExpired && !isAccepted && !isDeclined}
-          acceptButtonLabel={isAccepted ? 'Accepted' : isExpired ? 'Expired' : 'Accept'}
+          acceptButtonLabel={isSigned ? 'Signed' : isAccepted ? 'Accepted' : isExpired ? 'Expired' : 'Accept'}
           declineButtonLabel={isDeclined ? 'Declined' : 'Decline'}
         />
 
@@ -435,6 +599,23 @@ export default function ProposalViewPage() {
                     <span className="font-medium text-slate-800">{proposal.title || proposal.subject || '-'}</span>
                   </div>
                 </div>
+
+                {proposal.clientSignature && (
+                  <div className="border-t pt-3 space-y-2 text-sm">
+                    <h4 className="font-semibold text-slate-900">Client Signature</h4>
+                    <p className="text-slate-700">Signed by: {proposal.clientSignature.signerName}</p>
+                    {proposal.signedAt && (
+                      <p className="text-slate-600">Signed at: {new Date(proposal.signedAt).toLocaleString()}</p>
+                    )}
+                    {proposal.clientSignature.imageDataUrl && (
+                      <img
+                        src={proposal.clientSignature.imageDataUrl}
+                        alt="Client signature"
+                        className="h-16 w-full object-contain border rounded bg-white p-1"
+                      />
+                    )}
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="discussion" className="mt-4 space-y-3">
@@ -482,6 +663,97 @@ export default function ProposalViewPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isSignDialogOpen} onOpenChange={setIsSignDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Approve and Sign Proposal</DialogTitle>
+            <DialogDescription>
+              Confirm approval by entering client name and adding signature.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="client-signer-name">Client Name</Label>
+              <Input
+                id="client-signer-name"
+                value={signerName}
+                onChange={(e) => setSignerName(e.target.value)}
+                placeholder="Enter full name"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant={signatureMode === 'draw' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setSignatureMode('draw');
+                  setSignatureDataUrl('');
+                }}
+              >
+                <PenLine className="h-4 w-4 mr-2" />
+                Draw Signature
+              </Button>
+              <Button
+                type="button"
+                variant={signatureMode === 'upload' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setSignatureMode('upload');
+                  setSignatureDataUrl('');
+                }}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Signature
+              </Button>
+            </div>
+
+            {signatureMode === 'draw' ? (
+              <div className="space-y-2">
+                <div className="rounded border bg-white p-2">
+                  <canvas
+                    ref={canvasRef}
+                    className="w-full h-[220px] touch-none cursor-crosshair"
+                    onMouseDown={startDrawing}
+                    onMouseMove={drawStroke}
+                    onMouseUp={endDrawing}
+                    onMouseLeave={endDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={drawStroke}
+                    onTouchEnd={endDrawing}
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={clearDrawnSignature}>Clear</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Input type="file" accept="image/*" onChange={handleSignatureUpload} />
+                {signatureDataUrl && (
+                  <img
+                    src={signatureDataUrl}
+                    alt="Uploaded signature"
+                    className="h-28 w-full object-contain rounded border bg-white p-2"
+                  />
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsSignDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleApproveAndSign}>
+                Approve and Sign
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

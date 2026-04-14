@@ -19,7 +19,8 @@ import {
   AlertCircle,
   CalendarDays,
   Plus,
-  X
+  X,
+  ExternalLink
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -60,7 +61,67 @@ interface Props {
   jobs: Job[];
 }
 
-const INTERVIEWS_DATA = [
+type InterviewEntry = {
+  id: number;
+  candidate: string;
+  position: string;
+  date: Date;
+  time: string;
+  type: string;
+  status: string;
+  round: string;
+  feedback: string;
+  googleMeetLink?: string;
+  zoomMeetLink?: string;
+};
+
+const slugify = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+const hashCode = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const getCompanyIdentityKey = () => {
+  try {
+    const workspaceId = localStorage.getItem('selectedWorkspaceId') || '';
+    const rawCompany = localStorage.getItem('zervos_company');
+    const company = rawCompany ? JSON.parse(rawCompany) : null;
+
+    const companyId = company?.id || company?.companyId || company?.workspaceId || '';
+    const companyName = company?.name || company?.companyName || '';
+    const fallback = companyId || workspaceId || companyName || 'zervos';
+
+    return slugify(String(fallback)) || 'zervos';
+  } catch {
+    return 'zervos';
+  }
+};
+
+const buildMeetLinks = (params: {
+  companyKey: string;
+  candidate: string;
+  date: Date;
+  time: string;
+  round: string;
+}) => {
+  const seed = `${params.companyKey}-${slugify(params.candidate)}-${format(params.date, 'yyyyMMdd')}-${params.time}-${slugify(params.round)}`;
+  const hashed = hashCode(seed).toString(36).padEnd(11, 'x');
+  const meetCode = `${hashed.slice(0, 3)}-${hashed.slice(3, 7)}-${hashed.slice(7, 10)}`;
+  const zoomMeetingId = String(hashCode(`${seed}-zoom`)).padStart(10, '0').slice(0, 10);
+  const zoomPwd = hashCode(`${seed}-pwd`).toString(36).slice(0, 8);
+
+  return {
+    googleMeetLink: `https://meet.google.com/${meetCode}`,
+    zoomMeetLink: `https://zoom.us/j/${zoomMeetingId}?pwd=${zoomPwd}`,
+  };
+};
+
+const INTERVIEWS_DATA: InterviewEntry[] = [
   {
     id: 1,
     candidate: 'John Doe',
@@ -103,12 +164,12 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
 
   const [searchTerm, setSearchTerm] = useState('');
   const [date, setDate] = useState<Date | undefined>(undefined);
-  const [interviews, setInterviews] = useState(INTERVIEWS_DATA);
+  const [interviews, setInterviews] = useState<InterviewEntry[]>(INTERVIEWS_DATA);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [scheduleNewOpen, setScheduleNewOpen] = useState(false);
-  const [selectedInterview, setSelectedInterview] = useState<typeof INTERVIEWS_DATA[0] | null>(null);
+  const [selectedInterview, setSelectedInterview] = useState<InterviewEntry | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(undefined);
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [feedbackText, setFeedbackText] = useState('');
@@ -126,6 +187,17 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
   const [customType, setCustomType] = useState('');
   const [customRound, setCustomRound] = useState('');
   const { toast } = useToast();
+  const companyIdentityKey = getCompanyIdentityKey();
+
+  const meetingLinksPreview = (newDate && newTime)
+    ? buildMeetLinks({
+        companyKey: companyIdentityKey,
+        candidate: newCandidateName || 'candidate',
+        date: newDate,
+        time: newTime,
+        round: (useCustomRound ? customRound : newRound) || 'initial',
+      })
+    : null;
 
   // Auto-open schedule dialog when navigating from candidates
   useEffect(() => {
@@ -186,6 +258,13 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
       status: 'Scheduled',
       round: resolvedRound || 'Initial',
       feedback: '',
+      ...buildMeetLinks({
+        companyKey: companyIdentityKey,
+        candidate: newCandidateName,
+        date: newDate,
+        time: newTime,
+        round: resolvedRound || 'Initial',
+      }),
     };
     setInterviews(prev => [newInterview, ...prev]);
     setScheduleNewOpen(false);
@@ -217,6 +296,12 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
         return <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200"><Clock3 className="h-3 w-3 mr-1" /> Scheduled</Badge>;
       case 'Completed':
         return <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200"><CheckCircle2 className="h-3 w-3 mr-1" /> Completed</Badge>;
+      case 'Pending':
+        return <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200"><Clock3 className="h-3 w-3 mr-1" /> Pending</Badge>;
+      case 'On Hold':
+        return <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-slate-200"><AlertCircle className="h-3 w-3 mr-1" /> On Hold</Badge>;
+      case 'In Progress':
+        return <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 border-indigo-200"><CalendarClock className="h-3 w-3 mr-1" /> In Progress</Badge>;
       case 'Cancelled':
         return <Badge variant="destructive"><AlertCircle className="h-3 w-3 mr-1" /> Cancelled</Badge>;
       default:
@@ -232,7 +317,7 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
     }
   };
 
-  const openReschedule = (interview: typeof INTERVIEWS_DATA[0]) => {
+  const openReschedule = (interview: InterviewEntry) => {
     setSelectedInterview(interview);
     setRescheduleDate(interview.date);
     setRescheduleTime(interview.time);
@@ -246,12 +331,12 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
     toast({ title: 'Interview rescheduled', description: 'The interview has been rescheduled.' });
   };
 
-  const openView = (interview: typeof INTERVIEWS_DATA[0]) => {
+  const openView = (interview: InterviewEntry) => {
     setSelectedInterview(interview);
     setViewOpen(true);
   };
 
-  const openFeedback = (interview: typeof INTERVIEWS_DATA[0]) => {
+  const openFeedback = (interview: InterviewEntry) => {
     setSelectedInterview(interview);
     setFeedbackText('');
     setFeedbackOpen(true);
@@ -267,6 +352,13 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
   const cancelInterview = (id: number) => {
     setInterviews(prev => prev.map(i => i.id === id ? { ...i, status: 'Cancelled' } : i));
     toast({ title: 'Interview cancelled', description: 'The interview status is now Cancelled.' });
+  };
+
+  const markInterviewStatus = (id: number, status: 'Completed' | 'Pending' | 'On Hold' | 'In Progress') => {
+    setInterviews((prev) => prev.map((interview) => (
+      interview.id === id ? { ...interview, status } : interview
+    )));
+    toast({ title: 'Interview updated', description: `Interview marked as ${status}.` });
   };
 
   return (
@@ -416,6 +508,15 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
                         )}
                       </div>
                     </div>
+
+                    <div className="space-y-2">
+                      <Label>Google Meet Link (Auto-generated)</Label>
+                      <Input value={meetingLinksPreview?.googleMeetLink || ''} readOnly placeholder="Will generate after date and time are selected" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Zoom Link (Auto-generated)</Label>
+                      <Input value={meetingLinksPreview?.zoomMeetLink || ''} readOnly placeholder="Will generate after date and time are selected" />
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setScheduleNewOpen(false)}>Cancel</Button>
@@ -496,6 +597,10 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
                       <DropdownMenuItem onClick={() => openReschedule(interview)}>Reschedule</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openView(interview)}>View Candidate</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openFeedback(interview)}>Add Feedback</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => markInterviewStatus(interview.id, 'Completed')}>Mark as Completed</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => markInterviewStatus(interview.id, 'Pending')}>Mark as Pending</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => markInterviewStatus(interview.id, 'On Hold')}>Mark as Hold</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => markInterviewStatus(interview.id, 'In Progress')}>Mark as In Progress</DropdownMenuItem>
                       <DropdownMenuItem className="text-red-600" onClick={() => cancelInterview(interview.id)}>Cancel Interview</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -541,6 +646,22 @@ export default function InterviewScheduleModule({ schedulingFor, onClearScheduli
                   <div><span className="font-semibold">Round:</span> {selectedInterview.round}</div>
                   <div><span className="font-semibold">Date:</span> {format(selectedInterview.date, 'PPP')}</div>
                   <div><span className="font-semibold">Time:</span> {selectedInterview.time}</div>
+                  {selectedInterview.googleMeetLink && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">Google Meet:</span>
+                      <a href={selectedInterview.googleMeetLink} target="_blank" rel="noreferrer" className="text-purple-600 hover:underline inline-flex items-center gap-1">
+                        Open Link <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  )}
+                  {selectedInterview.zoomMeetLink && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">Zoom:</span>
+                      <a href={selectedInterview.zoomMeetLink} target="_blank" rel="noreferrer" className="text-purple-600 hover:underline inline-flex items-center gap-1">
+                        Open Link <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  )}
                   {selectedInterview.feedback && <div><span className="font-semibold">Feedback:</span> {selectedInterview.feedback}</div>}
                 </div>
               ) : null}

@@ -88,6 +88,8 @@ export default function HRMPayroll() {
   
   // Salary revision state
   const [showRevisionDialog, setShowRevisionDialog] = useState(false);
+  const [revisionType, setRevisionType] = useState('');
+  const [customRevisionType, setCustomRevisionType] = useState('');
   
   // Payroll processing state
   const [processingDialogOpen, setProcessingDialogOpen] = useState(false);
@@ -2160,18 +2162,27 @@ export default function HRMPayroll() {
             {/* Revision Type */}
             <div className="space-y-2">
               <Label htmlFor="revision-type">Revision Type</Label>
-              <Select>
+              <Select value={revisionType} onValueChange={setRevisionType}>
                 <SelectTrigger id="revision-type">
                   <SelectValue placeholder="Select revision type" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-48 overflow-y-auto">
                   <SelectItem value="annual-increment">Annual Increment</SelectItem>
                   <SelectItem value="promotion">Promotion</SelectItem>
                   <SelectItem value="performance-bonus">Performance Bonus</SelectItem>
                   <SelectItem value="market-adjustment">Market Adjustment</SelectItem>
                   <SelectItem value="cost-of-living">Cost of Living Adjustment</SelectItem>
+                  <SelectItem value="custom">Custom (Type Your Own)</SelectItem>
                 </SelectContent>
               </Select>
+              {revisionType === 'custom' && (
+                <Input
+                  id="custom-revision-type"
+                  placeholder="Enter custom revision type"
+                  value={customRevisionType}
+                  onChange={(e) => setCustomRevisionType(e.target.value)}
+                />
+              )}
             </div>
 
             {/* Current and New Salary */}
@@ -2274,7 +2285,11 @@ export default function HRMPayroll() {
             <div className="flex gap-3 justify-end pt-4 border-t">
               <Button
                 variant="outline"
-                onClick={() => setShowRevisionDialog(false)}
+                onClick={() => {
+                  setShowRevisionDialog(false);
+                  setRevisionType('');
+                  setCustomRevisionType('');
+                }}
               >
                 Cancel
               </Button>
@@ -2294,11 +2309,24 @@ export default function HRMPayroll() {
               <Button
                 className="bg-green-600 hover:bg-green-700"
                 onClick={() => {
+                  if (!revisionType || (revisionType === 'custom' && !customRevisionType.trim())) {
+                    toast({
+                      title: "Revision Type Required",
+                      description: revisionType === 'custom'
+                        ? "Please enter a custom revision type before submitting."
+                        : "Please select a revision type before submitting.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+
                   toast({
                     title: "Revision Submitted!",
-                    description: "Salary revision request has been submitted for approval.",
+                    description: `Salary revision request (${revisionType === 'custom' ? customRevisionType.trim() : revisionType}) has been submitted for approval.`,
                   });
                   setShowRevisionDialog(false);
+                  setRevisionType('');
+                  setCustomRevisionType('');
                 }}
               >
                 <Send className="h-4 w-4 mr-2" />

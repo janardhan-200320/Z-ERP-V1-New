@@ -331,7 +331,7 @@ export default function CreditNotesTab() {
                     <Table>
                       <TableHeader className="bg-slate-50">
                         <TableRow>
-                          <TableHead className="w-[40%]">Item Description/Name</TableHead>
+                          <TableHead className="w-[40%]">Item Details</TableHead>
                           <TableHead className="text-center">Qty</TableHead>
                           <TableHead className="text-center">Rate</TableHead>
                           <TableHead className="text-center">Taxes</TableHead>
@@ -342,7 +342,10 @@ export default function CreditNotesTab() {
                       <TableBody>
                         <TableRow>
                           <TableCell>
-                            <Input placeholder="Enter item description" />
+                            <div className="space-y-2">
+                              <Input placeholder="Item name" />
+                              <Textarea placeholder="Enter item description" rows={5} className="min-h-[130px] resize-y" />
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Input type="number" placeholder="1" className="text-center w-20" />

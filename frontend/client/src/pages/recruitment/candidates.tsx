@@ -21,7 +21,8 @@ import {
   CalendarClock,
   X,
   Eye,
-  Download
+  Download,
+  Edit
 } from 'lucide-react';
 import {
   Select,
@@ -56,7 +57,28 @@ interface Props {
   jobs: Job[];
 }
 
-const CANDIDATES_DATA = [
+type Candidate = {
+  id: number;
+  name: string;
+  position: string;
+  status: string;
+  source: string;
+  experience: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  linkedIn?: string;
+  education?: string;
+  summary?: string;
+  expectedSalary?: string;
+  availability?: string;
+  appliedDate?: string;
+  resumeFile?: string;
+  notes?: string;
+  skills: string[];
+};
+
+const CANDIDATES_DATA: Candidate[] = [
   {
     id: 1,
     name: 'Sarah Johnson',
@@ -65,6 +87,16 @@ const CANDIDATES_DATA = [
     source: 'LinkedIn',
     experience: '8 years',
     email: 'sarah.j@example.com',
+    phone: '+1 555-0134',
+    location: 'Austin, TX',
+    linkedIn: 'linkedin.com/in/sarahjohnson',
+    education: 'B.Tech Computer Science',
+    summary: 'Senior engineer with strong product delivery focus and cloud architecture experience.',
+    expectedSalary: '$135,000 / year',
+    availability: 'Immediate',
+    appliedDate: '2026-02-05',
+    resumeFile: 'Sarah_Johnson_Resume.pdf',
+    notes: 'Great communication skills and strong system design round.',
     skills: ['React', 'Node.js', 'AWS']
   },
   {
@@ -75,6 +107,16 @@ const CANDIDATES_DATA = [
     source: 'Referral',
     experience: '5 years',
     email: 'm.chen@example.com',
+    phone: '+1 555-0159',
+    location: 'Seattle, WA',
+    linkedIn: 'linkedin.com/in/michaelchen',
+    education: 'MBA, Product Management',
+    summary: 'Product manager experienced in B2B SaaS roadmap planning and execution.',
+    expectedSalary: '$120,000 / year',
+    availability: '30 days notice',
+    appliedDate: '2026-02-08',
+    resumeFile: 'Michael_Chen_CV.pdf',
+    notes: 'Strong ownership mindset. Needs deeper technical case evaluation.',
     skills: ['Agile', 'Jira', 'Roadmap']
   },
   {
@@ -85,6 +127,16 @@ const CANDIDATES_DATA = [
     source: 'Indeed',
     experience: '4 years',
     email: 'emily.d@example.com',
+    phone: '+1 555-0172',
+    location: 'Denver, CO',
+    linkedIn: 'linkedin.com/in/emilydavis',
+    education: 'B.Des Interaction Design',
+    summary: 'UX designer focused on user research, prototyping, and design systems.',
+    expectedSalary: '$98,000 / year',
+    availability: '15 days',
+    appliedDate: '2026-02-11',
+    resumeFile: 'Emily_Davis_Portfolio.pdf',
+    notes: 'Portfolio quality is high and research process is solid.',
     skills: ['Figma', 'User Research', 'Testing']
   },
   {
@@ -95,6 +147,16 @@ const CANDIDATES_DATA = [
     source: 'Career Site',
     experience: '7 years',
     email: 'james.w@example.com',
+    phone: '+1 555-0188',
+    location: 'Boston, MA',
+    linkedIn: 'linkedin.com/in/jameswilson',
+    education: 'M.S. Information Systems',
+    summary: 'DevOps engineer with deep CI/CD and infrastructure automation background.',
+    expectedSalary: '$128,000 / year',
+    availability: 'Immediate',
+    appliedDate: '2026-02-01',
+    resumeFile: 'James_Wilson_Resume.pdf',
+    notes: 'Rejected due to role mismatch for current opening.',
     skills: ['Docker', 'K8s', 'Terraform']
   }
 ];
@@ -105,7 +167,9 @@ export default function CandidatesModule({ filterByJob, onScheduleInterview, onC
   const [sourceFilter, setSourceFilter] = useState('all');
   const [isAddCandidateOpen, setIsAddCandidateOpen] = useState(false);
   const [isViewCVOpen, setIsViewCVOpen] = useState(false);
-  const [selectedCandidate, setSelectedCandidate] = useState<typeof CANDIDATES_DATA[0] | null>(null);
+  const [isEditCandidateOpen, setIsEditCandidateOpen] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [editCandidate, setEditCandidate] = useState<Candidate | null>(null);
   const [candidates, setCandidates] = useState(CANDIDATES_DATA);
   const { toast } = useToast();
 
@@ -139,6 +203,16 @@ export default function CandidatesModule({ filterByJob, onScheduleInterview, onC
       source: newCandidate.source,
       experience: newCandidate.experience || '0 years',
       email: newCandidate.email,
+      phone: newCandidate.phone,
+      location: 'Not specified',
+      linkedIn: '',
+      education: '',
+      summary: '',
+      expectedSalary: '',
+      availability: 'Immediate',
+      appliedDate: new Date().toISOString().split('T')[0],
+      resumeFile: newCandidate.resume || `${newCandidate.name.replace(/\s+/g, '_')}_Resume.pdf`,
+      notes: '',
       skills: newCandidate.skills.split(',').map(s => s.trim()).filter(Boolean)
     };
 
@@ -161,9 +235,39 @@ export default function CandidatesModule({ filterByJob, onScheduleInterview, onC
     });
   };
 
-  const handleViewCV = (candidate: typeof CANDIDATES_DATA[0]) => {
+  const handleViewCV = (candidate: Candidate) => {
     setSelectedCandidate(candidate);
     setIsViewCVOpen(true);
+  };
+
+  const handleEditCandidate = (candidate: Candidate) => {
+    setEditCandidate({ ...candidate, skills: [...candidate.skills] });
+    setIsEditCandidateOpen(true);
+  };
+
+  const handleSaveEditedCandidate = () => {
+    if (!editCandidate || !editCandidate.name || !editCandidate.email || !editCandidate.position) {
+      toast({
+        title: 'Missing Information',
+        description: 'Name, email, and position are required.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setCandidates((prev) => prev.map((candidate) => (
+      candidate.id === editCandidate.id ? editCandidate : candidate
+    )));
+
+    if (selectedCandidate?.id === editCandidate.id) {
+      setSelectedCandidate(editCandidate);
+    }
+
+    setIsEditCandidateOpen(false);
+    toast({
+      title: 'Candidate Updated',
+      description: `${editCandidate.name} profile has been updated successfully.`,
+    });
   };
 
   const updateStatus = (id: number, status: string) => {
@@ -396,13 +500,13 @@ export default function CandidatesModule({ filterByJob, onScheduleInterview, onC
         </DialogContent>
       </Dialog>
 
-      {/* View CV Dialog */}
+      {/* View Candidate Dialog */}
       <Dialog open={isViewCVOpen} onOpenChange={setIsViewCVOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Candidate Profile</DialogTitle>
             <DialogDescription>
-              Resume and application details for {selectedCandidate?.name}
+              Complete profile and application details for {selectedCandidate?.name}
             </DialogDescription>
           </DialogHeader>
           {selectedCandidate && (
@@ -420,6 +524,12 @@ export default function CandidatesModule({ filterByJob, onScheduleInterview, onC
                       <Mail className="h-3.5 w-3.5" />
                       {selectedCandidate.email}
                     </span>
+                    {selectedCandidate.phone && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="h-3.5 w-3.5" />
+                        {selectedCandidate.phone}
+                      </span>
+                    )}
                     <span>{selectedCandidate.experience}</span>
                   </div>
                 </div>
@@ -427,6 +537,33 @@ export default function CandidatesModule({ filterByJob, onScheduleInterview, onC
                   {selectedCandidate.status}
                 </Badge>
               </div>
+
+              {/* Profile Overview */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-slate-500">Current Location</p>
+                  <p className="font-medium">{selectedCandidate.location || 'Not specified'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Availability</p>
+                  <p className="font-medium">{selectedCandidate.availability || 'Not specified'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Expected Salary</p>
+                  <p className="font-medium">{selectedCandidate.expectedSalary || 'Not specified'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Education</p>
+                  <p className="font-medium">{selectedCandidate.education || 'Not specified'}</p>
+                </div>
+              </div>
+
+              {selectedCandidate.summary && (
+                <div>
+                  <h4 className="font-semibold mb-2">Professional Summary</h4>
+                  <p className="text-sm text-slate-600 leading-relaxed">{selectedCandidate.summary}</p>
+                </div>
+              )}
 
               {/* Skills */}
               <div>
@@ -451,7 +588,7 @@ export default function CandidatesModule({ filterByJob, onScheduleInterview, onC
                 </div>
                 <div className="bg-white border rounded-lg p-8 text-center">
                   <FileText className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                  <p className="text-slate-600">{selectedCandidate.name.replace(' ', '_')}_Resume.pdf</p>
+                  <p className="text-slate-600">{selectedCandidate.resumeFile || `${selectedCandidate.name.replace(' ', '_')}_Resume.pdf`}</p>
                   <p className="text-sm text-slate-400 mt-1">PDF • 245 KB</p>
                 </div>
               </div>
@@ -464,14 +601,35 @@ export default function CandidatesModule({ filterByJob, onScheduleInterview, onC
                 </div>
                 <div>
                   <p className="text-sm text-slate-500">Applied Date</p>
-                  <p className="font-medium">February 5, 2026</p>
+                  <p className="font-medium">{selectedCandidate.appliedDate || 'Not available'}</p>
                 </div>
+                <div className="col-span-2">
+                  <p className="text-sm text-slate-500">LinkedIn</p>
+                  <p className="font-medium">{selectedCandidate.linkedIn || 'Not specified'}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm text-slate-500">Recruiter Notes</p>
+                <p className="font-medium text-slate-700 mt-1">{selectedCandidate.notes || 'No notes added yet.'}</p>
               </div>
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewCVOpen(false)}>
               Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedCandidate) {
+                  setIsViewCVOpen(false);
+                  handleEditCandidate(selectedCandidate);
+                }
+              }}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Candidate
             </Button>
             <Button 
               className="bg-purple-600 hover:bg-purple-700"
@@ -484,6 +642,139 @@ export default function CandidatesModule({ filterByJob, onScheduleInterview, onC
             >
               <CalendarClock className="h-4 w-4 mr-2" />
               Schedule Interview
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Candidate Dialog */}
+      <Dialog open={isEditCandidateOpen} onOpenChange={setIsEditCandidateOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Edit Candidate</DialogTitle>
+            <DialogDescription>Update candidate profile, resume details, and hiring information.</DialogDescription>
+          </DialogHeader>
+
+          {editCandidate && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Full Name *</Label>
+                  <Input value={editCandidate.name} onChange={(e) => setEditCandidate({ ...editCandidate, name: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email *</Label>
+                  <Input type="email" value={editCandidate.email} onChange={(e) => setEditCandidate({ ...editCandidate, email: e.target.value })} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input value={editCandidate.phone || ''} onChange={(e) => setEditCandidate({ ...editCandidate, phone: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Position *</Label>
+                  <Input value={editCandidate.position} onChange={(e) => setEditCandidate({ ...editCandidate, position: e.target.value })} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={editCandidate.status} onValueChange={(value) => setEditCandidate({ ...editCandidate, status: value })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Screening">Screening</SelectItem>
+                      <SelectItem value="Interviewing">Interviewing</SelectItem>
+                      <SelectItem value="Offer Sent">Offer Sent</SelectItem>
+                      <SelectItem value="Rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Source</Label>
+                  <Select value={editCandidate.source} onValueChange={(value) => setEditCandidate({ ...editCandidate, source: value })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                      <SelectItem value="Indeed">Indeed</SelectItem>
+                      <SelectItem value="Referral">Referral</SelectItem>
+                      <SelectItem value="Career Site">Career Site</SelectItem>
+                      <SelectItem value="Job Fair">Job Fair</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Experience</Label>
+                  <Input value={editCandidate.experience} onChange={(e) => setEditCandidate({ ...editCandidate, experience: e.target.value })} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Location</Label>
+                  <Input value={editCandidate.location || ''} onChange={(e) => setEditCandidate({ ...editCandidate, location: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Availability</Label>
+                  <Input value={editCandidate.availability || ''} onChange={(e) => setEditCandidate({ ...editCandidate, availability: e.target.value })} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Expected Salary</Label>
+                  <Input value={editCandidate.expectedSalary || ''} onChange={(e) => setEditCandidate({ ...editCandidate, expectedSalary: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Applied Date</Label>
+                  <Input type="date" value={editCandidate.appliedDate || ''} onChange={(e) => setEditCandidate({ ...editCandidate, appliedDate: e.target.value })} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>LinkedIn</Label>
+                <Input value={editCandidate.linkedIn || ''} onChange={(e) => setEditCandidate({ ...editCandidate, linkedIn: e.target.value })} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Education</Label>
+                <Input value={editCandidate.education || ''} onChange={(e) => setEditCandidate({ ...editCandidate, education: e.target.value })} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Skills (comma separated)</Label>
+                <Input
+                  value={editCandidate.skills.join(', ')}
+                  onChange={(e) => setEditCandidate({
+                    ...editCandidate,
+                    skills: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
+                  })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Resume File Name</Label>
+                <Input value={editCandidate.resumeFile || ''} onChange={(e) => setEditCandidate({ ...editCandidate, resumeFile: e.target.value })} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Professional Summary</Label>
+                <Textarea rows={3} value={editCandidate.summary || ''} onChange={(e) => setEditCandidate({ ...editCandidate, summary: e.target.value })} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Recruiter Notes</Label>
+                <Textarea rows={3} value={editCandidate.notes || ''} onChange={(e) => setEditCandidate({ ...editCandidate, notes: e.target.value })} />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditCandidateOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveEditedCandidate} className="bg-blue-600 hover:bg-blue-700">
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -546,6 +837,14 @@ export default function CandidatesModule({ filterByJob, onScheduleInterview, onC
                     <Eye className="h-3.5 w-3.5 mr-1.5" />
                     View CV
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditCandidate(candidate)}
+                  >
+                    <Edit className="h-3.5 w-3.5 mr-1.5" />
+                    Edit
+                  </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -553,9 +852,11 @@ export default function CandidatesModule({ filterByJob, onScheduleInterview, onC
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleViewCV(candidate)}>View Candidate</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEditCandidate(candidate)}>Edit Candidate</DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => updateStatus(candidate.id, 'Screening')}>Move to Screening</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => updateStatus(candidate.id, 'Interviewing')}>Move to Interviewing</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => updateStatus(candidate.id, 'Offer Sent')}>Send Offer</DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-red-600" onClick={() => updateStatus(candidate.id, 'Rejected')}>Reject</DropdownMenuItem>
                     </DropdownMenuContent>

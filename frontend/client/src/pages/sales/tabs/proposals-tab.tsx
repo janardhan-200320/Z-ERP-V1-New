@@ -50,7 +50,7 @@ import ProposalTemplateEnhanced from '@/components/ProposalTemplateEnhanced';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { exportProposalToPDF } from '@/lib/proposal-pdf-generator';
 import { FINANCE_DEFAULT_TAX_VALUE, getFinanceSettings, getFinanceTaxLabel } from '@/lib/finance-settings';
-import { saveProposalForStandaloneView } from '@/lib/proposal-view-storage';
+import { getAllProposalsForStandaloneView, PROPOSAL_VIEW_UPDATED_EVENT, saveProposalForStandaloneView } from '@/lib/proposal-view-storage';
 import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
 
 type ProposalLineItem = {
@@ -338,11 +338,43 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     }
   ]);
 
+  const mergeProposalsWithStandaloneView = (baseProposals: any[]) => {
+    const standaloneProposals = getAllProposalsForStandaloneView();
+
+    return baseProposals.map((proposal) => {
+      const updated = standaloneProposals[proposal.id];
+      if (!updated) return proposal;
+
+      return {
+        ...proposal,
+        ...updated,
+        status: updated.status || proposal.status,
+        signedAt: updated.signedAt || proposal.signedAt,
+        clientSignature: updated.clientSignature || proposal.clientSignature,
+      };
+    });
+  };
+
   useEffect(() => {
     if (proposalsData) {
-      setProposals(proposalsData);
+      setProposals(mergeProposalsWithStandaloneView(proposalsData));
     }
   }, [proposalsData]);
+
+  useEffect(() => {
+    const syncStandaloneUpdates = () => {
+      setProposals((prev) => mergeProposalsWithStandaloneView(prev));
+    };
+
+    syncStandaloneUpdates();
+    window.addEventListener('storage', syncStandaloneUpdates);
+    window.addEventListener(PROPOSAL_VIEW_UPDATED_EVENT, syncStandaloneUpdates);
+
+    return () => {
+      window.removeEventListener('storage', syncStandaloneUpdates);
+      window.removeEventListener(PROPOSAL_VIEW_UPDATED_EVENT, syncStandaloneUpdates);
+    };
+  }, []);
 
   useEffect(() => {
     const reloadFinanceSettings = () => {
@@ -1090,6 +1122,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
         description: `Proposal ${prop.id} has been dispatched to ${prop.customer}.`,
       });
       setProposals(prev => prev.map(p => p.id === prop.id ? { ...p, status: 'sent' } : p));
+      saveProposalForStandaloneView({ ...prop, status: 'sent' });
     }
   };
 
@@ -1163,6 +1196,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     draft: { label: 'Draft', class: 'bg-slate-100 text-slate-700 border-slate-200' },
     sent: { label: 'Sent', class: 'bg-blue-100 text-blue-700 border-blue-200' },
     accepted: { label: 'Accepted', class: 'bg-green-100 text-green-700 border-green-200' },
+    signed: { label: 'Signed', class: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
     declined: { label: 'Declined', class: 'bg-red-100 text-red-700 border-red-200' }
   };
 
@@ -1195,6 +1229,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
               <DropdownMenuItem onClick={() => setStatusFilter('draft')}>Draft</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStatusFilter('sent')}>Sent</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStatusFilter('accepted')}>Accepted</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter('signed')}>Signed</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStatusFilter('declined')}>Declined</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1393,6 +1428,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             <SelectItem value="sent">Sent</SelectItem>
                             <SelectItem value="open">Open</SelectItem>
                             <SelectItem value="accepted">Accepted</SelectItem>
+                            <SelectItem value="signed">Signed</SelectItem>
                             <SelectItem value="declined">Declined</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1838,8 +1874,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                       <TableHeader className="bg-gradient-to-r from-slate-100 to-slate-50">
                         <TableRow>
                           <TableHead className="w-8"></TableHead>
-                          <TableHead className="w-40 font-semibold">Item</TableHead>
-                          <TableHead className="font-semibold">Description</TableHead>
+                          <TableHead className="font-semibold">Item Details</TableHead>
                           <TableHead className="w-24 font-semibold">Qty</TableHead>
                           <TableHead className="w-32 font-semibold">Rate</TableHead>
                           <TableHead className="w-32 font-semibold">Tax</TableHead>
@@ -1851,22 +1886,22 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         {proposalItems.map((item, index) => (
                           <TableRow key={item.id}>
                             <TableCell className="align-top"></TableCell>
-                            <TableCell className="align-top pt-5 w-40">
-                              <Input
-                                placeholder="Item name"
-                                value={item.description}
-                                onChange={(e) => updateProposalItem(item.id, 'description', e.target.value)}
-                                className="h-9 text-sm"
-                              />
-                            </TableCell>
-                            <TableCell className="align-top py-4">
-                              <Textarea
-                                placeholder="Description"
-                                value={item.longDescription}
-                                onChange={(e) => updateProposalItem(item.id, 'longDescription', e.target.value)}
-                                className="min-h-[88px] resize-y text-sm"
-                                rows={3}
-                              />
+                            <TableCell colSpan={2} className="align-top py-4">
+                              <div className="space-y-2">
+                                <Input
+                                  placeholder="Item name"
+                                  value={item.description}
+                                  onChange={(e) => updateProposalItem(item.id, 'description', e.target.value)}
+                                  className="h-9 text-sm"
+                                />
+                                <Textarea
+                                  placeholder="Description"
+                                  value={item.longDescription}
+                                  onChange={(e) => updateProposalItem(item.id, 'longDescription', e.target.value)}
+                                  className="min-h-[130px] resize-y text-sm"
+                                  rows={5}
+                                />
+                              </div>
                               <Button variant="link" size="sm" className="h-6 px-0 text-xs text-blue-600">
                                 Link
                               </Button>
@@ -2330,7 +2365,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                   {/** Accept action is disabled when proposal is expired. */}
                   {(() => {
                     const proposalExpired = isProposalExpired(selectedProposal);
-                    const proposalAccepted = selectedProposal?.status === 'accepted';
+                    const proposalAccepted = selectedProposal?.status === 'accepted' || selectedProposal?.status === 'signed';
 
                     return (
                   <div className="flex items-center justify-between mb-4">
@@ -2350,7 +2385,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         onClick={() => handleAcceptProposal(selectedProposal)}
                       >
                         <Check className="h-4 w-4 mr-2" />
-                        {proposalExpired ? 'Expired' : proposalAccepted ? 'Accepted' : 'Accept'}
+                        {proposalExpired ? 'Expired' : selectedProposal?.status === 'signed' ? 'Signed' : proposalAccepted ? 'Accepted' : 'Accept'}
                       </Button>
                       <Button 
                         className="bg-indigo-600 text-white shadow-lg shadow-indigo-100" 
@@ -2724,6 +2759,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             <SelectItem value="draft">Draft</SelectItem>
                             <SelectItem value="sent">Sent</SelectItem>
                             <SelectItem value="accepted">Accepted</SelectItem>
+                            <SelectItem value="signed">Signed</SelectItem>
                             <SelectItem value="declined">Declined</SelectItem>
                           </SelectContent>
                         </Select>
@@ -2867,6 +2903,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           <SelectItem value="revised">Revised</SelectItem>
                           <SelectItem value="declined">Declined</SelectItem>
                           <SelectItem value="accepted">Accepted</SelectItem>
+                          <SelectItem value="signed">Signed</SelectItem>
                           <SelectItem value="expired">Expired</SelectItem>
                         </SelectContent>
                       </Select>

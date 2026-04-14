@@ -1,6 +1,7 @@
 import { safeGetItem, safeSetItem } from '@/lib/storage';
 
 const PROPOSAL_VIEW_STORAGE_KEY = 'sales.proposalViewData';
+export const PROPOSAL_VIEW_UPDATED_EVENT = 'proposalViewUpdated';
 
 type ProposalViewStore = Record<string, any>;
 
@@ -14,6 +15,11 @@ export const saveProposalForStandaloneView = (proposal: any) => {
   };
 
   safeSetItem(PROPOSAL_VIEW_STORAGE_KEY, updated);
+  window.dispatchEvent(new Event(PROPOSAL_VIEW_UPDATED_EVENT));
+};
+
+export const getAllProposalsForStandaloneView = (): ProposalViewStore => {
+  return safeGetItem<ProposalViewStore>(PROPOSAL_VIEW_STORAGE_KEY, {});
 };
 
 export const getProposalForStandaloneView = (proposalId: string) => {
@@ -42,6 +48,7 @@ export const updateProposalForStandaloneView = (
     ...stored,
     [proposalId]: updatedRecord,
   });
+  window.dispatchEvent(new Event(PROPOSAL_VIEW_UPDATED_EVENT));
 
   return updatedRecord;
 };

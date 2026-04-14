@@ -71,6 +71,8 @@ export default function HRMAssets() {
   const [assetStatusFilter, setAssetStatusFilter] = useState('all');
   const [addAssetCategory, setAddAssetCategory] = useState('');
   const [addCustomCategory, setAddCustomCategory] = useState('');
+  const [assignmentLocation, setAssignmentLocation] = useState('');
+  const [customAssignmentLocation, setCustomAssignmentLocation] = useState('');
 
   // Mock data - Company Assets
   const [assets, setAssets] = useState([
@@ -1495,7 +1497,7 @@ export default function HRMAssets() {
 
         {/* Asset Assignment Dialog */}
         <Dialog open={assignAssetDialogOpen} onOpenChange={setAssignAssetDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-blue-600" />
@@ -1565,19 +1567,28 @@ export default function HRMAssets() {
 
               <div className="space-y-2">
                 <Label htmlFor="assignment-location">Work Location</Label>
-                <Select>
+                <Select value={assignmentLocation} onValueChange={setAssignmentLocation}>
                   <SelectTrigger id="assignment-location">
                     <SelectValue placeholder="Select work location" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-48 overflow-y-auto">
                     <SelectItem value="office-floor1">Office - Floor 1</SelectItem>
                     <SelectItem value="office-floor2">Office - Floor 2</SelectItem>
                     <SelectItem value="office-floor3">Office - Floor 3</SelectItem>
                     <SelectItem value="office-floor4">Office - Floor 4</SelectItem>
                     <SelectItem value="remote">Remote Work</SelectItem>
                     <SelectItem value="warehouse">Warehouse</SelectItem>
+                    <SelectItem value="custom">Custom (Type Your Own)</SelectItem>
                   </SelectContent>
                 </Select>
+                {assignmentLocation === 'custom' && (
+                  <Input
+                    id="custom-assignment-location"
+                    placeholder="Enter custom work location"
+                    value={customAssignmentLocation}
+                    onChange={(e) => setCustomAssignmentLocation(e.target.value)}
+                  />
+                )}
               </div>
 
               <div className="space-y-2">
@@ -1623,10 +1634,14 @@ export default function HRMAssets() {
                 onClick={() => {
                   toast({
                     title: "Asset Assigned!",
-                    description: selectedAsset ? `${selectedAsset.assetName} has been assigned successfully.` : "Asset assigned to employee.",
+                    description: selectedAsset
+                      ? `${selectedAsset.assetName} has been assigned successfully${assignmentLocation === 'custom' && customAssignmentLocation.trim() ? ` at ${customAssignmentLocation.trim()}` : ''}.`
+                      : "Asset assigned to employee.",
                   });
                   setAssignAssetDialogOpen(false);
                   setSelectedAsset(null);
+                  setAssignmentLocation('');
+                  setCustomAssignmentLocation('');
                 }}
               >
                 Confirm Assignment

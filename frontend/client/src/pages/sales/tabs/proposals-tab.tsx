@@ -50,7 +50,7 @@ import ProposalTemplateEnhanced from '@/components/ProposalTemplateEnhanced';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { exportProposalToPDF } from '@/lib/proposal-pdf-generator';
 import { FINANCE_DEFAULT_TAX_VALUE, getFinanceSettings, getFinanceTaxLabel } from '@/lib/finance-settings';
-import { getAllProposalsForStandaloneView, PROPOSAL_VIEW_UPDATED_EVENT, saveProposalForStandaloneView } from '@/lib/proposal-view-storage';
+import { saveProposalForStandaloneView } from '@/lib/proposal-view-storage';
 import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
 
 type ProposalLineItem = {
@@ -338,43 +338,11 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     }
   ]);
 
-  const mergeProposalsWithStandaloneView = (baseProposals: any[]) => {
-    const standaloneProposals = getAllProposalsForStandaloneView();
-
-    return baseProposals.map((proposal) => {
-      const updated = standaloneProposals[proposal.id];
-      if (!updated) return proposal;
-
-      return {
-        ...proposal,
-        ...updated,
-        status: updated.status || proposal.status,
-        signedAt: updated.signedAt || proposal.signedAt,
-        clientSignature: updated.clientSignature || proposal.clientSignature,
-      };
-    });
-  };
-
   useEffect(() => {
     if (proposalsData) {
-      setProposals(mergeProposalsWithStandaloneView(proposalsData));
+      setProposals(proposalsData);
     }
   }, [proposalsData]);
-
-  useEffect(() => {
-    const syncStandaloneUpdates = () => {
-      setProposals((prev) => mergeProposalsWithStandaloneView(prev));
-    };
-
-    syncStandaloneUpdates();
-    window.addEventListener('storage', syncStandaloneUpdates);
-    window.addEventListener(PROPOSAL_VIEW_UPDATED_EVENT, syncStandaloneUpdates);
-
-    return () => {
-      window.removeEventListener('storage', syncStandaloneUpdates);
-      window.removeEventListener(PROPOSAL_VIEW_UPDATED_EVENT, syncStandaloneUpdates);
-    };
-  }, []);
 
   useEffect(() => {
     const reloadFinanceSettings = () => {
@@ -399,7 +367,6 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   const [editProject, setEditProject] = useState('');
   const [editBillTo, setEditBillTo] = useState({ address: '', city: '' });
   const [editShipTo, setEditShipTo] = useState({ address: '', city: '' });
-  const [editTags, setEditTags] = useState('');
   const [editCurrency, setEditCurrency] = useState('usd');
   const [editStatus, setEditStatus] = useState('accepted');
   const [editReference, setEditReference] = useState('');
@@ -420,6 +387,8 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   const [editDiscount, setEditDiscount] = useState(0);
   const [editAdjustment, setEditAdjustment] = useState(0);
   const [showQtyAs, setShowQtyAs] = useState<'qty' | 'hours' | 'both'>('qty');
+  const editCustomerOptions = ['Greeen Dot', 'Acme Corporation', 'TechStart Inc.', 'Global Brands Ltd.'];
+  const editEstimatePrefixOptions = ['PRO-'];
 
   const selectedProposalTaxSummary = useMemo(() => {
     const taxSummary = calculateProposalTaxSummary(selectedProposal?.items || [], financeDefaultTaxRate);
@@ -459,7 +428,6 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     setEditProject(proposal.project || '');
     setEditBillTo({ address: 'Industrial Ave, Abhu Dhabi', city: 'AE' });
     setEditShipTo({ address: '', city: '' });
-    setEditTags('tag');
     setEditCurrency('usd');
     setEditStatus(proposal.status || 'draft');
     setEditReference('');
@@ -467,7 +435,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     setEditDiscountType('no-discount');
     setEditAdminNote('');
     setEditEstimateNumber(proposal.id?.split('-')[1] || '000001');
-    setEditEstimatePrefix('EST-');
+    setEditEstimatePrefix(proposal.id?.includes('-') ? `${proposal.id.split('-')[0]}-` : 'PRO-');
     setEditEstimateDate(proposal.date || new Date().toISOString().split('T')[0]);
     setEditExpiryDate(proposal.validUntil || '');
     setEditClientNote('');
@@ -611,6 +579,8 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   const [proposalOverview, setProposalOverview] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [showRecipientSuggestions, setShowRecipientSuggestions] = useState(false);
+  const [relatedValue, setRelatedValue] = useState('not-selected');
+  const [customRelatedValue, setCustomRelatedValue] = useState('');
   const [proposalScopeItems, setProposalScopeItems] = useState([
     { id: 1, description: '', longDescription: '' }
   ]);
@@ -1122,7 +1092,6 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
         description: `Proposal ${prop.id} has been dispatched to ${prop.customer}.`,
       });
       setProposals(prev => prev.map(p => p.id === prop.id ? { ...p, status: 'sent' } : p));
-      saveProposalForStandaloneView({ ...prop, status: 'sent' });
     }
   };
 
@@ -1196,7 +1165,6 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     draft: { label: 'Draft', class: 'bg-slate-100 text-slate-700 border-slate-200' },
     sent: { label: 'Sent', class: 'bg-blue-100 text-blue-700 border-blue-200' },
     accepted: { label: 'Accepted', class: 'bg-green-100 text-green-700 border-green-200' },
-    signed: { label: 'Signed', class: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
     declined: { label: 'Declined', class: 'bg-red-100 text-red-700 border-red-200' }
   };
 
@@ -1229,7 +1197,6 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
               <DropdownMenuItem onClick={() => setStatusFilter('draft')}>Draft</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStatusFilter('sent')}>Sent</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStatusFilter('accepted')}>Accepted</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter('signed')}>Signed</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStatusFilter('declined')}>Declined</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1290,7 +1257,15 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         <Label htmlFor="related" className="text-sm font-medium text-slate-700">
                           <span className="text-red-500">*</span> Related
                         </Label>
-                        <Select defaultValue="not-selected">
+                        <Select
+                          value={relatedValue}
+                          onValueChange={(value) => {
+                            setRelatedValue(value);
+                            if (value !== 'custom') {
+                              setCustomRelatedValue('');
+                            }
+                          }}
+                        >
                           <SelectTrigger id="related" className="h-10 bg-white border-slate-300">
                             <SelectValue />
                           </SelectTrigger>
@@ -1299,8 +1274,17 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             <SelectItem value="project-1">Project Alpha</SelectItem>
                             <SelectItem value="project-2">Project Beta</SelectItem>
                             <SelectItem value="lead-1">Lead - Acme Corp</SelectItem>
+                            <SelectItem value="custom">Custom</SelectItem>
                           </SelectContent>
                         </Select>
+                        {relatedValue === 'custom' && (
+                          <Input
+                            value={customRelatedValue}
+                            onChange={(e) => setCustomRelatedValue(e.target.value)}
+                            placeholder="Enter custom related value"
+                            className="h-10 bg-white border-slate-300"
+                          />
+                        )}
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
@@ -1428,7 +1412,6 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                             <SelectItem value="sent">Sent</SelectItem>
                             <SelectItem value="open">Open</SelectItem>
                             <SelectItem value="accepted">Accepted</SelectItem>
-                            <SelectItem value="signed">Signed</SelectItem>
                             <SelectItem value="declined">Declined</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1816,13 +1799,31 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                     </h3>
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                       <span className="font-medium">Show quantity as:</span>
-                      <Button variant="outline" size="sm" className="h-7 text-xs bg-white border-orange-300">
+                      <Button
+                        type="button"
+                        variant={showQtyAs === 'qty' ? 'outline' : 'ghost'}
+                        size="sm"
+                        className={cn("h-7 text-xs", showQtyAs === 'qty' && "bg-white border-orange-300")}
+                        onClick={() => setShowQtyAs('qty')}
+                      >
                         Qty
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs">
+                      <Button
+                        type="button"
+                        variant={showQtyAs === 'hours' ? 'outline' : 'ghost'}
+                        size="sm"
+                        className={cn("h-7 text-xs", showQtyAs === 'hours' && "bg-white border-orange-300")}
+                        onClick={() => setShowQtyAs('hours')}
+                      >
                         Hours
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs">
+                      <Button
+                        type="button"
+                        variant={showQtyAs === 'both' ? 'outline' : 'ghost'}
+                        size="sm"
+                        className={cn("h-7 text-xs", showQtyAs === 'both' && "bg-white border-orange-300")}
+                        onClick={() => setShowQtyAs('both')}
+                      >
                         Qty/Hours
                       </Button>
                     </div>
@@ -1874,8 +1875,11 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                       <TableHeader className="bg-gradient-to-r from-slate-100 to-slate-50">
                         <TableRow>
                           <TableHead className="w-8"></TableHead>
-                          <TableHead className="font-semibold">Item Details</TableHead>
-                          <TableHead className="w-24 font-semibold">Qty</TableHead>
+                          <TableHead className="w-40 font-semibold">Item</TableHead>
+                          <TableHead className="font-semibold">Description</TableHead>
+                          <TableHead className="w-24 font-semibold">
+                            {showQtyAs === 'hours' ? 'Hours' : showQtyAs === 'both' ? 'Qty/Hours' : 'Qty'}
+                          </TableHead>
                           <TableHead className="w-32 font-semibold">Rate</TableHead>
                           <TableHead className="w-32 font-semibold">Tax</TableHead>
                           <TableHead className="w-32 text-right font-semibold">Amount</TableHead>
@@ -1886,22 +1890,22 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         {proposalItems.map((item, index) => (
                           <TableRow key={item.id}>
                             <TableCell className="align-top"></TableCell>
-                            <TableCell colSpan={2} className="align-top py-4">
-                              <div className="space-y-2">
-                                <Input
-                                  placeholder="Item name"
-                                  value={item.description}
-                                  onChange={(e) => updateProposalItem(item.id, 'description', e.target.value)}
-                                  className="h-9 text-sm"
-                                />
-                                <Textarea
-                                  placeholder="Description"
-                                  value={item.longDescription}
-                                  onChange={(e) => updateProposalItem(item.id, 'longDescription', e.target.value)}
-                                  className="min-h-[130px] resize-y text-sm"
-                                  rows={5}
-                                />
-                              </div>
+                            <TableCell className="align-top pt-5 w-40">
+                              <Input
+                                placeholder="Item name"
+                                value={item.description}
+                                onChange={(e) => updateProposalItem(item.id, 'description', e.target.value)}
+                                className="h-9 text-sm"
+                              />
+                            </TableCell>
+                            <TableCell className="align-top py-4">
+                              <Textarea
+                                placeholder="Description"
+                                value={item.longDescription}
+                                onChange={(e) => updateProposalItem(item.id, 'longDescription', e.target.value)}
+                                className="min-h-[88px] resize-y text-sm"
+                                rows={3}
+                              />
                               <Button variant="link" size="sm" className="h-6 px-0 text-xs text-blue-600">
                                 Link
                               </Button>
@@ -1913,6 +1917,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 onChange={(e) => updateProposalItem(item.id, 'qty', parseFloat(e.target.value) || 0)}
                                 className="h-9"
                                 min="0"
+                                placeholder={showQtyAs === 'hours' ? 'Hours' : showQtyAs === 'both' ? 'Qty/Hours' : 'Qty'}
                               />
                             </TableCell>
                             <TableCell className="align-top">
@@ -2365,7 +2370,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                   {/** Accept action is disabled when proposal is expired. */}
                   {(() => {
                     const proposalExpired = isProposalExpired(selectedProposal);
-                    const proposalAccepted = selectedProposal?.status === 'accepted' || selectedProposal?.status === 'signed';
+                    const proposalAccepted = selectedProposal?.status === 'accepted';
 
                     return (
                   <div className="flex items-center justify-between mb-4">
@@ -2385,7 +2390,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         onClick={() => handleAcceptProposal(selectedProposal)}
                       >
                         <Check className="h-4 w-4 mr-2" />
-                        {proposalExpired ? 'Expired' : selectedProposal?.status === 'signed' ? 'Signed' : proposalAccepted ? 'Accepted' : 'Accept'}
+                        {proposalExpired ? 'Expired' : proposalAccepted ? 'Accepted' : 'Accept'}
                       </Button>
                       <Button 
                         className="bg-indigo-600 text-white shadow-lg shadow-indigo-100" 
@@ -2614,7 +2619,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
               {/* Header */}
               <div className="sticky top-0 z-10 bg-white border-b px-6 py-4">
                 <div className="flex items-center gap-3">
-                  <DialogTitle className="text-lg font-semibold text-blue-600">{editEstimatePrefix}{editEstimateNumber}</DialogTitle>
+                  <DialogTitle className="text-lg font-semibold text-blue-600">Edit Proposal</DialogTitle>
                   <Badge className={cn("capitalize", statusConfig[editStatus]?.class || 'bg-green-100 text-green-700')}>
                     {editStatus.charAt(0).toUpperCase() + editStatus.slice(1)}
                   </Badge>
@@ -2628,7 +2633,18 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label className="text-sm text-red-500">* Customer</Label>
-                      <Select value={editCustomer} onValueChange={setEditCustomer}>
+                      <Select
+                        value={editCustomerOptions.includes(editCustomer) ? editCustomer : 'custom'}
+                        onValueChange={(value) => {
+                          if (value === 'custom') {
+                            if (editCustomerOptions.includes(editCustomer)) {
+                              setEditCustomer('');
+                            }
+                            return;
+                          }
+                          setEditCustomer(value);
+                        }}
+                      >
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="Select customer" />
                         </SelectTrigger>
@@ -2637,8 +2653,17 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           <SelectItem value="Acme Corporation">Acme Corporation</SelectItem>
                           <SelectItem value="TechStart Inc.">TechStart Inc.</SelectItem>
                           <SelectItem value="Global Brands Ltd.">Global Brands Ltd.</SelectItem>
+                          <SelectItem value="custom">Custom</SelectItem>
                         </SelectContent>
                       </Select>
+                      {!editCustomerOptions.includes(editCustomer) && (
+                        <Input
+                          value={editCustomer}
+                          onChange={(e) => setEditCustomer(e.target.value)}
+                          placeholder="Enter customer name"
+                          className="h-9"
+                        />
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -2675,15 +2700,34 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                       <div className="space-y-2">
                         <Label className="text-sm text-red-500">* Estimate Number</Label>
                         <div className="flex gap-2">
-                          <Select value={editEstimatePrefix} onValueChange={setEditEstimatePrefix}>
-                            <SelectTrigger className="w-20 h-9">
+                          <Select
+                            value={editEstimatePrefixOptions.includes(editEstimatePrefix) ? editEstimatePrefix : 'custom'}
+                            onValueChange={(value) => {
+                              if (value === 'custom') {
+                                if (editEstimatePrefixOptions.includes(editEstimatePrefix)) {
+                                  setEditEstimatePrefix('');
+                                }
+                                return;
+                              }
+                              setEditEstimatePrefix(value);
+                            }}
+                          >
+                            <SelectTrigger className="w-24 h-9">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="EST-">EST-</SelectItem>
                               <SelectItem value="PRO-">PRO-</SelectItem>
+                              <SelectItem value="custom">Custom</SelectItem>
                             </SelectContent>
                           </Select>
+                          {!editEstimatePrefixOptions.includes(editEstimatePrefix) && (
+                            <Input
+                              value={editEstimatePrefix}
+                              onChange={(e) => setEditEstimatePrefix(e.target.value)}
+                              placeholder="Prefix"
+                              className="h-9 w-24"
+                            />
+                          )}
                           <Input 
                             value={editEstimateNumber}
                             onChange={(e) => setEditEstimateNumber(e.target.value)}
@@ -2693,7 +2737,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label className="text-sm text-red-500">* Estimate Date</Label>
                         <div className="relative">
@@ -2716,39 +2760,6 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           />
                         </div>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Right Column */}
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-sm flex items-center gap-1">
-                          <span className="text-slate-500">●</span> Tags
-                        </Label>
-                        <Input 
-                          value={editTags}
-                          onChange={(e) => setEditTags(e.target.value)}
-                          placeholder="tag"
-                          className="h-9"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-sm text-red-500">* Currency</Label>
-                        <Select value={editCurrency} onValueChange={setEditCurrency}>
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="usd">INR ₹</SelectItem>
-                            <SelectItem value="eur">EUR €</SelectItem>
-                            <SelectItem value="inr">INR ₹</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
                       <div className="space-y-2">
                         <Label className="text-sm">Status</Label>
                         <Select value={editStatus} onValueChange={setEditStatus}>
@@ -2758,12 +2769,31 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           <SelectContent>
                             <SelectItem value="draft">Draft</SelectItem>
                             <SelectItem value="sent">Sent</SelectItem>
-                            <SelectItem value="accepted">Accepted</SelectItem>
-                            <SelectItem value="signed">Signed</SelectItem>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="revised">Revised</SelectItem>
                             <SelectItem value="declined">Declined</SelectItem>
+                            <SelectItem value="accepted">Accepted</SelectItem>
+                            <SelectItem value="expired">Expired</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm text-red-500">* Currency</Label>
+                      <Select value={editCurrency} onValueChange={setEditCurrency}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="usd">INR ₹</SelectItem>
+                          <SelectItem value="eur">EUR €</SelectItem>
+                          <SelectItem value="inr">INR ₹</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="space-y-2">
@@ -2886,28 +2916,6 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         ))}
                       </div>
                     )}
-                  </div>
-
-                  {/* Right Column */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm">Status</Label>
-                      <Select value={editStatus} onValueChange={setEditStatus}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="draft">Draft</SelectItem>
-                          <SelectItem value="sent">Sent</SelectItem>
-                          <SelectItem value="open">Open</SelectItem>
-                          <SelectItem value="revised">Revised</SelectItem>
-                          <SelectItem value="declined">Declined</SelectItem>
-                          <SelectItem value="accepted">Accepted</SelectItem>
-                          <SelectItem value="signed">Signed</SelectItem>
-                          <SelectItem value="expired">Expired</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
 
                     {/* Custom Fields in General Section */}
                     {editCustomFields.filter(f => f.section === 'general').length > 0 && (
@@ -3066,7 +3074,9 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           <TableHead className="w-8 text-center">●</TableHead>
                           <TableHead className="w-40">Item</TableHead>
                           <TableHead>Description</TableHead>
-                          <TableHead className="w-24 text-center">Qty</TableHead>
+                          <TableHead className="w-24 text-center">
+                            {showQtyAs === 'hours' ? 'Hours' : showQtyAs === 'both' ? 'Qty/Hours' : 'Qty'}
+                          </TableHead>
                           <TableHead className="w-28">Rate</TableHead>
                           <TableHead className="w-28">Tax</TableHead>
                           <TableHead className="w-28 text-right">Amount</TableHead>
@@ -3108,6 +3118,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                                 onChange={(e) => updateEditItem(item.id, 'qty', parseFloat(e.target.value) || 0)}
                                 className="h-9 text-center text-sm"
                                 min="0"
+                                placeholder={showQtyAs === 'hours' ? 'Hours' : showQtyAs === 'both' ? 'Qty/Hours' : 'Qty'}
                               />
                             </TableCell>
                             <TableCell className="align-top">

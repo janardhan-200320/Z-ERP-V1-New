@@ -130,6 +130,7 @@ export default function EstimatesTab() {
   const [createDiscountValue, setCreateDiscountValue] = useState(0);
   const [createDiscountMode, setCreateDiscountMode] = useState<'percent' | 'fixed'>('percent');
   const [createAdjustment, setCreateAdjustment] = useState(0);
+  const [createShowQtyAs, setCreateShowQtyAs] = useState<'qty' | 'hours' | 'both'>('qty');
   const [createItems, setCreateItems] = useState<EstimateLineItem[]>([
     { id: 1, item: '', description: '', qty: 1, rate: 0, tax: 'No Tax', amount: 0 }
   ]);
@@ -762,19 +763,6 @@ export default function EstimatesTab() {
 
                   {/* Right Column */}
                   <div className="space-y-4">
-                    {/* Tags */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Tag className="h-4 w-4 text-slate-400" />
-                        <Label className="text-xs text-slate-600">Tags</Label>
-                      </div>
-                      <Input 
-                        placeholder="Add tags..."
-                        value={editTags}
-                        onChange={(e) => setEditTags(e.target.value)}
-                      />
-                    </div>
-
                     {/* Currency / Status */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -912,7 +900,8 @@ export default function EstimatesTab() {
                       <TableHeader>
                         <TableRow className="bg-slate-50">
                           <TableHead className="w-8"></TableHead>
-                          <TableHead className="text-blue-600 font-medium">Item Details</TableHead>
+                          <TableHead className="text-blue-600 font-medium">Item</TableHead>
+                          <TableHead className="text-slate-600">Description</TableHead>
                           <TableHead className="text-slate-600 w-24">{showQtyAs === 'hours' ? 'Hours' : 'Qty'}</TableHead>
                           <TableHead className="text-slate-600 w-28">Rate</TableHead>
                           <TableHead className="text-blue-600 font-medium w-32">Tax</TableHead>
@@ -924,22 +913,21 @@ export default function EstimatesTab() {
                         {editItems.map((item, index) => (
                           <TableRow key={item.id} className="border-l-2 border-l-blue-500">
                             <TableCell className="text-xs text-slate-400 font-medium">{index + 1}</TableCell>
-                            <TableCell className="align-top">
-                              <div className="space-y-2">
-                                <Input
-                                  placeholder="Item name"
-                                  value={item.item}
-                                  onChange={(e) => updateEditItem(item.id, 'item', e.target.value)}
-                                  className="h-10 text-sm"
-                                />
-                                <Textarea 
-                                  placeholder="Long description"
-                                  value={item.description}
-                                  onChange={(e) => updateEditItem(item.id, 'description', e.target.value)}
-                                  className="min-h-[130px] resize-y text-sm text-emerald-600"
-                                  rows={5}
-                                />
-                              </div>
+                            <TableCell>
+                              <Textarea 
+                                placeholder="Item name"
+                                value={item.item}
+                                onChange={(e) => updateEditItem(item.id, 'item', e.target.value)}
+                                className="min-h-[60px] resize-none text-sm"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Textarea 
+                                placeholder="Long description"
+                                value={item.description}
+                                onChange={(e) => updateEditItem(item.id, 'description', e.target.value)}
+                                className="min-h-[60px] resize-none text-sm text-emerald-600"
+                              />
                             </TableCell>
                             <TableCell>
                               <Input 
@@ -1219,15 +1207,6 @@ export default function EstimatesTab() {
 
                       {/* Right Column */}
                       <div className="space-y-4">
-                        {/* Tags */}
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Tag className="h-4 w-4 text-slate-400" />
-                            <Label className="text-xs text-slate-600">Tags</Label>
-                          </div>
-                          <Input placeholder="tag" className="h-10" />
-                        </div>
-
                         {/* Currency / Status */}
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
@@ -1365,14 +1344,6 @@ export default function EstimatesTab() {
                           </div>
                         </div>
 
-                        {/* Admin Note */}
-                        <div className="space-y-2">
-                          <Label className="text-xs text-slate-600">Admin Note</Label>
-                          <Textarea 
-                            placeholder="Internal notes (not visible to client)"
-                            className="min-h-[80px] resize-none"
-                          />
-                        </div>
                       </div>
                     </div>
 
@@ -1421,15 +1392,31 @@ export default function EstimatesTab() {
                         <div className="flex items-center gap-2 text-xs text-slate-600">
                           <span>Show quantity as:</span>
                           <label className="flex items-center gap-1">
-                            <input type="radio" name="qty-type-new" defaultChecked className="text-blue-600" />
+                            <input
+                              type="radio"
+                              name="qty-type-new"
+                              checked={createShowQtyAs === 'qty'}
+                              onChange={() => setCreateShowQtyAs('qty')}
+                              className="text-blue-600"
+                            />
                             <span>Qty</span>
                           </label>
                           <label className="flex items-center gap-1">
-                            <input type="radio" name="qty-type-new" />
+                            <input
+                              type="radio"
+                              name="qty-type-new"
+                              checked={createShowQtyAs === 'hours'}
+                              onChange={() => setCreateShowQtyAs('hours')}
+                            />
                             <span>Hours</span>
                           </label>
                           <label className="flex items-center gap-1">
-                            <input type="radio" name="qty-type-new" />
+                            <input
+                              type="radio"
+                              name="qty-type-new"
+                              checked={createShowQtyAs === 'both'}
+                              onChange={() => setCreateShowQtyAs('both')}
+                            />
                             <span>Qty/Hours</span>
                           </label>
                         </div>
@@ -1441,8 +1428,11 @@ export default function EstimatesTab() {
                           <TableHeader>
                             <TableRow className="bg-slate-50">
                               <TableHead className="w-8"></TableHead>
-                              <TableHead className="text-blue-600 font-medium">Item Details</TableHead>
-                              <TableHead className="text-slate-600 w-24">Qty</TableHead>
+                              <TableHead className="text-blue-600 font-medium">Item Name</TableHead>
+                              <TableHead className="text-slate-600">Description</TableHead>
+                              <TableHead className="text-slate-600 w-24">
+                                {createShowQtyAs === 'hours' ? 'Hours' : createShowQtyAs === 'both' ? 'Qty/Hours' : 'Qty'}
+                              </TableHead>
                               <TableHead className="text-slate-600 w-28">Rate</TableHead>
                               <TableHead className="text-blue-600 font-medium w-32">Tax</TableHead>
                               <TableHead className="text-right text-slate-600 w-28">Amount</TableHead>
@@ -1452,34 +1442,36 @@ export default function EstimatesTab() {
                           <TableBody>
                             {createItems.map((line, index) => (
                               <TableRow key={line.id} className="border-l-2 border-l-transparent">
-                                <TableCell className="text-xs text-slate-400 font-medium">{index + 1}</TableCell>
-                                <TableCell className="align-top">
-                                  <div className="space-y-2">
-                                    <Input
-                                      placeholder="Item name"
-                                      value={line.item}
-                                      onChange={(e) => updateCreateItem(line.id, 'item', e.target.value)}
-                                      className="h-10 text-sm"
-                                    />
-                                    <Textarea
-                                      placeholder="Description of item"
-                                      value={line.description}
-                                      onChange={(e) => updateCreateItem(line.id, 'description', e.target.value)}
-                                      className="min-h-[130px] resize-y text-sm"
-                                      rows={5}
-                                    />
-                                  </div>
+                                <TableCell className="align-top pt-3 text-xs text-slate-400 font-medium">{index + 1}</TableCell>
+                                <TableCell className="align-top pt-2">
+                                  <Input
+                                    placeholder="Item name"
+                                    value={line.item}
+                                    onChange={(e) => updateCreateItem(line.id, 'item', e.target.value)}
+                                    className="h-10 text-sm"
+                                  />
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="align-top pt-2">
+                                  <Textarea
+                                    placeholder="Description of item"
+                                    value={line.description}
+                                    onChange={(e) => updateCreateItem(line.id, 'description', e.target.value)}
+                                    className="min-h-[60px] resize-y text-sm"
+                                  />
+                                </TableCell>
+                                <TableCell className="align-top pt-2">
                                   <Input
                                     type="number"
                                     value={line.qty}
                                     onChange={(e) => updateCreateItem(line.id, 'qty', parseFloat(e.target.value) || 0)}
                                     className="text-center h-10"
+                                    placeholder={createShowQtyAs === 'hours' ? 'Hours' : createShowQtyAs === 'both' ? 'Qty/Hours' : 'Qty'}
                                   />
-                                  <span className="text-[10px] text-blue-500 block mt-1">Unit</span>
+                                  <span className="text-[10px] text-blue-500 block mt-1">
+                                    {createShowQtyAs === 'hours' ? 'Hours' : createShowQtyAs === 'both' ? 'Qty/Hours' : 'Unit'}
+                                  </span>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="align-top pt-2">
                                   <Input
                                     type="number"
                                     value={line.rate}
@@ -1488,7 +1480,7 @@ export default function EstimatesTab() {
                                     className="h-10"
                                   />
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="align-top pt-2">
                                   <Select value={line.tax} onValueChange={(value) => updateCreateItem(line.id, 'tax', value)}>
                                     <SelectTrigger className="text-xs h-10">
                                       <SelectValue />
@@ -1503,10 +1495,10 @@ export default function EstimatesTab() {
                                     </SelectContent>
                                   </Select>
                                 </TableCell>
-                                <TableCell className="text-right font-semibold">
+                                <TableCell className="align-top pt-3 text-right font-semibold">
                                   ₹{line.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="align-top pt-2">
                                   {index === 0 ? (
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600">
                                       <Check className="h-4 w-4" />

@@ -560,19 +560,14 @@ export default function InvoicesTab() {
                       </Label>
                       <div className="flex gap-2">
                         <Input id="invoice-number" defaultValue="00007" className="h-10" />
-                        <Select defaultValue="bill">
-                          <SelectTrigger className="w-32 h-10">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="bill">BILL-</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="w-32 h-10 rounded-md border border-input bg-background px-3 flex items-center text-sm font-medium text-slate-700">
+                          INV-
+                        </div>
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="invoice-date" className="text-sm">* Invoice Date</Label>
-                      <Input id="invoice-date" type="date" defaultValue="2025-11-07" className="h-10" />
+                      <Label htmlFor="due-date" className="text-sm">Due Date</Label>
+                      <Input id="due-date" type="date" defaultValue="2025-12-07" className="h-10" />
                     </div>
                   </div>
 
@@ -643,8 +638,8 @@ export default function InvoicesTab() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="due-date" className="text-sm">Due Date</Label>
-                    <Input id="due-date" type="date" defaultValue="2025-12-07" className="h-10" />
+                    <Label htmlFor="invoice-date" className="text-sm">* Invoice Date</Label>
+                    <Input id="invoice-date" type="date" defaultValue="2025-11-07" className="h-10" />
                   </div>
 
                   <div className="space-y-2">
@@ -727,10 +722,6 @@ export default function InvoicesTab() {
                   <Button size="sm" variant="outline" onClick={addInvoiceItem} className="h-10">
                     <Plus className="h-4 w-4" />
                   </Button>
-                  <Button size="sm" variant="outline" className="h-10 ml-auto">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Get Totals
-                  </Button>
                 </div>
 
                 {/* Items Table */}
@@ -739,7 +730,7 @@ export default function InvoicesTab() {
                     <TableHeader className="bg-slate-50">
                       <TableRow>
                         <TableHead className="w-8"></TableHead>
-                        <TableHead>Item Details</TableHead>
+                        <TableHead className="w-[34rem]">Item Name</TableHead>
                         <TableHead className="w-28">HSN/SAC</TableHead>
                         <TableHead className="w-24">Qty</TableHead>
                         <TableHead className="w-28">Rate</TableHead>
@@ -751,8 +742,8 @@ export default function InvoicesTab() {
                     <TableBody>
                       {invoiceItems.map((item) => (
                         <TableRow key={item.id} className="hover:bg-slate-50/50">
-                          <TableCell></TableCell>
-                          <TableCell className="align-top">
+                          <TableCell className="align-top pt-3"></TableCell>
+                          <TableCell className="align-top pt-2">
                             <div className="space-y-2">
                               <Input
                                 placeholder="Item name"
@@ -764,16 +755,12 @@ export default function InvoicesTab() {
                                 placeholder="Description of item"
                                 value={item.longDescription}
                                 onChange={(e) => updateInvoiceItem(item.id, 'longDescription', e.target.value)}
-                                className="min-h-[130px] resize-y text-sm"
-                                rows={5}
+                                className="min-h-[100px] resize-y text-sm"
+                                rows={2}
                               />
                             </div>
-                            <Button variant="link" size="sm" className="h-6 px-0 text-xs text-blue-600 mt-1">
-                              <LinkIcon className="h-3 w-3 mr-1" />
-                              Link
-                            </Button>
                           </TableCell>
-                          <TableCell className="align-top">
+                          <TableCell className="align-top pt-2">
                             <Input
                               placeholder="HSN/SAC"
                               value={item.hsn}
@@ -781,7 +768,7 @@ export default function InvoicesTab() {
                               className="h-9 text-sm"
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="align-top pt-2">
                             <Input
                               type="number"
                               value={item.qty}
@@ -790,7 +777,7 @@ export default function InvoicesTab() {
                               min="0"
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="align-top pt-2">
                             <Input
                               type="number"
                               placeholder="Rate"
@@ -801,7 +788,7 @@ export default function InvoicesTab() {
                               step="0.01"
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="align-top pt-2">
                             <Select value={item.tax} onValueChange={(val) => updateInvoiceItem(item.id, 'tax', val)}>
                               <SelectTrigger className="h-9 text-sm">
                                 <SelectValue />
@@ -814,9 +801,9 @@ export default function InvoicesTab() {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell className="text-right font-medium text-sm">₹{item.amount.toFixed(2)}
+                          <TableCell className="align-top pt-3 text-right font-medium text-sm">₹{item.amount.toFixed(2)}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="align-top pt-2">
                             <div className="flex items-center gap-1">
                               <Button
                                 variant="ghost"
@@ -1665,22 +1652,10 @@ export default function InvoicesTab() {
                                         </div>
                                         <div className="space-y-2">
                                           <Label htmlFor="edit-prefix" className="text-sm font-semibold text-slate-700">Prefix</Label>
-                                          <Select defaultValue="bill">
-                                            <SelectTrigger id="edit-prefix" className="h-11 border-slate-300">
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="bill">BILL-</SelectItem>
-                                            </SelectContent>
-                                          </Select>
+                                          <div id="edit-prefix" className="h-11 border border-slate-300 rounded-md px-3 flex items-center text-sm font-medium text-slate-700 bg-slate-50">
+                                            INV-
+                                          </div>
                                         </div>
-                                      </div>
-
-                                      <div className="space-y-2">
-                                        <label className="flex items-center gap-2 text-sm text-slate-600">
-                                          <input type="checkbox" className="rounded" />
-                                          <span>Prevent sending reminder for this invoice</span>
-                                        </label>
                                       </div>
                                     </div>
 
@@ -1707,14 +1682,14 @@ export default function InvoicesTab() {
 
                                       <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
+                                          <Label htmlFor="edit-due-date" className="text-sm font-semibold text-slate-700">Due Date</Label>
+                                          <Input id="edit-due-date" type="date" defaultValue={invoice.dueDate} className="h-11 border-slate-300" />
+                                        </div>
+                                        <div className="space-y-2">
                                           <Label htmlFor="edit-invoice-date" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
                                             <span className="text-red-500">*</span> Invoice Date
                                           </Label>
                                           <Input id="edit-invoice-date" type="date" defaultValue={invoice.date} className="h-11 border-slate-300" />
-                                        </div>
-                                        <div className="space-y-2">
-                                          <Label htmlFor="edit-due-date" className="text-sm font-semibold text-slate-700">Due Date</Label>
-                                          <Input id="edit-due-date" type="date" defaultValue={invoice.dueDate} className="h-11 border-slate-300" />
                                         </div>
                                       </div>
 
@@ -1745,42 +1720,6 @@ export default function InvoicesTab() {
                                           </Select>
                                         </div>
                                       </div>
-
-                                      <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                          <Label htmlFor="edit-recurring" className="text-sm font-semibold text-slate-700">Recurring Invoice?</Label>
-                                          <Select value={recurringFrequency} onValueChange={setRecurringFrequency}>
-                                            <SelectTrigger id="edit-recurring" className="h-11 border-slate-300">
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="max-h-64 overflow-y-auto">
-                                              {recurringOptions.map((option) => (
-                                                <SelectItem key={option.value} value={option.value}>
-                                                  {option.label}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        </div>
-                                        <div className="space-y-2">
-                                          <Label htmlFor="edit-payment-mode" className="text-sm font-semibold text-slate-700">Payment Mode</Label>
-                                          <Select value={paymentMode} onValueChange={setPaymentMode}>
-                                            <SelectTrigger id="edit-payment-mode" className="h-11 border-slate-300">
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="bank_transfer">Bank</SelectItem>
-                                              <SelectItem value="upi">UPI</SelectItem>
-                                              <SelectItem value="cash">Cash</SelectItem>
-                                              <SelectItem value="card">Card</SelectItem>
-                                              <SelectItem value="cheque">Cheque</SelectItem>
-                                              <SelectItem value="net_banking">Net Banking</SelectItem>
-                                              <SelectItem value="wallet">Wallet</SelectItem>
-                                              <SelectItem value="other">Other</SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                        </div>
-                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -1792,70 +1731,17 @@ export default function InvoicesTab() {
                                       <FileCheck className="h-5 w-5 text-blue-600" />
                                       Invoice Items
                                     </h3>
-                                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                                      <span>Show quantity as:</span>
-                                      <Button variant="ghost" size="sm" className="h-6 text-xs px-2">
-                                        <input type="radio" name="qty-type-edit" className="mr-1" /> Qty
-                                      </Button>
-                                      <Button variant="ghost" size="sm" className="h-6 text-xs px-2">
-                                        <input type="radio" name="qty-type-edit" className="mr-1" /> Hours
-                                      </Button>
-                                      <Button variant="ghost" size="sm" className="h-6 text-xs px-2">
-                                        <input type="radio" name="qty-type-edit" className="mr-1" defaultChecked /> Qty/Hours
-                                      </Button>
-                                    </div>
+                                    <Button onClick={addInvoiceItem} size="sm" className="bg-green-600 hover:bg-green-700 shadow-sm">
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Add Item
+                                    </Button>
                                   </div>
-
-                                  <div className="space-y-2 mb-3">
-                                    <Tabs
-                                      value={activeCatalogTab}
-                                      onValueChange={(value) => {
-                                        setActiveCatalogTab(value as 'service' | 'product');
-                                        setSelectedCatalogItem('');
-                                      }}
-                                      className="w-fit"
-                                    >
-                                      <TabsList className="h-8">
-                                        <TabsTrigger value="service" className="text-xs px-3">Services</TabsTrigger>
-                                        <TabsTrigger value="product" className="text-xs px-3">Products</TabsTrigger>
-                                      </TabsList>
-                                    </Tabs>
-                                    <div className="flex items-center gap-2">
-                                      <Select
-                                        value={selectedCatalogItem}
-                                        onValueChange={(value) => {
-                                          setSelectedCatalogItem(value);
-                                          addCatalogItem(value);
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-64 h-10">
-                                          <SelectValue placeholder={`Add ${activeCatalogTab === 'service' ? 'service' : 'product'}`} />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="custom">Custom Item</SelectItem>
-                                          {(activeCatalogTab === 'service' ? serviceCatalogItems : productCatalogItems).map((catalogItem) => (
-                                            <SelectItem key={catalogItem.id} value={catalogItem.id}>
-                                              {catalogItem.name}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                      <Button size="sm" variant="outline" onClick={addInvoiceItem} className="h-10">
-                                        <Plus className="h-4 w-4" />
-                                      </Button>
-                                      <Button size="sm" variant="outline" className="h-10 ml-auto">
-                                        <FileText className="h-4 w-4 mr-2" />
-                                        Get Totals
-                                      </Button>
-                                    </div>
-                                  </div>
-
                                   <div className="border rounded-xl overflow-hidden shadow-sm">
                                     <Table>
                                       <TableHeader className="bg-gradient-to-r from-blue-600 to-blue-700">
                                         <TableRow className="hover:from-blue-600 hover:to-blue-700">
                                           <TableHead className="w-8 text-white font-bold">#</TableHead>
-                                          <TableHead className="text-white font-bold">Item Details</TableHead>
+                                          <TableHead className="w-[34rem] text-white font-bold">Item</TableHead>
                                           <TableHead className="w-28 text-white font-bold">HSN/SAC</TableHead>
                                           <TableHead className="w-24 text-white font-bold text-center">Qty</TableHead>
                                           <TableHead className="w-32 text-white font-bold text-right">Rate</TableHead>
@@ -1867,8 +1753,8 @@ export default function InvoicesTab() {
                                       <TableBody>
                                         {invoiceItems.map((item, idx) => (
                                           <TableRow key={item.id} className="hover:bg-blue-50/50 transition-colors">
-                                            <TableCell className="font-semibold text-slate-600">{idx + 1}</TableCell>
-                                            <TableCell>
+                                            <TableCell className="align-top pt-3 font-semibold text-slate-600">{idx + 1}</TableCell>
+                                            <TableCell className="align-top pt-2">
                                               <div className="space-y-2">
                                                 <Input 
                                                   value={item.description} 
@@ -1879,13 +1765,13 @@ export default function InvoicesTab() {
                                                 <Textarea 
                                                   value={item.longDescription}
                                                   onChange={(e) => updateInvoiceItem(item.id, 'longDescription', e.target.value)}
-                                                  className="min-h-[130px] text-sm border-slate-300 resize-y" 
-                                                  rows={5}
+                                                  className="min-h-[110px] text-sm border-slate-300 resize-none" 
+                                                  rows={2}
                                                   placeholder="Detailed description"
                                                 />
                                               </div>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="align-top pt-2">
                                               <Input
                                                 value={item.hsn}
                                                 onChange={(e) => updateInvoiceItem(item.id, 'hsn', e.target.value)}
@@ -1893,7 +1779,7 @@ export default function InvoicesTab() {
                                                 placeholder="HSN/SAC"
                                               />
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="align-top pt-2">
                                               <Input 
                                                 type="number" 
                                                 value={item.qty}
@@ -1902,7 +1788,7 @@ export default function InvoicesTab() {
                                                 min="0"
                                               />
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="align-top pt-2">
                                               <Input 
                                                 type="number" 
                                                 value={item.rate}
@@ -1912,7 +1798,7 @@ export default function InvoicesTab() {
                                                 placeholder="0.00"
                                               />
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="align-top pt-2">
                                               <Select value={item.tax} onValueChange={(val) => updateInvoiceItem(item.id, 'tax', val)}>
                                                 <SelectTrigger className="h-10 text-sm border-slate-300">
                                                   <SelectValue />
@@ -1926,9 +1812,9 @@ export default function InvoicesTab() {
                                                 </SelectContent>
                                               </Select>
                                             </TableCell>
-                                            <TableCell className="text-right font-semibold text-slate-900 font-mono">₹{item.amount.toFixed(2)}
+                                            <TableCell className="align-top pt-3 text-right font-semibold text-slate-900 font-mono">₹{item.amount.toFixed(2)}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="align-top pt-2">
                                               {invoiceItems.length > 1 && (
                                                 <Button
                                                   variant="ghost"
@@ -2030,83 +1916,6 @@ export default function InvoicesTab() {
                                         className="min-h-[100px] border-slate-300 resize-none"
                                       />
                                     </div>
-                                  </div>
-                                </div>
-
-                                {/* Bank Details */}
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-3">
-                                  <h3 className="text-lg font-bold text-slate-900">Bank Details</h3>
-                                  {paymentMode === 'bank_transfer' && availableBankAccounts.length > 0 && (
-                                    <div className="space-y-2">
-                                      <Label htmlFor="edit-bank-account-source" className="text-sm">Select Bank Account</Label>
-                                      <Select value={selectedBankAccountId} onValueChange={setSelectedBankAccountId}>
-                                        <SelectTrigger id="edit-bank-account-source" className="h-10">
-                                          <SelectValue placeholder="Choose bank account" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {availableBankAccounts.map((account) => (
-                                            <SelectItem key={account.id} value={account.id}>
-                                              {account.bankName} - {account.accountNumber}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  )}
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-2">
-                                      <Label htmlFor="edit-bank-account-holder" className="text-sm"><span className="text-red-500">*</span> Account Holder Name</Label>
-                                      <Input id="edit-bank-account-holder" className="h-10" value={bankAccountHolder} onChange={(e) => setBankAccountHolder(e.target.value)} />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <Label htmlFor="edit-bank-name" className="text-sm"><span className="text-red-500">*</span> Bank Name</Label>
-                                      <Input id="edit-bank-name" className="h-10" value={bankName} onChange={(e) => setBankName(e.target.value)} />
-                                    </div>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-2">
-                                      <Label htmlFor="edit-bank-account-number" className="text-sm"><span className="text-red-500">*</span> Account Number</Label>
-                                      <Input id="edit-bank-account-number" className="h-10" value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <Label htmlFor="edit-bank-ifsc" className="text-sm"><span className="text-red-500">*</span> IFSC / SWIFT Code</Label>
-                                      <Input id="edit-bank-ifsc" className="h-10" value={bankIfsc} onChange={(e) => setBankIfsc(e.target.value.toUpperCase())} />
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Signature */}
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-3">
-                                  <h3 className="text-lg font-bold text-slate-900">Signature</h3>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="edit-invoice-esignature" className="text-sm"><span className="text-red-500">*</span> Select E-Signature</Label>
-                                    <Select value={selectedESignatureId} onValueChange={setSelectedESignatureId}>
-                                      <SelectTrigger id="edit-invoice-esignature" className="h-10">
-                                        <SelectValue placeholder="Select signature from E-Sign Settings" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {eSignatures.map((signature) => (
-                                          <SelectItem key={signature.id} value={signature.id}>
-                                            {signature.signerName} - {signature.designation}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="edit-invoice-signature-designation" className="text-sm">Designation</Label>
-                                    <Input
-                                      id="edit-invoice-signature-designation"
-                                      value={signatureDesignation}
-                                      onChange={(e) => setSignatureDesignation(e.target.value)}
-                                      placeholder="Signer designation"
-                                      className="h-10"
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="edit-signature-file" className="text-sm"><span className="text-red-500">*</span> Upload Signature</Label>
-                                    <Input id="edit-signature-file" type="file" accept="image/*,.pdf,.doc,.docx" className="h-10" />
-                                    <p className="text-xs text-slate-500">Accepted formats: image, PDF, DOC, DOCX</p>
                                   </div>
                                 </div>
                               </div>

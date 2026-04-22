@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   TrendingUp,
@@ -78,7 +77,6 @@ export default function ProjectOverviewTab({ project }: ProjectOverviewTabProps)
                 <TableHead>Start Date</TableHead>
                 <TableHead>Due Date</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Progress</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -92,12 +90,6 @@ export default function ProjectOverviewTab({ project }: ProjectOverviewTabProps)
                     <Badge variant="outline" className={statusConfig[milestone.status].class}>
                       {statusConfig[milestone.status].label}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={milestone.progress} className="w-24" />
-                      <span className="text-sm text-slate-600">{milestone.progress}%</span>
-                    </div>
                   </TableCell>
                 </TableRow>
               ))}

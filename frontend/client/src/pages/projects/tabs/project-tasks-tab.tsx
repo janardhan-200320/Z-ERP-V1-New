@@ -11,10 +11,10 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import {
   Plus,
-  Filter,
   MessageSquare,
   Paperclip,
   CheckSquare,
@@ -28,7 +28,7 @@ interface ProjectTasksTabProps {
   projectId: string | undefined;
 }
 
-type TaskStatus = 'not-started' | 'in-progress' | 'testing' | 'complete';
+type TaskStatus = 'not-started' | 'in-progress' | 'testing' | 'waiting-feedback' | 'complete';
 type TaskColumnKey = 'notStarted' | 'inProgress' | 'testing' | 'complete';
 
 interface Task {
@@ -55,11 +55,14 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
   const { toast } = useToast();
   const [assigneeFilter, setAssigneeFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [activeDivision, setActiveDivision] = useState<TaskColumnKey | 'all'>('all');
   const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
   const [showTaskDetailsDialog, setShowTaskDetailsDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [taskSubtasks, setTaskSubtasks] = useState<Record<string, SubtaskItem[]>>({});
+  const [taskAttachments, setTaskAttachments] = useState<Record<string, File[]>>({});
+  const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
   const [isEditingTask, setIsEditingTask] = useState(false);
   const [taskDetailErrors, setTaskDetailErrors] = useState<Record<string, string>>({});
   const [taskDetailForm, setTaskDetailForm] = useState({
@@ -84,11 +87,23 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     attachments: [] as File[]
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [teamMembers, setTeamMembers] = useState<string[]>([
+    'John Smith',
+    'Sarah Johnson',
+    'Mike Brown',
+    'Emily Davis',
+    'Alex Wilson'
+  ]);
+  const [showCustomAssigneeInput, setShowCustomAssigneeInput] = useState(false);
+  const [showCustomFollowerInput, setShowCustomFollowerInput] = useState(false);
+  const [customAssigneeName, setCustomAssigneeName] = useState('');
+  const [customFollowerName, setCustomFollowerName] = useState('');
 
   const statusToColumn: Record<TaskStatus, TaskColumnKey> = {
     'not-started': 'notStarted',
     'in-progress': 'inProgress',
     testing: 'testing',
+    'waiting-feedback': 'testing',
     complete: 'complete'
   };
 
@@ -219,6 +234,7 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     'not-started': { label: 'Not Started', class: 'bg-slate-100 text-slate-700 border-slate-200' },
     'in-progress': { label: 'In Progress', class: 'bg-blue-100 text-blue-700 border-blue-200' },
     testing: { label: 'Testing', class: 'bg-amber-100 text-amber-700 border-amber-200' },
+    'waiting-feedback': { label: 'Waiting for Feedback', class: 'bg-violet-100 text-violet-700 border-violet-200' },
     complete: { label: 'Complete', class: 'bg-green-100 text-green-700 border-green-200' }
   };
 
@@ -242,6 +258,60 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     return Object.keys(errors).length === 0;
   };
 
+  const handleTaskFormChange = (field: keyof typeof taskForm, value: string | File[]) => {
+    setTaskForm((prev) => {
+      const updated = { ...prev, [field]: value };
+
+      if (field === 'startDate' && typeof value === 'string' && updated.dueDate && updated.dueDate < value) {
+        updated.dueDate = value;
+      }
+
+      return updated;
+    });
+
+    setFormErrors((prev) => {
+      if (Object.keys(prev).length === 0) return prev;
+
+      const next = { ...prev };
+
+      if (field === 'title' && typeof value === 'string' && value.trim()) delete next.title;
+      if (field === 'assignee' && typeof value === 'string' && value) delete next.assignee;
+      if (field === 'startDate' && typeof value === 'string' && value) delete next.startDate;
+      if (field === 'dueDate' && typeof value === 'string' && value) delete next.dueDate;
+
+      if (field === 'estimatedHours' && typeof value === 'string') {
+        if (!value || (!isNaN(Number(value)) && Number(value) >= 0)) {
+          delete next.estimatedHours;
+        }
+      }
+
+      return next;
+    });
+  };
+
+  const addCustomMember = (rawName: string, target: 'assignee' | 'follower') => {
+    const name = rawName.trim();
+    if (!name) return;
+
+    const existing = teamMembers.find((member) => member.toLowerCase() === name.toLowerCase());
+    const finalName = existing || name;
+
+    if (!existing) {
+      setTeamMembers((prev) => [...prev, finalName]);
+    }
+
+    handleTaskFormChange(target, finalName);
+
+    if (target === 'assignee') {
+      setShowCustomAssigneeInput(false);
+      setCustomAssigneeName('');
+      return;
+    }
+
+    setShowCustomFollowerInput(false);
+    setCustomFollowerName('');
+  };
+
   const resetTaskForm = () => {
     setTaskForm({
       title: '',
@@ -256,10 +326,34 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       attachments: []
     });
     setFormErrors({});
+    setShowCustomAssigneeInput(false);
+    setShowCustomFollowerInput(false);
+    setCustomAssigneeName('');
+    setCustomFollowerName('');
   };
 
   const handleCreateTask = () => {
     if (!validateTaskForm()) return;
+
+    const newTask: Task = {
+      id: `T-${String(Date.now()).slice(-6)}`,
+      title: taskForm.title.trim(),
+      description: taskForm.description.trim(),
+      assignee: taskForm.assignee,
+      priority: taskForm.priority as Task['priority'],
+      status: taskForm.status as TaskStatus,
+      dueDate: taskForm.dueDate,
+      estimatedHours: taskForm.estimatedHours,
+      subtasks: { completed: 0, total: 0 },
+      comments: 0,
+      attachments: taskForm.attachments.length
+    };
+
+    const targetColumn = statusToColumn[newTask.status];
+    setTasks((prev) => ({
+      ...prev,
+      [targetColumn]: [newTask, ...prev[targetColumn]]
+    }));
     
     toast({
       title: "Task Created",
@@ -283,6 +377,7 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     });
 
     setNewSubtaskTitle('');
+  setPendingUploadFiles([]);
     setSelectedTask(task);
     setTaskDetailForm({
       title: task.title,
@@ -296,6 +391,41 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     setTaskDetailErrors({});
     setIsEditingTask(false);
     setShowTaskDetailsDialog(true);
+  };
+
+  const updateTaskAttachmentCount = (taskId: string, fileCountToAdd: number) => {
+    if (fileCountToAdd <= 0) return;
+
+    setTasks((prev) => ({
+      notStarted: prev.notStarted.map((task) => task.id === taskId ? { ...task, attachments: task.attachments + fileCountToAdd } : task),
+      inProgress: prev.inProgress.map((task) => task.id === taskId ? { ...task, attachments: task.attachments + fileCountToAdd } : task),
+      testing: prev.testing.map((task) => task.id === taskId ? { ...task, attachments: task.attachments + fileCountToAdd } : task),
+      complete: prev.complete.map((task) => task.id === taskId ? { ...task, attachments: task.attachments + fileCountToAdd } : task)
+    }));
+
+    setSelectedTask((prev) => {
+      if (!prev || prev.id !== taskId) return prev;
+      return { ...prev, attachments: prev.attachments + fileCountToAdd };
+    });
+  };
+
+  const handleUploadTaskFiles = () => {
+    if (!selectedTask) return;
+    if (pendingUploadFiles.length === 0) return;
+
+    setTaskAttachments((prev) => ({
+      ...prev,
+      [selectedTask.id]: [...(prev[selectedTask.id] || []), ...pendingUploadFiles]
+    }));
+
+    updateTaskAttachmentCount(selectedTask.id, pendingUploadFiles.length);
+
+    toast({
+      title: 'Files Uploaded',
+      description: `${pendingUploadFiles.length} file(s) uploaded to task ${selectedTask.id}.`
+    });
+
+    setPendingUploadFiles([]);
   };
 
   const validateTaskDetailForm = () => {
@@ -475,106 +605,39 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     });
   };
 
-  const TaskCard = ({ task, column }: { task: Task; column: 'notStarted' | 'inProgress' | 'testing' | 'complete' }) => (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer mb-3" onClick={() => openTaskDetails(task)}>
-      <CardContent className="p-4">
-        <div className="space-y-3">
-          <div className="flex items-start justify-between">
-            <p className="text-sm font-medium text-slate-900">{task.title}</p>
-            {column !== 'complete' && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => e.stopPropagation()}>
-                    <MoreVertical className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {column === 'notStarted' && (
-                    <>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToInProgress(task); }}>
-                        <Play className="h-4 w-4 mr-2" />
-                        Convert to In Progress
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTesting(task); }}>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Convert to Testing
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToComplete(task); }}>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Convert to Complete
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {column === 'inProgress' && (
-                    <>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToTesting(task); }}>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Convert to Testing
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToComplete(task); }}>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Convert to Complete
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {column === 'testing' && (
-                    <>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToInProgress(task); }}>
-                        <Play className="h-4 w-4 mr-2" />
-                        Convert to In Progress
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMoveToComplete(task); }}>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Convert to Complete
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuItem 
-                    onClick={(e) => { e.stopPropagation(); handleDeleteTask(task); }}
-                    className="text-red-600 focus:text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Task
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className={priorityConfig[task.priority].class}>
-              {priorityConfig[task.priority].label}
-            </Badge>
-            <span className="text-xs text-slate-600">{task.id}</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Avatar className="h-6 w-6">
-              <AvatarFallback className="text-xs bg-blue-100 text-blue-700">
-                {getInitials(task.assignee)}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-xs text-slate-600">Due: {task.dueDate}</span>
-          </div>
-
-          <div className="flex items-center gap-3 text-slate-600">
-            <div className="flex items-center gap-1 text-xs">
-              <CheckSquare className="h-3 w-3" />
-              <span>{task.subtasks.completed}/{task.subtasks.total}</span>
-            </div>
-            <div className="flex items-center gap-1 text-xs">
-              <MessageSquare className="h-3 w-3" />
-              <span>{task.comments}</span>
-            </div>
-            <div className="flex items-center gap-1 text-xs">
-              <Paperclip className="h-3 w-3" />
-              <span>{task.attachments}</span>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+  const hasRequiredTaskFields = Boolean(
+    taskForm.title.trim() &&
+    taskForm.assignee &&
+    taskForm.startDate &&
+    taskForm.dueDate
   );
+  const hasValidDateRange = !taskForm.startDate || !taskForm.dueDate || taskForm.dueDate >= taskForm.startDate;
+  const hasValidHours = !taskForm.estimatedHours || (!isNaN(Number(taskForm.estimatedHours)) && Number(taskForm.estimatedHours) >= 0);
+  const canCreateTask = hasRequiredTaskFields && hasValidDateRange && hasValidHours;
+
+  const matchesFilters = (task: Task) => {
+    const assigneeMatches = assigneeFilter === 'all' || task.assignee === assigneeFilter;
+    const priorityMatches = priorityFilter === 'all' || task.priority === priorityFilter;
+    return assigneeMatches && priorityMatches;
+  };
+
+  const tasksByStatus = {
+    notStarted: tasks.notStarted.filter(matchesFilters),
+    inProgress: tasks.inProgress.filter(matchesFilters),
+    testing: tasks.testing.filter(matchesFilters),
+    complete: tasks.complete.filter(matchesFilters)
+  };
+
+  const allTaskRows: Array<{ task: Task; column: TaskColumnKey; division: string }> = [
+    ...tasksByStatus.notStarted.map((task) => ({ task, column: 'notStarted' as const, division: 'Not Started' })),
+    ...tasksByStatus.inProgress.map((task) => ({ task, column: 'inProgress' as const, division: 'In Progress' })),
+    ...tasksByStatus.testing.map((task) => ({ task, column: 'testing' as const, division: 'Testing' })),
+    ...tasksByStatus.complete.map((task) => ({ task, column: 'complete' as const, division: 'Complete' }))
+  ];
+
+  const visibleTaskRows = activeDivision === 'all'
+    ? allTaskRows
+    : allTaskRows.filter(({ column }) => column === activeDivision);
 
   return (
     <div className="space-y-6">
@@ -582,7 +645,10 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       <div className="flex items-center justify-end">
         <Button
           className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-          onClick={() => setShowNewTaskDialog(true)}
+          onClick={() => {
+            resetTaskForm();
+            setShowNewTaskDialog(true);
+          }}
         >
           <Plus size={18} />
           <span className="hidden sm:inline">Add Task</span>
@@ -599,9 +665,9 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Assignees</SelectItem>
-                <SelectItem value="john">John Smith</SelectItem>
-                <SelectItem value="sarah">Sarah Johnson</SelectItem>
-                <SelectItem value="mike">Mike Brown</SelectItem>
+                {teamMembers.map((member) => (
+                  <SelectItem key={member} value={member}>{member}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
@@ -616,92 +682,172 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                 <SelectItem value="low">Low</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              More Filters
-            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Kanban Board */}
-      <div className="grid gap-4 md:grid-cols-4">
-        {/* Not Started Column */}
-        <div>
-          <Card className="mb-3">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Not Started</CardTitle>
-                <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">
-                  {tasks.notStarted.length}
-                </Badge>
-              </div>
-            </CardHeader>
-          </Card>
-          <div className="space-y-3">
-            {tasks.notStarted.map(task => (
-              <TaskCard key={task.id} task={task} column="notStarted" />
-            ))}
-          </div>
-        </div>
-
-        {/* In Progress Column */}
-        <div>
-          <Card className="mb-3">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">In Progress</CardTitle>
-                <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">
-                  {tasks.inProgress.length}
-                </Badge>
-              </div>
-            </CardHeader>
-          </Card>
-          <div className="space-y-3">
-            {tasks.inProgress.map(task => (
-              <TaskCard key={task.id} task={task} column="inProgress" />
-            ))}
-          </div>
-        </div>
-
-        {/* Done Column */}
-        <div>
-          <Card className="mb-3">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Testing</CardTitle>
-                <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200">
-                  {tasks.testing.length}
-                </Badge>
-              </div>
-            </CardHeader>
-          </Card>
-          <div className="space-y-3">
-            {tasks.testing.map(task => (
-              <TaskCard key={task.id} task={task} column="testing" />
-            ))}
-          </div>
-        </div>
-
-        {/* Complete Column */}
-        <div>
-          <Card className="mb-3">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Complete</CardTitle>
-                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
-                  {tasks.complete.length}
-                </Badge>
-              </div>
-            </CardHeader>
-          </Card>
-          <div className="space-y-3">
-            {tasks.complete.map(task => (
-              <TaskCard key={task.id} task={task} column="complete" />
-            ))}
-          </div>
-        </div>
+      {/* Four Divisions */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Button
+          type="button"
+          variant="outline"
+          className={`h-auto justify-between rounded-xl px-6 py-5 ${activeDivision === 'notStarted' ? 'border-slate-400 bg-slate-100 text-slate-900' : 'border-slate-200 bg-white text-slate-900 hover:bg-slate-50'}`}
+          onClick={() => setActiveDivision((prev) => prev === 'notStarted' ? 'all' : 'notStarted')}
+        >
+          <span className="text-3xl font-semibold">Not Started</span>
+          <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">{tasksByStatus.notStarted.length}</Badge>
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className={`h-auto justify-between rounded-xl px-6 py-5 ${activeDivision === 'inProgress' ? 'border-blue-400 bg-blue-50 text-blue-900' : 'border-slate-200 bg-white text-slate-900 hover:bg-slate-50'}`}
+          onClick={() => setActiveDivision((prev) => prev === 'inProgress' ? 'all' : 'inProgress')}
+        >
+          <span className="text-3xl font-semibold">In Progress</span>
+          <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">{tasksByStatus.inProgress.length}</Badge>
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className={`h-auto justify-between rounded-xl px-6 py-5 ${activeDivision === 'testing' ? 'border-amber-400 bg-amber-50 text-amber-900' : 'border-slate-200 bg-white text-slate-900 hover:bg-slate-50'}`}
+          onClick={() => setActiveDivision((prev) => prev === 'testing' ? 'all' : 'testing')}
+        >
+          <span className="text-3xl font-semibold">Testing</span>
+          <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200">{tasksByStatus.testing.length}</Badge>
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className={`h-auto justify-between rounded-xl px-6 py-5 ${activeDivision === 'complete' ? 'border-green-400 bg-green-50 text-green-900' : 'border-slate-200 bg-white text-slate-900 hover:bg-slate-50'}`}
+          onClick={() => setActiveDivision((prev) => prev === 'complete' ? 'all' : 'complete')}
+        >
+          <span className="text-3xl font-semibold">Complete</span>
+          <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">{tasksByStatus.complete.length}</Badge>
+        </Button>
       </div>
+
+      {/* Enhanced Task Table */}
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-3 border-b border-slate-200 bg-slate-50/60">
+          <CardTitle className="text-base">Tasks Table</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Division</TableHead>
+                  <TableHead>Task</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Assignee</TableHead>
+                  <TableHead>Due Date</TableHead>
+                  <TableHead>Subtasks</TableHead>
+                  <TableHead>Comments</TableHead>
+                  <TableHead>Attachments</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visibleTaskRows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="h-28 text-center text-slate-500">
+                      No tasks found for current filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  visibleTaskRows.map(({ task, column, division }) => (
+                    <TableRow key={task.id} className="hover:bg-slate-50">
+                      <TableCell>
+                        <Badge variant="outline" className={statusConfig[task.status].class}>{division}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          className="text-left font-medium text-slate-900 hover:text-blue-700"
+                          onClick={() => openTaskDetails(task)}
+                        >
+                          {task.title}
+                        </button>
+                        <p className="text-xs text-slate-500">{task.id}</p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={priorityConfig[task.priority].class}>{priorityConfig[task.priority].label}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs bg-blue-100 text-blue-700">{getInitials(task.assignee)}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm text-slate-700">{task.assignee}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-slate-700">{task.dueDate}</TableCell>
+                      <TableCell className="text-slate-700">{task.subtasks.completed}/{task.subtasks.total}</TableCell>
+                      <TableCell className="text-slate-700">{task.comments}</TableCell>
+                      <TableCell className="text-slate-700">{task.attachments}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openTaskDetails(task)}>View Details</DropdownMenuItem>
+                            {column === 'notStarted' && (
+                              <>
+                                <DropdownMenuItem onClick={() => handleMoveToInProgress(task)}>
+                                  <Play className="h-4 w-4 mr-2" />
+                                  Convert to In Progress
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleMoveToTesting(task)}>
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Convert to Testing
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleMoveToComplete(task)}>
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Convert to Complete
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {column === 'inProgress' && (
+                              <>
+                                <DropdownMenuItem onClick={() => handleMoveToTesting(task)}>
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Convert to Testing
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleMoveToComplete(task)}>
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Convert to Complete
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {column === 'testing' && (
+                              <>
+                                <DropdownMenuItem onClick={() => handleMoveToInProgress(task)}>
+                                  <Play className="h-4 w-4 mr-2" />
+                                  Convert to In Progress
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleMoveToComplete(task)}>
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Convert to Complete
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeleteTask(task)}>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Task
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Task Details Dialog */}
       <Dialog open={showTaskDetailsDialog} onOpenChange={(open) => {
@@ -871,20 +1017,39 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 rounded-md border border-slate-200 p-3 bg-slate-50">
-                <div>
-                  <p className="text-[11px] text-slate-500">Subtasks</p>
-                  <p className="text-sm font-semibold text-slate-800">{selectedTask.subtasks.completed}/{selectedTask.subtasks.total}</p>
+              <div className="space-y-2 rounded-md border border-slate-200 p-3 bg-white">
+                <Label htmlFor="task-detail-attachments">Task Files</Label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input
+                    id="task-detail-attachments"
+                    type="file"
+                    multiple
+                    onChange={(e) => {
+                      const files = e.target.files ? Array.from(e.target.files) : [];
+                      setPendingUploadFiles(files);
+                    }}
+                    className="cursor-pointer border-blue-200 bg-blue-50/50 text-blue-700 file:mr-3 file:rounded-md file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-blue-700 focus-visible:ring-blue-500"
+                  />
+                  <Button type="button" onClick={handleUploadTaskFiles} disabled={pendingUploadFiles.length === 0}>
+                    Upload
+                  </Button>
                 </div>
-                <div>
-                  <p className="text-[11px] text-slate-500">Comments</p>
-                  <p className="text-sm font-semibold text-slate-800">{selectedTask.comments}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-slate-500">Attachments</p>
-                  <p className="text-sm font-semibold text-slate-800">{selectedTask.attachments}</p>
-                </div>
+                <p className={`text-xs ${pendingUploadFiles.length > 0 ? 'text-blue-700' : 'text-blue-600'}`}>
+                  {pendingUploadFiles.length > 0
+                    ? `${pendingUploadFiles.length} file(s) selected for upload`
+                    : 'Choose file(s) and click Upload'}
+                </p>
+                {(taskAttachments[selectedTask.id] || []).length > 0 && (
+                  <div className="space-y-1 max-h-24 overflow-auto pr-1">
+                    {(taskAttachments[selectedTask.id] || []).map((file, index) => (
+                      <p key={`${file.name}-${index}`} className="text-xs text-slate-600 truncate">
+                        {file.name}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
+
               </div>
             )}
           </ScrollArea>
@@ -911,20 +1076,29 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       </Dialog>
 
       {/* New Task Dialog */}
-      <Dialog open={showNewTaskDialog} onOpenChange={setShowNewTaskDialog}>
-        <DialogContent className="max-w-lg max-h-[85vh]">
-          <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
+      <Dialog
+        open={showNewTaskDialog}
+        onOpenChange={(open) => {
+          setShowNewTaskDialog(open);
+          if (!open) {
+            resetTaskForm();
+          }
+        }}
+      >
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] gap-0 p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-200 bg-slate-50/70">
+            <DialogTitle className="text-2xl">Create New Task</DialogTitle>
             <DialogDescription>Add a new task to this project.</DialogDescription>
+            <p className="text-xs text-slate-500">Fields marked with * are required.</p>
           </DialogHeader>
-          <ScrollArea className="max-h-[65vh] pr-2">
-          <div className="grid gap-4 py-4">
+          <ScrollArea className="max-h-[68vh] px-6">
+          <div className="grid gap-5 py-5">
             <div className="space-y-2">
               <Label htmlFor="task-title">Task Title *</Label>
               <Input
                 id="task-title"
                 value={taskForm.title}
-                onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                onChange={(e) => handleTaskFormChange('title', e.target.value)}
                 placeholder="Enter task title"
                 className={formErrors.title ? 'border-red-500' : ''}
               />
@@ -935,31 +1109,60 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
               <Textarea
                 id="task-description"
                 value={taskForm.description}
-                onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+                onChange={(e) => handleTaskFormChange('description', e.target.value)}
                 placeholder="Enter task description"
                 rows={3}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="task-assignee">Assignee *</Label>
-                <Select value={taskForm.assignee} onValueChange={(value) => setTaskForm({ ...taskForm, assignee: value })}>
+                <Select
+                  value={taskForm.assignee}
+                  onValueChange={(value) => {
+                    if (value === 'custom') {
+                      setShowCustomAssigneeInput(true);
+                      return;
+                    }
+
+                    setShowCustomAssigneeInput(false);
+                    setCustomAssigneeName('');
+                    handleTaskFormChange('assignee', value);
+                  }}
+                >
                   <SelectTrigger className={formErrors.assignee ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select assignee" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="john-smith">John Smith</SelectItem>
-                    <SelectItem value="sarah-johnson">Sarah Johnson</SelectItem>
-                    <SelectItem value="mike-brown">Mike Brown</SelectItem>
-                    <SelectItem value="emily-davis">Emily Davis</SelectItem>
-                    <SelectItem value="alex-wilson">Alex Wilson</SelectItem>
+                    {teamMembers.map((member) => (
+                      <SelectItem key={member} value={member}>{member}</SelectItem>
+                    ))}
+                    <SelectItem value="custom">Custom</SelectItem>
                   </SelectContent>
                 </Select>
+                {showCustomAssigneeInput && (
+                  <div className="flex gap-2">
+                    <Input
+                      value={customAssigneeName}
+                      onChange={(e) => setCustomAssigneeName(e.target.value)}
+                      placeholder="Enter custom assignee name"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addCustomMember(customAssigneeName, 'assignee');
+                        }
+                      }}
+                    />
+                    <Button type="button" variant="outline" onClick={() => addCustomMember(customAssigneeName, 'assignee')}>
+                      Add
+                    </Button>
+                  </div>
+                )}
                 {formErrors.assignee && <p className="text-xs text-red-500">{formErrors.assignee}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="task-priority">Priority</Label>
-                <Select value={taskForm.priority} onValueChange={(value) => setTaskForm({ ...taskForm, priority: value })}>
+                <Select value={taskForm.priority} onValueChange={(value) => handleTaskFormChange('priority', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
@@ -972,14 +1175,15 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="task-startDate">Start Date *</Label>
                 <Input
                   id="task-startDate"
                   type="date"
                   value={taskForm.startDate}
-                  onChange={(e) => setTaskForm({ ...taskForm, startDate: e.target.value })}
+                  onChange={(e) => handleTaskFormChange('startDate', e.target.value)}
+                  max={taskForm.dueDate || undefined}
                   className={formErrors.startDate ? 'border-red-500' : ''}
                 />
                 {formErrors.startDate && <p className="text-xs text-red-500">{formErrors.startDate}</p>}
@@ -990,20 +1194,21 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                   id="task-dueDate"
                   type="date"
                   value={taskForm.dueDate}
-                  onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+                  onChange={(e) => handleTaskFormChange('dueDate', e.target.value)}
+                  min={taskForm.startDate || undefined}
                   className={formErrors.dueDate ? 'border-red-500' : ''}
                 />
                 {formErrors.dueDate && <p className="text-xs text-red-500">{formErrors.dueDate}</p>}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="task-hours">Estimated Hours</Label>
                 <Input
                   id="task-hours"
                   type="number"
                   value={taskForm.estimatedHours}
-                  onChange={(e) => setTaskForm({ ...taskForm, estimatedHours: e.target.value })}
+                  onChange={(e) => handleTaskFormChange('estimatedHours', e.target.value)}
                   placeholder="e.g., 8"
                   className={formErrors.estimatedHours ? 'border-red-500' : ''}
                 />
@@ -1011,7 +1216,7 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="task-status">Status</Label>
-                <Select value={taskForm.status} onValueChange={(value) => setTaskForm({ ...taskForm, status: value })}>
+                <Select value={taskForm.status} onValueChange={(value) => handleTaskFormChange('status', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -1019,6 +1224,7 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                     <SelectItem value="not-started">Mark as Not Started</SelectItem>
                     <SelectItem value="in-progress">Mark as In Progress</SelectItem>
                     <SelectItem value="testing">Mark as Testing</SelectItem>
+                    <SelectItem value="waiting-feedback">Mark as Waiting for Feedback</SelectItem>
                     <SelectItem value="complete">Mark as complete</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1026,18 +1232,47 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="task-follower">Follower</Label>
-              <Select value={taskForm.follower} onValueChange={(value) => setTaskForm({ ...taskForm, follower: value })}>
+              <Select
+                value={taskForm.follower}
+                onValueChange={(value) => {
+                  if (value === 'custom') {
+                    setShowCustomFollowerInput(true);
+                    return;
+                  }
+
+                  setShowCustomFollowerInput(false);
+                  setCustomFollowerName('');
+                  handleTaskFormChange('follower', value);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select follower" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="john-smith">John Smith</SelectItem>
-                  <SelectItem value="sarah-johnson">Sarah Johnson</SelectItem>
-                  <SelectItem value="mike-brown">Mike Brown</SelectItem>
-                  <SelectItem value="emily-davis">Emily Davis</SelectItem>
-                  <SelectItem value="alex-wilson">Alex Wilson</SelectItem>
+                  {teamMembers.map((member) => (
+                    <SelectItem key={member} value={member}>{member}</SelectItem>
+                  ))}
+                  <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
+              {showCustomFollowerInput && (
+                <div className="flex gap-2">
+                  <Input
+                    value={customFollowerName}
+                    onChange={(e) => setCustomFollowerName(e.target.value)}
+                    placeholder="Enter custom follower name"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addCustomMember(customFollowerName, 'follower');
+                      }
+                    }}
+                  />
+                  <Button type="button" variant="outline" onClick={() => addCustomMember(customFollowerName, 'follower')}>
+                    Add
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="task-attachments">Attach File</Label>
@@ -1045,12 +1280,13 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                 id="task-attachments"
                 type="file"
                 multiple
+                className="cursor-pointer border-blue-200 bg-blue-50/50 text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-blue-700 focus-visible:ring-blue-500"
                 onChange={(e) => {
                   const files = e.target.files ? Array.from(e.target.files) : [];
-                  setTaskForm({ ...taskForm, attachments: files });
+                  handleTaskFormChange('attachments', files);
                 }}
               />
-              <p className="text-xs text-slate-500">
+              <p className={`text-xs ${taskForm.attachments.length > 0 ? 'text-blue-700' : 'text-slate-500'}`}>
                 {taskForm.attachments.length > 0
                   ? `${taskForm.attachments.length} file(s) selected`
                   : 'No file selected'}
@@ -1058,11 +1294,11 @@ export default function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
             </div>
           </div>
           </ScrollArea>
-          <DialogFooter>
+          <DialogFooter className="px-6 pb-6 pt-4 border-t border-slate-200 bg-white">
             <Button variant="outline" onClick={() => { setShowNewTaskDialog(false); resetTaskForm(); }}>
               Cancel
             </Button>
-            <Button onClick={handleCreateTask}>Create Task</Button>
+            <Button className="min-w-32" onClick={handleCreateTask} disabled={!canCreateTask}>Create Task</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

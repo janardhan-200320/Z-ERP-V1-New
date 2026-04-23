@@ -152,6 +152,7 @@ export default function InvoicesTab() {
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<string>('');
   const [activeCatalogTab, setActiveCatalogTab] = useState<'service' | 'product'>('service');
   const [paymentMode, setPaymentMode] = useState('cash');
+  const [customPaymentMode, setCustomPaymentMode] = useState('');
   const [selectedBankAccountId, setSelectedBankAccountId] = useState('');
   const [availableBankAccounts, setAvailableBankAccounts] = useState(() =>
     getBankAccounts().filter((account) => account.status === 'active'),
@@ -659,6 +660,18 @@ export default function InvoicesTab() {
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
+                    {paymentMode === 'other' && (
+                      <div className="space-y-2">
+                        <Label htmlFor="payment-mode-other" className="text-sm">Other Payment Mode</Label>
+                        <Input
+                          id="payment-mode-other"
+                          value={customPaymentMode}
+                          onChange={(e) => setCustomPaymentMode(e.target.value)}
+                          placeholder="Type your payment mode"
+                          className="h-10"
+                        />
+                      </div>
+                    )}
                   </div>
 
                 </div>

@@ -34,6 +34,7 @@ import {
   Clock,
   UserMinus,
   CheckCircle,
+  CheckCircle2,
   Activity,
   AlertCircle,
   History,
@@ -63,6 +64,131 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from "@/lib/utils";
 
+function generateEmployeeProfilePDF(employee: any) {
+  const doc = new jsPDF();
+
+  const safe = (value: any) => {
+    if (value === null || value === undefined) return '-';
+    const str = String(value).trim();
+    return str.length ? str : '-';
+  };
+
+  const dateStr = new Date().toISOString().split('T')[0];
+  const joiningDate = employee?.joining ? new Date(employee.joining).toLocaleDateString() : '-';
+
+  doc.setFontSize(18);
+  doc.setTextColor(30, 41, 59);
+  doc.text('Employee Profile', 20, 22);
+
+  doc.setFontSize(11);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Generated: ${dateStr}`, 20, 30);
+
+  doc.setFontSize(12);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`${safe(employee?.name)} (${safe(employee?.id)})`, 20, 40);
+
+  autoTable(doc, {
+    head: [['Field', 'Value']],
+    body: [
+      ['Designation', safe(employee?.designation)],
+      ['Department', safe(employee?.department)],
+      ['Work Location', safe(employee?.location)],
+      ['Employee Type', safe(employee?.employeeType)],
+      ['Probation', safe(employee?.probationPeriodLabel)],
+      ['Joining Date', safe(joiningDate)],
+      ['Gender', safe(employee?.gender)],
+      ['Blood Group', safe(employee?.bloodGroup)],
+    ],
+    startY: 48,
+    theme: 'grid',
+    headStyles: { fillColor: [37, 99, 235] },
+    styles: { fontSize: 10, cellPadding: 3 },
+    columnStyles: { 0: { cellWidth: 55 } },
+  });
+
+  const yAfterBasic = ((doc as any).lastAutoTable?.finalY ?? 48) + 10;
+  doc.setFontSize(12);
+  doc.setTextColor(30, 41, 59);
+  doc.text('Contact Information', 20, yAfterBasic);
+
+  autoTable(doc, {
+    head: [['Field', 'Value']],
+    body: [
+      ['Official Email', safe(employee?.email)],
+      ['Personal Email', safe(employee?.personalEmail)],
+      ['Official Phone', safe(employee?.officialPhone)],
+      ['Primary Phone', safe(employee?.phone)],
+      ['Alternate Phone', safe(employee?.alternatePhone)],
+    ],
+    startY: yAfterBasic + 4,
+    theme: 'grid',
+    headStyles: { fillColor: [99, 102, 241] },
+    styles: { fontSize: 10, cellPadding: 3 },
+    columnStyles: { 0: { cellWidth: 55 } },
+  });
+
+  const yAfterContact = ((doc as any).lastAutoTable?.finalY ?? (yAfterBasic + 4)) + 10;
+  doc.setFontSize(12);
+  doc.setTextColor(30, 41, 59);
+  doc.text('Bank Account Details', 20, yAfterContact);
+
+  autoTable(doc, {
+    head: [['Field', 'Value']],
+    body: [
+      ['Bank Name', safe(employee?.bankName)],
+      ['Branch Name', safe(employee?.bankBranch)],
+      ['Account Number', safe(employee?.accountNumber)],
+      ['IFSC / Routing Code', safe(employee?.ifscCode)],
+    ],
+    startY: yAfterContact + 4,
+    theme: 'grid',
+    headStyles: { fillColor: [16, 185, 129] },
+    styles: { fontSize: 10, cellPadding: 3 },
+    columnStyles: { 0: { cellWidth: 55 } },
+  });
+
+  const yAfterBank = ((doc as any).lastAutoTable?.finalY ?? (yAfterContact + 4)) + 10;
+  doc.setFontSize(12);
+  doc.setTextColor(30, 41, 59);
+  doc.text('Government IDs', 20, yAfterBank);
+
+  autoTable(doc, {
+    head: [['Field', 'Value']],
+    body: [
+      ['PAN Number', safe(employee?.panNumber)],
+      ['Aadhaar Number', safe(employee?.aadhaarNumber)],
+    ],
+    startY: yAfterBank + 4,
+    theme: 'grid',
+    headStyles: { fillColor: [245, 158, 11] },
+    styles: { fontSize: 10, cellPadding: 3 },
+    columnStyles: { 0: { cellWidth: 55 } },
+  });
+
+  const yAfterIds = ((doc as any).lastAutoTable?.finalY ?? (yAfterBank + 4)) + 10;
+  doc.setFontSize(12);
+  doc.setTextColor(30, 41, 59);
+  doc.text('Documents', 20, yAfterIds);
+
+  autoTable(doc, {
+    head: [['Document', 'Filename']],
+    body: [
+      ['Aadhaar Card', safe(employee?.documents?.aadhaar)],
+      ['PAN Card', safe(employee?.documents?.pan)],
+      ['Resume/CV', safe(employee?.documents?.resume)],
+    ],
+    startY: yAfterIds + 4,
+    theme: 'grid',
+    headStyles: { fillColor: [37, 99, 235] },
+    styles: { fontSize: 10, cellPadding: 3 },
+    columnStyles: { 0: { cellWidth: 55 } },
+  });
+
+  const filename = `Employee_Profile_${safe(employee?.name).replace(/\s+/g, '_')}_${dateStr}.pdf`;
+  doc.save(filename);
+}
+
 // HRMAttendance: Employee Management module.
 export default function HRMEmployees() {
   const [, setLocation] = useLocation();
@@ -81,6 +207,8 @@ export default function HRMEmployees() {
   const [showCustomEmployeeTypeInput, setShowCustomEmployeeTypeInput] = useState(false);
   const [showCustomProbationInput, setShowCustomProbationInput] = useState(false);
   const [showCustomEditDepartmentInput, setShowCustomEditDepartmentInput] = useState(false);
+  const [showCustomEditEmployeeTypeInput, setShowCustomEditEmployeeTypeInput] = useState(false);
+  const [showCustomEditProbationInput, setShowCustomEditProbationInput] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
@@ -102,6 +230,8 @@ export default function HRMEmployees() {
     time: '',
     interviewer: '',
     meetingType: '',
+    meetingApp: '',
+    meetingLink: '',
     notes: ''
   });
   const [newEmployee, setNewEmployee] = useState({
@@ -462,9 +592,47 @@ export default function HRMEmployees() {
   const handleEditEmployee = (employee: any) => {
     const isCustomDepartment = !!employee.department && !departmentOptions.includes(employee.department);
     setShowCustomEditDepartmentInput(isCustomDepartment);
+
+    const normalizedEmployeeType = typeof employee.employeeType === 'string' ? employee.employeeType : '';
+    const isCustomEmployeeType = !!normalizedEmployeeType && !['Half Day', 'Full Day', 'Contract', 'Daily'].includes(normalizedEmployeeType);
+    setShowCustomEditEmployeeTypeInput(isCustomEmployeeType);
+
+    const probationDaysValue =
+      typeof employee.probationPeriodDays === 'number'
+        ? employee.probationPeriodDays
+        : Number.parseInt(String(employee.probationPeriod || employee.probationPeriodDays || ''), 10);
+    const probationDaysNormalized = Number.isFinite(probationDaysValue) && probationDaysValue > 0 ? probationDaysValue : 90;
+    const isCustomProbation = !probationPeriodOptions.includes(String(probationDaysNormalized));
+    setShowCustomEditProbationInput(isCustomProbation);
+
     setEditingEmployee({
       ...employee,
-      joining: employee.joining.split('T')[0] // Ensure date format
+      name: employee.name ?? '',
+      designation: employee.designation ?? '',
+      department: employee.department ?? '',
+      location: employee.location ?? '',
+      gender: employee.gender ?? '',
+      bloodGroup: employee.bloodGroup ?? '',
+      email: employee.email ?? '',
+      personalEmail: employee.personalEmail ?? '',
+      officialPhone: employee.officialPhone ?? '',
+      phone: employee.phone ?? '',
+      alternatePhone: employee.alternatePhone ?? '',
+      employeeType: isCustomEmployeeType ? '' : normalizedEmployeeType,
+      customEmployeeType: isCustomEmployeeType ? normalizedEmployeeType : (employee.customEmployeeType ?? ''),
+      probationPeriod: isCustomProbation ? '' : String(probationDaysNormalized),
+      customProbationDays: isCustomProbation ? String(probationDaysNormalized) : '',
+      bankName: employee.bankName ?? '',
+      bankBranch: employee.bankBranch ?? '',
+      accountNumber: employee.accountNumber ?? '',
+      ifscCode: employee.ifscCode ?? '',
+      panNumber: employee.panNumber ?? '',
+      aadhaarNumber: employee.aadhaarNumber ?? '',
+      aadhaarDoc: null,
+      panDoc: null,
+      resume: null,
+      documents: employee.documents ?? {},
+      joining: String(employee.joining ?? '').includes('T') ? employee.joining.split('T')[0] : (employee.joining ?? new Date().toISOString().split('T')[0]),
     });
     setIsEditDialogOpen(true);
   };
@@ -473,40 +641,106 @@ export default function HRMEmployees() {
   const handleUpdateEmployee = () => {
     if (!editingEmployee) return;
 
-    // Validation
-    if (!editingEmployee.name || !editingEmployee.designation || !editingEmployee.department || 
-        !editingEmployee.location || !editingEmployee.email || !editingEmployee.phone) {
+    if (!editingEmployee.name || !editingEmployee.designation || !editingEmployee.department) {
       toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive"
+        title: 'Validation Error',
+        description: 'Please fill in all required fields.',
+        variant: 'destructive',
       });
       return;
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(editingEmployee.email)) {
+    const missingFields: string[] = [];
+    if (!String(editingEmployee.personalEmail ?? '').trim()) missingFields.push('Personal Email');
+    if (!String(editingEmployee.phone ?? '').trim()) missingFields.push('Primary Phone');
+    if (!String(editingEmployee.bankName ?? '').trim()) missingFields.push('Bank Name');
+    if (!String(editingEmployee.bankBranch ?? '').trim()) missingFields.push('Branch Name');
+    if (!String(editingEmployee.accountNumber ?? '').trim()) missingFields.push('Account Number');
+    if (!String(editingEmployee.ifscCode ?? '').trim()) missingFields.push('IFSC / Routing Code');
+
+    const existingDocs = editingEmployee.documents ?? {};
+    const hasAadhaar = !!editingEmployee.aadhaarDoc || !!existingDocs.aadhaar;
+    const hasPan = !!editingEmployee.panDoc || !!existingDocs.pan;
+    const hasResume = !!editingEmployee.resume || !!existingDocs.resume;
+    if (!hasAadhaar) missingFields.push('Aadhaar Card');
+    if (!hasPan) missingFields.push('PAN Card');
+    if (!hasResume) missingFields.push('Resume/CV');
+
+    if (missingFields.length > 0) {
       toast({
-        title: "Validation Error",
-        description: "Please enter a valid email address.",
-        variant: "destructive"
+        title: 'Validation Error',
+        description: `Please fill/upload: ${missingFields.join(', ')}.`,
+        variant: 'destructive',
       });
       return;
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (editingEmployee.email && !emailRegex.test(editingEmployee.email)) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid email address.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const resolvedProbationDays = showCustomEditProbationInput
+      ? Number.parseInt(String(editingEmployee.customProbationDays || ''), 10)
+      : Number.parseInt(String(editingEmployee.probationPeriod || ''), 10);
+
+    if (!Number.isFinite(resolvedProbationDays) || resolvedProbationDays <= 0) {
+      toast({
+        title: 'Invalid Probation Period',
+        description: 'Please choose a valid probation period in days.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const resolvedEmployeeType = showCustomEditEmployeeTypeInput
+      ? String(editingEmployee.customEmployeeType || '').trim()
+      : String(editingEmployee.employeeType || '').trim();
+
+    const photoValue = editingEmployee.photo as unknown;
+    const photoUrl = photoValue instanceof File
+      ? URL.createObjectURL(photoValue)
+      : (typeof photoValue === 'string' ? photoValue : undefined);
+
+    const updatedDocuments = {
+      aadhaar: editingEmployee.aadhaarDoc?.name ?? existingDocs.aadhaar,
+      pan: editingEmployee.panDoc?.name ?? existingDocs.pan,
+      resume: editingEmployee.resume?.name ?? existingDocs.resume,
+    };
 
     const updatedEmployees = employees.map(emp => 
       emp.id === editingEmployee.id 
         ? { 
             ...emp,
-            name: editingEmployee.name.trim(),
-            designation: editingEmployee.designation.trim(),
+            name: String(editingEmployee.name).trim(),
+            designation: String(editingEmployee.designation).trim(),
             department: editingEmployee.department,
-            location: editingEmployee.location.trim(),
-            email: editingEmployee.email.trim().toLowerCase(),
-            phone: editingEmployee.phone.trim(),
+            location: String(editingEmployee.location ?? '').trim(),
+            gender: String(editingEmployee.gender ?? ''),
+            bloodGroup: String(editingEmployee.bloodGroup ?? ''),
+            employeeType: resolvedEmployeeType,
+            probationPeriodDays: resolvedProbationDays,
+            probationPeriodLabel: `${resolvedProbationDays} Days`,
+            email: String(editingEmployee.email ?? '').trim().toLowerCase(),
+            personalEmail: String(editingEmployee.personalEmail ?? '').trim(),
+            officialPhone: String(editingEmployee.officialPhone ?? '').trim(),
+            phone: String(editingEmployee.phone ?? '').trim(),
+            alternatePhone: String(editingEmployee.alternatePhone ?? '').trim(),
+            bankName: String(editingEmployee.bankName ?? '').trim(),
+            bankBranch: String(editingEmployee.bankBranch ?? '').trim(),
+            accountNumber: String(editingEmployee.accountNumber ?? '').trim(),
+            ifscCode: String(editingEmployee.ifscCode ?? '').trim(),
+            panNumber: String(editingEmployee.panNumber ?? '').trim().toUpperCase(),
+            aadhaarNumber: String(editingEmployee.aadhaarNumber ?? '').trim(),
             joining: editingEmployee.joining,
-            avatar: editingEmployee.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2)
+            photo: photoUrl,
+            documents: updatedDocuments,
+            avatar: String(editingEmployee.name).split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2)
           }
         : emp
     );
@@ -519,6 +753,504 @@ export default function HRMEmployees() {
       title: "✅ Employee Updated Successfully",
       description: `${editingEmployee.name}'s information has been updated.`,
     });
+  };
+
+  const renderEmployeeOnboardingFields = (params: {
+    employee: any;
+    setEmployee: (next: any) => void;
+    showCustomDepartment: boolean;
+    setShowCustomDepartment: (next: boolean) => void;
+    showCustomEmployeeType: boolean;
+    setShowCustomEmployeeType: (next: boolean) => void;
+    showCustomProbation: boolean;
+    setShowCustomProbation: (next: boolean) => void;
+  }) => {
+    const {
+      employee,
+      setEmployee,
+      showCustomDepartment,
+      setShowCustomDepartment,
+      showCustomEmployeeType,
+      setShowCustomEmployeeType,
+      showCustomProbation,
+      setShowCustomProbation,
+    } = params;
+
+    const photoPreviewUrl =
+      typeof employee.photo === 'string'
+        ? employee.photo
+        : employee.photo
+          ? URL.createObjectURL(employee.photo)
+          : '';
+
+    const existingDocs = employee.documents ?? {};
+    const aadhaarName = employee.aadhaarDoc?.name ?? existingDocs.aadhaar;
+    const panName = employee.panDoc?.name ?? existingDocs.pan;
+    const resumeName = employee.resume?.name ?? existingDocs.resume;
+
+    return (
+      <div className="p-8 space-y-6">
+        {/* Profile Photo Upload */}
+        <div className="flex items-center gap-6 p-6 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl border-2 border-indigo-100">
+          <div className="relative group">
+            {photoPreviewUrl ? (
+              <div className="h-24 w-24 rounded-2xl overflow-hidden shadow-lg group-hover:shadow-xl transition-shadow">
+                <img
+                  src={photoPreviewUrl}
+                  alt="Profile"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                <UserPlus className="h-10 w-10 text-white" />
+              </div>
+            )}
+            <label className="absolute -bottom-2 -right-2 h-10 w-10 bg-white rounded-xl border-2 border-blue-500 flex items-center justify-center cursor-pointer hover:bg-blue-50 transition-colors shadow-md">
+              <Upload className="h-4 w-4 text-blue-600" />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    setEmployee({ ...employee, photo: e.target.files[0] });
+                  }
+                }}
+              />
+            </label>
+          </div>
+          <div className="flex-1">
+            <h3 className="font-black text-lg text-slate-900 mb-1">Profile Picture</h3>
+            <p className="text-sm text-slate-600">Upload a professional photo (PNG, JPG up to 5MB)</p>
+            {employee.photo && typeof employee.photo !== 'string' && (
+              <Badge className="mt-2 bg-emerald-100 text-emerald-700 border-none">
+                ✓ {employee.photo.name}
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Basic Information */}
+        <div className="space-y-4">
+          <h3 className="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <UserPlus className="h-4 w-4 text-blue-600" />
+            Basic Information
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Full Name *</Label>
+              <Input
+                placeholder="e.g. Robert Fox"
+                value={employee.name}
+                onChange={(e) => setEmployee({ ...employee, name: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Designation *</Label>
+              <Input
+                placeholder="e.g. Lead Designer"
+                value={employee.designation}
+                onChange={(e) => setEmployee({ ...employee, designation: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Department *</Label>
+              <Select
+                onValueChange={(v) => {
+                  if (v === '__custom_department__') {
+                    setShowCustomDepartment(true);
+                    setEmployee({ ...employee, department: '' });
+                  } else {
+                    setShowCustomDepartment(false);
+                    setEmployee({ ...employee, department: v });
+                  }
+                }}
+                value={(showCustomDepartment || (!!employee.department && !departmentOptions.includes(employee.department))) ? '__custom_department__' : employee.department}
+              >
+                <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
+                  <SelectValue placeholder="Select Department" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="Engineering">Engineering</SelectItem>
+                  <SelectItem value="Product">Product</SelectItem>
+                  <SelectItem value="Design">Design</SelectItem>
+                  <SelectItem value="Sales">Sales</SelectItem>
+                  <SelectItem value="Marketing">Marketing</SelectItem>
+                  <SelectItem value="Human Resources">Human Resources</SelectItem>
+                  <SelectItem value="Finance">Finance</SelectItem>
+                  <SelectItem value="Operations">Operations</SelectItem>
+                  <SelectItem value="Customer Support">Customer Support</SelectItem>
+                  <SelectItem value="__custom_department__" className="text-blue-600 font-medium">
+                    <div className="flex items-center">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Custom Department
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {(showCustomDepartment || (!!employee.department && !departmentOptions.includes(employee.department))) && (
+                <Input
+                  placeholder="Type custom department"
+                  value={employee.department}
+                  onChange={(e) => setEmployee({ ...employee, department: e.target.value })}
+                  className="rounded-xl border-slate-200 h-11 bg-slate-50/50 mt-2"
+                />
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Blood Group</Label>
+              <Select onValueChange={(v) => setEmployee({ ...employee, bloodGroup: v })} value={employee.bloodGroup}>
+                <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
+                  <SelectValue placeholder="Select Blood Group" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="A+">A+</SelectItem>
+                  <SelectItem value="A-">A-</SelectItem>
+                  <SelectItem value="B+">B+</SelectItem>
+                  <SelectItem value="B-">B-</SelectItem>
+                  <SelectItem value="O+">O+</SelectItem>
+                  <SelectItem value="O-">O-</SelectItem>
+                  <SelectItem value="AB+">AB+</SelectItem>
+                  <SelectItem value="AB-">AB-</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Gender</Label>
+              <Select onValueChange={(v) => setEmployee({ ...employee, gender: v })} value={employee.gender}>
+                <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
+                  <SelectValue placeholder="Select Gender" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="Male">Male</SelectItem>
+                  <SelectItem value="Female">Female</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Employee Type</Label>
+              <Select
+                onValueChange={(v) => {
+                  if (v === '__custom_employee_type__') {
+                    setShowCustomEmployeeType(true);
+                    setEmployee({ ...employee, employeeType: '', customEmployeeType: '' });
+                  } else {
+                    setShowCustomEmployeeType(false);
+                    setEmployee({ ...employee, employeeType: v, customEmployeeType: '' });
+                  }
+                }}
+                value={showCustomEmployeeType ? '__custom_employee_type__' : employee.employeeType}
+              >
+                <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
+                  <SelectValue placeholder="Select Employee Type" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="Half Day">Half Day</SelectItem>
+                  <SelectItem value="Full Day">Full Day</SelectItem>
+                  <SelectItem value="Contract">Contract</SelectItem>
+                  <SelectItem value="Daily">Daily</SelectItem>
+                  <SelectItem value="__custom_employee_type__">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              {showCustomEmployeeType && (
+                <Input
+                  placeholder="Type custom employee type"
+                  value={employee.customEmployeeType}
+                  onChange={(e) => setEmployee({ ...employee, customEmployeeType: e.target.value })}
+                  className="rounded-xl border-slate-200 h-11 bg-slate-50/50 mt-2"
+                />
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Probation Period</Label>
+              <Select
+                onValueChange={(v) => {
+                  if (v === '__custom_probation__') {
+                    setShowCustomProbation(true);
+                    setEmployee({ ...employee, probationPeriod: '', customProbationDays: '' });
+                  } else {
+                    setShowCustomProbation(false);
+                    setEmployee({ ...employee, probationPeriod: v, customProbationDays: '' });
+                  }
+                }}
+                value={showCustomProbation ? '__custom_probation__' : employee.probationPeriod}
+              >
+                <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
+                  <SelectValue placeholder="Select Probation Period" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {probationPeriodOptions.map((days) => (
+                    <SelectItem key={days} value={days}>{days} Days</SelectItem>
+                  ))}
+                  <SelectItem value="__custom_probation__">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              {showCustomProbation && (
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Enter custom days"
+                  value={employee.customProbationDays}
+                  onChange={(e) => setEmployee({
+                    ...employee,
+                    customProbationDays: e.target.value.replace(/\D/g, '')
+                  })}
+                  className="rounded-xl border-slate-200 h-11 bg-slate-50/50 mt-2"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Information */}
+        <div className="space-y-4">
+          <h3 className="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <Phone className="h-4 w-4 text-blue-600" />
+            Contact Information
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Official Email *</Label>
+              <Input
+                placeholder="robert@company.com"
+                type="email"
+                value={employee.email}
+                onChange={(e) => setEmployee({ ...employee, email: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Personal Email *</Label>
+              <Input
+                placeholder="robert.personal@gmail.com"
+                type="email"
+                value={employee.personalEmail}
+                onChange={(e) => setEmployee({ ...employee, personalEmail: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Official Phone Number</Label>
+              <Input
+                placeholder="+1 (555) 111-1111"
+                type="tel"
+                value={employee.officialPhone}
+                onChange={(e) => setEmployee({ ...employee, officialPhone: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Primary Phone *</Label>
+              <Input
+                placeholder="+1 (555) 000-0000"
+                type="tel"
+                value={employee.phone}
+                onChange={(e) => setEmployee({ ...employee, phone: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Alternate Phone</Label>
+              <Input
+                placeholder="+1 (555) 999-9999"
+                type="tel"
+                value={employee.alternatePhone}
+                onChange={(e) => setEmployee({ ...employee, alternatePhone: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Work Location</Label>
+              <Input
+                placeholder="e.g. Remote / New York"
+                value={employee.location}
+                onChange={(e) => setEmployee({ ...employee, location: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Bank Details */}
+        <div className="space-y-4">
+          <h3 className="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <Briefcase className="h-4 w-4 text-blue-600" />
+            Bank Account Details
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Bank Name *</Label>
+              <Input
+                placeholder="e.g. Chase Bank"
+                value={employee.bankName}
+                onChange={(e) => setEmployee({ ...employee, bankName: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Branch Name *</Label>
+              <Input
+                placeholder="e.g. Main Street Branch"
+                value={employee.bankBranch}
+                onChange={(e) => setEmployee({ ...employee, bankBranch: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Account Number *</Label>
+              <Input
+                placeholder="XXXX XXXX XXXX"
+                value={employee.accountNumber}
+                onChange={(e) => setEmployee({ ...employee, accountNumber: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">IFSC / Routing Code *</Label>
+              <Input
+                placeholder="e.g. HDFC0001234"
+                value={employee.ifscCode}
+                onChange={(e) => setEmployee({ ...employee, ifscCode: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Government ID Numbers */}
+        <div className="space-y-4">
+          <h3 className="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <FileText className="h-4 w-4 text-blue-600" />
+            Government IDs
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">PAN Number</Label>
+              <Input
+                placeholder="e.g. ABCDE1234F"
+                value={employee.panNumber}
+                onChange={(e) => setEmployee({ ...employee, panNumber: e.target.value.toUpperCase() })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+                maxLength={10}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Aadhaar Number</Label>
+              <Input
+                placeholder="XXXX XXXX XXXX"
+                value={employee.aadhaarNumber}
+                onChange={(e) => setEmployee({ ...employee, aadhaarNumber: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+                maxLength={12}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Joining Date *</Label>
+              <Input
+                type="date"
+                value={employee.joining}
+                onChange={(e) => setEmployee({ ...employee, joining: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Document Uploads */}
+        <div className="space-y-4">
+          <h3 className="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <Upload className="h-4 w-4 text-blue-600" />
+            Documents Upload
+          </h3>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Aadhaar Card *</Label>
+              <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer group">
+                {aadhaarName ? (
+                  <div className="text-center px-2">
+                    <CheckCircle className="h-6 w-6 text-emerald-600 mx-auto mb-1" />
+                    <span className="text-xs font-bold text-emerald-700 line-clamp-2">{aadhaarName}</span>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="h-6 w-6 text-slate-400 group-hover:text-blue-600 mb-2" />
+                    <span className="text-xs font-medium text-slate-500">Upload PDF</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      setEmployee({ ...employee, aadhaarDoc: e.target.files[0] });
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">PAN Card *</Label>
+              <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer group">
+                {panName ? (
+                  <div className="text-center px-2">
+                    <CheckCircle className="h-6 w-6 text-emerald-600 mx-auto mb-1" />
+                    <span className="text-xs font-bold text-emerald-700 line-clamp-2">{panName}</span>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="h-6 w-6 text-slate-400 group-hover:text-blue-600 mb-2" />
+                    <span className="text-xs font-medium text-slate-500">Upload PDF</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      setEmployee({ ...employee, panDoc: e.target.files[0] });
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Resume/CV *</Label>
+              <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer group">
+                {resumeName ? (
+                  <div className="text-center px-2">
+                    <CheckCircle className="h-6 w-6 text-emerald-600 mx-auto mb-1" />
+                    <span className="text-xs font-bold text-emerald-700 line-clamp-2">{resumeName}</span>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="h-6 w-6 text-slate-400 group-hover:text-blue-600 mb-2" />
+                    <span className="text-xs font-medium text-slate-500">Upload PDF</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      setEmployee({ ...employee, resume: e.target.files[0] });
+                    }
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 italic">Accepted formats: PDF, JPG, PNG (Max 10MB per file)</p>
+        </div>
+      </div>
+    );
   };
 
   // Create or update exit workflow
@@ -665,10 +1397,21 @@ export default function HRMEmployees() {
 
   // Schedule interview
   const scheduleInterview = () => {
+    const requiresVideoDetails = interviewFormData.meetingType === 'video_call';
+
     if (!interviewFormData.date || !interviewFormData.time || !interviewFormData.interviewer) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (requiresVideoDetails && (!interviewFormData.meetingApp || !interviewFormData.meetingLink)) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a meeting application and enter a meeting link.",
         variant: "destructive"
       });
       return;
@@ -685,6 +1428,9 @@ export default function HRMEmployees() {
                 exitInterviewDate: `${interviewFormData.date}T${interviewFormData.time}:00Z`,
                 interviewer: interviewFormData.interviewer,
                 meetingType: interviewFormData.meetingType,
+                meetingApp: requiresVideoDetails ? interviewFormData.meetingApp : '',
+                meetingLink: requiresVideoDetails ? interviewFormData.meetingLink : '',
+                interviewNotes: interviewFormData.notes,
                 steps: emp.exitWorkflow.steps.map(step => ({
                   ...step,
                   documents: step.documents || []
@@ -698,7 +1444,7 @@ export default function HRMEmployees() {
     }
     
     setIsInterviewDialogOpen(false);
-    setInterviewFormData({ date: '', time: '', interviewer: '', meetingType: '', notes: '' });
+    setInterviewFormData({ date: '', time: '', interviewer: '', meetingType: '', meetingApp: '', meetingLink: '', notes: '' });
     
     toast({
       title: "Interview Scheduled",
@@ -1077,6 +1823,27 @@ export default function HRMEmployees() {
       return;
     }
 
+    const missingFields: string[] = [];
+
+    if (!newEmployee.personalEmail.trim()) missingFields.push('Personal Email');
+    if (!newEmployee.phone.trim()) missingFields.push('Primary Phone');
+    if (!newEmployee.bankName.trim()) missingFields.push('Bank Name');
+    if (!newEmployee.bankBranch.trim()) missingFields.push('Branch Name');
+    if (!newEmployee.accountNumber.trim()) missingFields.push('Account Number');
+    if (!newEmployee.ifscCode.trim()) missingFields.push('IFSC / Routing Code');
+    if (!newEmployee.aadhaarDoc) missingFields.push('Aadhaar Card');
+    if (!newEmployee.panDoc) missingFields.push('PAN Card');
+    if (!newEmployee.resume) missingFields.push('Resume/CV');
+
+    if (missingFields.length > 0) {
+      toast({
+        title: 'Validation Error',
+        description: `Please fill/upload: ${missingFields.join(', ')}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const resolvedProbationDays = showCustomProbationInput
       ? Number.parseInt(newEmployee.customProbationDays, 10)
       : Number.parseInt(newEmployee.probationPeriod, 10);
@@ -1101,7 +1868,7 @@ export default function HRMEmployees() {
       employeeType: showCustomEmployeeTypeInput
         ? newEmployee.customEmployeeType.trim()
         : newEmployee.employeeType,
-      phone: newEmployee.officialPhone || newEmployee.phone,
+      phone: newEmployee.phone.trim(),
       probationPeriodDays: resolvedProbationDays,
       probationPeriodLabel: `${resolvedProbationDays} Days`,
       id,
@@ -1238,469 +2005,16 @@ export default function HRMEmployees() {
                   </div>
                   
                   <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
-                    <div className="p-8 space-y-6">
-                      {/* Profile Photo Upload */}
-                      <div className="flex items-center gap-6 p-6 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl border-2 border-indigo-100">
-                        <div className="relative group">
-                          {newEmployee.photo ? (
-                            <div className="h-24 w-24 rounded-2xl overflow-hidden shadow-lg group-hover:shadow-xl transition-shadow">
-                              <img 
-                                src={URL.createObjectURL(newEmployee.photo)} 
-                                alt="Profile" 
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                          ) : (
-                            <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                              <UserPlus className="h-10 w-10 text-white" />
-                            </div>
-                          )}
-                          <label className="absolute -bottom-2 -right-2 h-10 w-10 bg-white rounded-xl border-2 border-blue-500 flex items-center justify-center cursor-pointer hover:bg-blue-50 transition-colors shadow-md">
-                            <Upload className="h-4 w-4 text-blue-600" />
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              className="hidden"
-                              onChange={(e) => {
-                                if (e.target.files?.[0]) {
-                                  setNewEmployee({...newEmployee, photo: e.target.files[0]});
-                                }
-                              }}
-                            />
-                          </label>
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-black text-lg text-slate-900 mb-1">Profile Picture</h3>
-                          <p className="text-sm text-slate-600">Upload a professional photo (PNG, JPG up to 5MB)</p>
-                          {newEmployee.photo && (
-                            <Badge className="mt-2 bg-emerald-100 text-emerald-700 border-none">
-                              ✓ {newEmployee.photo.name}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Basic Information */}
-                      <div className="space-y-4">
-                        <h3 className="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                          <UserPlus className="h-4 w-4 text-blue-600" />
-                          Basic Information
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Full Name *</Label>
-                            <Input 
-                              placeholder="e.g. Robert Fox" 
-                              value={newEmployee.name}
-                              onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Designation *</Label>
-                            <Input 
-                              placeholder="e.g. Lead Designer" 
-                              value={newEmployee.designation}
-                              onChange={(e) => setNewEmployee({...newEmployee, designation: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Department *</Label>
-                            <Select 
-                              onValueChange={(v) => {
-                                if (v === '__custom_department__') {
-                                  setShowCustomDepartmentInput(true);
-                                  setNewEmployee({ ...newEmployee, department: '' });
-                                } else {
-                                  setShowCustomDepartmentInput(false);
-                                  setNewEmployee({ ...newEmployee, department: v });
-                                }
-                              }} 
-                              value={(showCustomDepartmentInput || (!!newEmployee.department && !departmentOptions.includes(newEmployee.department))) ? '__custom_department__' : newEmployee.department}
-                            >
-                              <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
-                                <SelectValue placeholder="Select Department" />
-                              </SelectTrigger>
-                              <SelectContent className="rounded-xl">
-                                <SelectItem value="Engineering">Engineering</SelectItem>
-                                <SelectItem value="Product">Product</SelectItem>
-                                <SelectItem value="Design">Design</SelectItem>
-                                <SelectItem value="Sales">Sales</SelectItem>
-                                <SelectItem value="Marketing">Marketing</SelectItem>
-                                <SelectItem value="Human Resources">Human Resources</SelectItem>
-                                <SelectItem value="Finance">Finance</SelectItem>
-                                <SelectItem value="Operations">Operations</SelectItem>
-                                <SelectItem value="Customer Support">Customer Support</SelectItem>
-
-                                <SelectItem value="__custom_department__" className="text-blue-600 font-medium">
-                                  <div className="flex items-center">
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Add Custom Department
-                                  </div>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-
-                            {(showCustomDepartmentInput || (!!newEmployee.department && !departmentOptions.includes(newEmployee.department))) && (
-                              <Input
-                                placeholder="Type custom department"
-                                value={newEmployee.department}
-                                onChange={(e) => setNewEmployee({ ...newEmployee, department: e.target.value })}
-                                className="rounded-xl border-slate-200 h-11 bg-slate-50/50 mt-2"
-                              />
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Blood Group</Label>
-                            <Select onValueChange={(v) => setNewEmployee({...newEmployee, bloodGroup: v})} value={newEmployee.bloodGroup}>
-                              <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
-                                <SelectValue placeholder="Select Blood Group" />
-                              </SelectTrigger>
-                              <SelectContent className="rounded-xl">
-                                <SelectItem value="A+">A+</SelectItem>
-                                <SelectItem value="A-">A-</SelectItem>
-                                <SelectItem value="B+">B+</SelectItem>
-                                <SelectItem value="B-">B-</SelectItem>
-                                <SelectItem value="O+">O+</SelectItem>
-                                <SelectItem value="O-">O-</SelectItem>
-                                <SelectItem value="AB+">AB+</SelectItem>
-                                <SelectItem value="AB-">AB-</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Gender</Label>
-                            <Select onValueChange={(v) => setNewEmployee({ ...newEmployee, gender: v })} value={newEmployee.gender}>
-                              <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
-                                <SelectValue placeholder="Select Gender" />
-                              </SelectTrigger>
-                              <SelectContent className="rounded-xl">
-                                <SelectItem value="Male">Male</SelectItem>
-                                <SelectItem value="Female">Female</SelectItem>
-                                <SelectItem value="Other">Other</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Employee Type</Label>
-                            <Select
-                              onValueChange={(v) => {
-                                if (v === '__custom_employee_type__') {
-                                  setShowCustomEmployeeTypeInput(true);
-                                  setNewEmployee({ ...newEmployee, employeeType: '', customEmployeeType: '' });
-                                } else {
-                                  setShowCustomEmployeeTypeInput(false);
-                                  setNewEmployee({ ...newEmployee, employeeType: v, customEmployeeType: '' });
-                                }
-                              }}
-                              value={showCustomEmployeeTypeInput ? '__custom_employee_type__' : newEmployee.employeeType}
-                            >
-                              <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
-                                <SelectValue placeholder="Select Employee Type" />
-                              </SelectTrigger>
-                              <SelectContent className="rounded-xl">
-                                <SelectItem value="Half Day">Half Day</SelectItem>
-                                <SelectItem value="Full Day">Full Day</SelectItem>
-                                <SelectItem value="Contract">Contract</SelectItem>
-                                <SelectItem value="Daily">Daily</SelectItem>
-                                <SelectItem value="__custom_employee_type__">Custom</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {showCustomEmployeeTypeInput && (
-                              <Input
-                                placeholder="Type custom employee type"
-                                value={newEmployee.customEmployeeType}
-                                onChange={(e) => setNewEmployee({ ...newEmployee, customEmployeeType: e.target.value })}
-                                className="rounded-xl border-slate-200 h-11 bg-slate-50/50 mt-2"
-                              />
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Probation Period</Label>
-                            <Select
-                              onValueChange={(v) => {
-                                if (v === '__custom_probation__') {
-                                  setShowCustomProbationInput(true);
-                                  setNewEmployee({ ...newEmployee, probationPeriod: '', customProbationDays: '' });
-                                } else {
-                                  setShowCustomProbationInput(false);
-                                  setNewEmployee({ ...newEmployee, probationPeriod: v, customProbationDays: '' });
-                                }
-                              }}
-                              value={showCustomProbationInput ? '__custom_probation__' : newEmployee.probationPeriod}
-                            >
-                              <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
-                                <SelectValue placeholder="Select Probation Period" />
-                              </SelectTrigger>
-                              <SelectContent className="rounded-xl">
-                                {probationPeriodOptions.map((days) => (
-                                  <SelectItem key={days} value={days}>{days} Days</SelectItem>
-                                ))}
-                                <SelectItem value="__custom_probation__">Custom</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {showCustomProbationInput && (
-                              <Input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                placeholder="Enter custom days"
-                                value={newEmployee.customProbationDays}
-                                onChange={(e) => setNewEmployee({
-                                  ...newEmployee,
-                                  customProbationDays: e.target.value.replace(/\D/g, '')
-                                })}
-                                className="rounded-xl border-slate-200 h-11 bg-slate-50/50 mt-2"
-                              />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Contact Information */}
-                      <div className="space-y-4">
-                        <h3 className="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-blue-600" />
-                          Contact Information
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Official Email *</Label>
-                            <Input 
-                              placeholder="robert@company.com" 
-                              type="email"
-                              value={newEmployee.email}
-                              onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Personal Email</Label>
-                            <Input
-                              placeholder="robert.personal@gmail.com"
-                              type="email"
-                              value={newEmployee.personalEmail}
-                              onChange={(e) => setNewEmployee({...newEmployee, personalEmail: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Official Phone Number</Label>
-                            <Input
-                              placeholder="+1 (555) 111-1111"
-                              type="tel"
-                              value={newEmployee.officialPhone}
-                              onChange={(e) => setNewEmployee({...newEmployee, officialPhone: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Primary Phone</Label>
-                            <Input 
-                              placeholder="+1 (555) 000-0000" 
-                              type="tel"
-                              value={newEmployee.phone}
-                              onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Alternate Phone</Label>
-                            <Input 
-                              placeholder="+1 (555) 999-9999" 
-                              type="tel"
-                              value={newEmployee.alternatePhone}
-                              onChange={(e) => setNewEmployee({...newEmployee, alternatePhone: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Work Location</Label>
-                            <Input 
-                              placeholder="e.g. Remote / New York" 
-                              value={newEmployee.location}
-                              onChange={(e) => setNewEmployee({...newEmployee, location: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Bank Details */}
-                      <div className="space-y-4">
-                        <h3 className="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                          <Briefcase className="h-4 w-4 text-blue-600" />
-                          Bank Account Details
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Bank Name</Label>
-                            <Input 
-                              placeholder="e.g. Chase Bank" 
-                              value={newEmployee.bankName}
-                              onChange={(e) => setNewEmployee({...newEmployee, bankName: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Branch Name</Label>
-                            <Input 
-                              placeholder="e.g. Main Street Branch" 
-                              value={newEmployee.bankBranch}
-                              onChange={(e) => setNewEmployee({...newEmployee, bankBranch: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Account Number</Label>
-                            <Input 
-                              placeholder="XXXX XXXX XXXX" 
-                              value={newEmployee.accountNumber}
-                              onChange={(e) => setNewEmployee({...newEmployee, accountNumber: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">IFSC / Routing Code</Label>
-                            <Input 
-                              placeholder="e.g. HDFC0001234" 
-                              value={newEmployee.ifscCode}
-                              onChange={(e) => setNewEmployee({...newEmployee, ifscCode: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Government ID Numbers */}
-                      <div className="space-y-4">
-                        <h3 className="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-blue-600" />
-                          Government IDs
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">PAN Number</Label>
-                            <Input 
-                              placeholder="e.g. ABCDE1234F" 
-                              value={newEmployee.panNumber}
-                              onChange={(e) => setNewEmployee({...newEmployee, panNumber: e.target.value.toUpperCase()})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                              maxLength={10}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Aadhaar Number</Label>
-                            <Input 
-                              placeholder="XXXX XXXX XXXX" 
-                              value={newEmployee.aadhaarNumber}
-                              onChange={(e) => setNewEmployee({...newEmployee, aadhaarNumber: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                              maxLength={12}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Joining Date *</Label>
-                            <Input 
-                              type="date" 
-                              value={newEmployee.joining}
-                              onChange={(e) => setNewEmployee({...newEmployee, joining: e.target.value})}
-                              className="rounded-xl border-slate-200 h-11 bg-slate-50/50" 
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Document Uploads */}
-                      <div className="space-y-4">
-                        <h3 className="font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                          <Upload className="h-4 w-4 text-blue-600" />
-                          Documents Upload
-                        </h3>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Aadhaar Card</Label>
-                            <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer group">
-                              {newEmployee.aadhaarDoc ? (
-                                <div className="text-center px-2">
-                                  <CheckCircle className="h-6 w-6 text-emerald-600 mx-auto mb-1" />
-                                  <span className="text-xs font-bold text-emerald-700 line-clamp-2">{newEmployee.aadhaarDoc.name}</span>
-                                </div>
-                              ) : (
-                                <>
-                                  <Upload className="h-6 w-6 text-slate-400 group-hover:text-blue-600 mb-2" />
-                                  <span className="text-xs font-medium text-slate-500">Upload PDF</span>
-                                </>
-                              )}
-                              <input 
-                                type="file" 
-                                accept=".pdf,.jpg,.jpeg,.png" 
-                                className="hidden"
-                                onChange={(e) => {
-                                  if (e.target.files?.[0]) {
-                                    setNewEmployee({...newEmployee, aadhaarDoc: e.target.files[0]});
-                                  }
-                                }}
-                              />
-                            </label>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">PAN Card</Label>
-                            <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer group">
-                              {newEmployee.panDoc ? (
-                                <div className="text-center px-2">
-                                  <CheckCircle className="h-6 w-6 text-emerald-600 mx-auto mb-1" />
-                                  <span className="text-xs font-bold text-emerald-700 line-clamp-2">{newEmployee.panDoc.name}</span>
-                                </div>
-                              ) : (
-                                <>
-                                  <Upload className="h-6 w-6 text-slate-400 group-hover:text-blue-600 mb-2" />
-                                  <span className="text-xs font-medium text-slate-500">Upload PDF</span>
-                                </>
-                              )}
-                              <input 
-                                type="file" 
-                                accept=".pdf,.jpg,.jpeg,.png" 
-                                className="hidden"
-                                onChange={(e) => {
-                                  if (e.target.files?.[0]) {
-                                    setNewEmployee({...newEmployee, panDoc: e.target.files[0]});
-                                  }
-                                }}
-                              />
-                            </label>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Resume/CV</Label>
-                            <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer group">
-                              {newEmployee.resume ? (
-                                <div className="text-center px-2">
-                                  <CheckCircle className="h-6 w-6 text-emerald-600 mx-auto mb-1" />
-                                  <span className="text-xs font-bold text-emerald-700 line-clamp-2">{newEmployee.resume.name}</span>
-                                </div>
-                              ) : (
-                                <>
-                                  <Upload className="h-6 w-6 text-slate-400 group-hover:text-blue-600 mb-2" />
-                                  <span className="text-xs font-medium text-slate-500">Upload PDF</span>
-                                </>
-                              )}
-                              <input 
-                                type="file" 
-                                accept=".pdf,.doc,.docx" 
-                                className="hidden"
-                                onChange={(e) => {
-                                  if (e.target.files?.[0]) {
-                                    setNewEmployee({...newEmployee, resume: e.target.files[0]});
-                                  }
-                                }}
-                              />
-                            </label>
-                          </div>
-                        </div>
-                        <p className="text-xs text-slate-500 italic">Accepted formats: PDF, JPG, PNG (Max 10MB per file)</p>
-                      </div>
-                    </div>
+                    {renderEmployeeOnboardingFields({
+                      employee: newEmployee,
+                      setEmployee: setNewEmployee,
+                      showCustomDepartment: showCustomDepartmentInput,
+                      setShowCustomDepartment: setShowCustomDepartmentInput,
+                      showCustomEmployeeType: showCustomEmployeeTypeInput,
+                      setShowCustomEmployeeType: setShowCustomEmployeeTypeInput,
+                      showCustomProbation: showCustomProbationInput,
+                      setShowCustomProbation: setShowCustomProbationInput,
+                    })}
                   </div>
                   
                   <div className="px-8 pb-8 pt-4 border-t border-slate-100 flex gap-3 bg-slate-50">
@@ -1809,23 +2123,6 @@ export default function HRMEmployees() {
                               </div>
                               <div className="p-2 sm:p-3 bg-amber-200 rounded-xl flex-shrink-0">
                                 <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-
-                        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50">
-                          <CardContent className="p-4 sm:p-6">
-                            <div className="flex items-center justify-between">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1 truncate">Avg Progress</p>
-                                <h3 className="text-2xl sm:text-3xl font-black text-blue-700">
-                                  {Math.round(filteredEmployees.filter(emp => emp.status === 'exit').reduce((acc, emp) => acc + (emp.exitWorkflow?.progress || 0), 0) / filteredEmployees.filter(emp => emp.status === 'exit').length) || 0}%
-                                </h3>
-                                <p className="text-xs text-blue-500 mt-1">Overall</p>
-                              </div>
-                              <div className="p-2 sm:p-3 bg-blue-200 rounded-xl flex-shrink-0">
-                                <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                               </div>
                             </div>
                           </CardContent>
@@ -1980,10 +2277,6 @@ export default function HRMEmployees() {
                                   </div>
                                   
                                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                                    <div className="text-center sm:text-left">
-                                      <div className="text-xl sm:text-2xl font-black text-rose-600">{employee.exitWorkflow?.progress}%</div>
-                                      <div className="text-xs text-slate-500 font-medium">Complete</div>
-                                    </div>
                                     <Badge className={cn(
                                       "px-2 sm:px-3 py-1 sm:py-1.5 font-bold rounded-full text-xs whitespace-nowrap",
                                       employee.exitWorkflow?.priority === 'high' 
@@ -2002,7 +2295,6 @@ export default function HRMEmployees() {
                                 <div className="mt-4">
                                   <div className="flex justify-between text-xs font-medium text-slate-600 mb-2">
                                     <span>Exit Progress</span>
-                                    <span>{employee.exitWorkflow?.progress}% Complete</span>
                                   </div>
                                   <div className="w-full bg-slate-200 rounded-full h-2.5">
                                     <div 
@@ -2644,6 +2936,17 @@ export default function HRMEmployees() {
                 />
               </div>
             </div>
+
+            <div>
+              <Label htmlFor="employee_email" className="text-sm font-medium text-slate-700">Employee Email</Label>
+              <Input
+                id="employee_email"
+                className="rounded-lg mt-1 bg-slate-50"
+                value={selectedEmployee?.email || ''}
+                readOnly
+                disabled
+              />
+            </div>
             <div>
               <Label htmlFor="interviewer" className="text-sm font-medium text-slate-700">Interviewer *</Label>
               <Select onValueChange={(value) => setInterviewFormData({...interviewFormData, interviewer: value})}>
@@ -2660,7 +2963,17 @@ export default function HRMEmployees() {
             </div>
             <div>
               <Label htmlFor="meeting_type" className="text-sm font-medium text-slate-700">Meeting Type *</Label>
-              <Select onValueChange={(value) => setInterviewFormData({...interviewFormData, meetingType: value})}>
+              <Select
+                value={interviewFormData.meetingType}
+                onValueChange={(value) =>
+                  setInterviewFormData({
+                    ...interviewFormData,
+                    meetingType: value,
+                    meetingApp: value === 'video_call' ? interviewFormData.meetingApp : '',
+                    meetingLink: value === 'video_call' ? interviewFormData.meetingLink : '',
+                  })
+                }
+              >
                 <SelectTrigger className="rounded-lg mt-1">
                   <SelectValue placeholder="Select meeting type" />
                 </SelectTrigger>
@@ -2671,6 +2984,36 @@ export default function HRMEmployees() {
                 </SelectContent>
               </Select>
             </div>
+
+            {interviewFormData.meetingType === 'video_call' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-slate-700">Meeting Application *</Label>
+                  <Select
+                    value={interviewFormData.meetingApp}
+                    onValueChange={(value) => setInterviewFormData({ ...interviewFormData, meetingApp: value })}
+                  >
+                    <SelectTrigger className="rounded-lg mt-1">
+                      <SelectValue placeholder="Select app" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="zoom">Zoom</SelectItem>
+                      <SelectItem value="google_meet">Google Meet</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="meeting_link" className="text-sm font-medium text-slate-700">Meeting Link *</Label>
+                  <Input
+                    id="meeting_link"
+                    placeholder="https://..."
+                    className="rounded-lg mt-1"
+                    value={interviewFormData.meetingLink}
+                    onChange={(e) => setInterviewFormData({ ...interviewFormData, meetingLink: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
             <div>
               <Label htmlFor="notes" className="text-sm font-medium text-slate-700">Additional Notes</Label>
               <Input
@@ -2957,197 +3300,58 @@ export default function HRMEmployees() {
       </Dialog>
 
       {/* Edit Employee Dialog - Enhanced */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto rounded-[2rem] p-0 border-none shadow-2xl">
-          <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6 rounded-t-[2rem]">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold text-white flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <Edit className="h-6 w-6 text-white" />
-                </div>
-                Edit Employee Profile
-              </DialogTitle>
-              <DialogDescription className="text-blue-100 font-medium mt-1">
-                Update employee information and contact details
-              </DialogDescription>
-            </DialogHeader>
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) {
+            setEditingEmployee(null);
+            setShowCustomEditDepartmentInput(false);
+            setShowCustomEditEmployeeTypeInput(false);
+            setShowCustomEditProbationInput(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
+          <div className="h-24 bg-gradient-to-r from-blue-600 to-indigo-700 p-6">
+            <DialogTitle className="text-2xl font-bold text-white tracking-tight">✨ Edit Employee Profile</DialogTitle>
+            <DialogDescription className="text-blue-100 font-medium">Update employee profile with documents and banking details</DialogDescription>
           </div>
-          {editingEmployee && (
-            <div className="p-6 space-y-6">
-              {/* Personal Information Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <div className="h-1 w-1 rounded-full bg-blue-600"></div>
-                  Personal Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-name" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
-                      Full Name <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="edit-name"
-                      placeholder="Enter full name"
-                      value={editingEmployee.name}
-                      onChange={(e) => setEditingEmployee({...editingEmployee, name: e.target.value})}
-                      className="rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500 h-11"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-designation" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
-                      Designation <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="edit-designation"
-                      placeholder="Enter job title"
-                      value={editingEmployee.designation}
-                      onChange={(e) => setEditingEmployee({...editingEmployee, designation: e.target.value})}
-                      className="rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500 h-11"
-                    />
-                  </div>
-                </div>
-              </div>
-              {/* Work Information Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <div className="h-1 w-1 rounded-full bg-indigo-600"></div>
-                  Work Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-department" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
-                      Department <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      value={(showCustomEditDepartmentInput || (!!editingEmployee.department && !departmentOptions.includes(editingEmployee.department))) ? '__custom_department__' : editingEmployee.department}
-                      onValueChange={(value) => {
-                        if (value === '__custom_department__') {
-                          setShowCustomEditDepartmentInput(true);
-                          setEditingEmployee({ ...editingEmployee, department: '' });
-                        } else {
-                          setShowCustomEditDepartmentInput(false);
-                          setEditingEmployee({ ...editingEmployee, department: value });
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500 h-11">
-                        <SelectValue placeholder="Select department" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl">
-                        <SelectItem value="Engineering">🔧 Engineering</SelectItem>
-                        <SelectItem value="Product">📦 Product</SelectItem>
-                        <SelectItem value="Design">🎨 Design</SelectItem>
-                        <SelectItem value="Marketing">📢 Marketing</SelectItem>
-                        <SelectItem value="Sales">💼 Sales</SelectItem>
-                        <SelectItem value="Human Resources">👥 Human Resources</SelectItem>
-                        <SelectItem value="Finance">💰 Finance</SelectItem>
-                        <SelectItem value="Operations">⚙️ Operations</SelectItem>
-                        <SelectItem value="Customer Support">🎧 Customer Support</SelectItem>
-                        <SelectItem value="__custom_department__" className="text-blue-600 font-medium">
-                          <div className="flex items-center">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Custom Department
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {(showCustomEditDepartmentInput || (!!editingEmployee.department && !departmentOptions.includes(editingEmployee.department))) && (
-                      <Input
-                        placeholder="Type custom department"
-                        value={editingEmployee.department}
-                        onChange={(e) => setEditingEmployee({ ...editingEmployee, department: e.target.value })}
-                        className="rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500 h-11 mt-2"
-                      />
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-location" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
-                      Location <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="edit-location"
-                      placeholder="Enter location"
-                      value={editingEmployee.location}
-                      onChange={(e) => setEditingEmployee({...editingEmployee, location: e.target.value})}
-                      className="rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500 h-11"
-                    />
-                  </div>
-                </div>
-              </div>
-              {/* Contact Information Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <div className="h-1 w-1 rounded-full bg-purple-600"></div>
-                  Contact Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-email" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
-                      Email Address <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="edit-email"
-                      type="email"
-                      placeholder="employee@company.com"
-                      value={editingEmployee.email}
-                      onChange={(e) => setEditingEmployee({...editingEmployee, email: e.target.value})}
-                      className="rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500 h-11"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-phone" className="text-sm font-semibold text-slate-700 flex items-center gap-1">
-                      Phone Number <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="edit-phone"
-                      placeholder="+1 (555) 000-0000"
-                      value={editingEmployee.phone}
-                      onChange={(e) => setEditingEmployee({...editingEmployee, phone: e.target.value})}
-                      className="rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500 h-11"
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              {/* Employment Details Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <div className="h-1 w-1 rounded-full bg-emerald-600"></div>
-                  Employment Details
-                </h3>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-joining" className="text-sm font-semibold text-slate-700">Joining Date</Label>
-                  <Input
-                    id="edit-joining"
-                    type="date"
-                    value={editingEmployee.joining}
-                    onChange={(e) => setEditingEmployee({...editingEmployee, joining: e.target.value})}
-                    className="rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500 h-11"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-          <div className="sticky bottom-0 bg-slate-50/90 backdrop-blur-sm p-6 border-t border-slate-200">
-            <DialogFooter className="gap-3 sm:gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setIsEditDialogOpen(false);
-                  setEditingEmployee(null);
-                }}
-                className="flex-1 sm:flex-none rounded-xl h-11 font-semibold border-slate-300 hover:bg-slate-100 transition-all"
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleUpdateEmployee}
-                className="flex-1 sm:flex-none rounded-xl h-11 font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Update Employee
-              </Button>
-            </DialogFooter>
+
+          <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
+            {editingEmployee && renderEmployeeOnboardingFields({
+              employee: editingEmployee,
+              setEmployee: setEditingEmployee,
+              showCustomDepartment: showCustomEditDepartmentInput,
+              setShowCustomDepartment: setShowCustomEditDepartmentInput,
+              showCustomEmployeeType: showCustomEditEmployeeTypeInput,
+              setShowCustomEmployeeType: setShowCustomEditEmployeeTypeInput,
+              showCustomProbation: showCustomEditProbationInput,
+              setShowCustomProbation: setShowCustomEditProbationInput,
+            })}
+          </div>
+
+          <div className="px-8 pb-8 pt-4 border-t border-slate-100 flex gap-3 bg-slate-50">
+            <Button
+              variant="ghost"
+              className="flex-1 rounded-xl h-12 font-bold text-slate-500 hover:bg-slate-100"
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                setEditingEmployee(null);
+                setShowCustomEditDepartmentInput(false);
+                setShowCustomEditEmployeeTypeInput(false);
+                setShowCustomEditProbationInput(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl h-12 font-bold shadow-lg shadow-blue-200"
+              onClick={handleUpdateEmployee}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Update Employee Profile
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -3174,6 +3378,17 @@ function EmployeeCard({
   const { toast } = useToast();
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
   const [exitReason, setExitReason] = useState('');
+
+  const exitProgress =
+    typeof employee?.exitWorkflow?.progress === 'number'
+      ? employee.exitWorkflow.progress
+      : employee?.exitWorkflow?.steps?.length
+        ? Math.round(
+            (employee.exitWorkflow.steps.filter((s: any) => s.status === 'completed').length /
+              employee.exitWorkflow.steps.length) *
+              100
+          )
+        : 0;
   
   const handleInitiateExit = () => {
     // Validation
@@ -3331,7 +3546,7 @@ function EmployeeCard({
               Overview
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl rounded-[2rem] overflow-hidden p-0 border-none shadow-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] rounded-[2rem] overflow-hidden overflow-y-auto p-0 border-none shadow-2xl">
             <div className="h-32 bg-gradient-to-r from-blue-600 to-indigo-700 relative">
               <div className="absolute -bottom-12 left-8 p-1.5 bg-white rounded-[2rem] shadow-xl">
                 <Avatar className="h-28 w-28 border-2 border-white">
@@ -3355,13 +3570,67 @@ function EmployeeCard({
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-10">
-                <ProfileInfoItem icon={<Building2 />} label="Department" value={employee.department} />
-                <ProfileInfoItem icon={<MapPin />} label="Work Location" value={employee.location} />
-                <ProfileInfoItem icon={<Mail />} label="Official Email" value={employee.email} color="bg-blue-50 text-blue-600" />
-                <ProfileInfoItem icon={<Phone />} label="Phone Number" value={employee.phone} color="bg-emerald-50 text-emerald-600" />
-                <ProfileInfoItem icon={<Calendar />} label="Joining Date" value={new Date(employee.joining).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} />
-                <ProfileInfoItem icon={<Briefcase />} label="Employment Type" value="Full Time" />
+              <div className="space-y-8 mb-10">
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">Basic Information</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <ProfileInfoItem icon={<FileText />} label="Employee ID" value={employee.id} />
+                    <ProfileInfoItem icon={<Building2 />} label="Department" value={employee.department || '—'} />
+                    <ProfileInfoItem icon={<MapPin />} label="Work Location" value={employee.location || '—'} />
+                    <ProfileInfoItem icon={<Briefcase />} label="Employee Type" value={employee.employeeType || '—'} />
+                    <ProfileInfoItem icon={<Clock />} label="Probation" value={employee.probationPeriodLabel || '—'} />
+                    <ProfileInfoItem icon={<Calendar />} label="Joining Date" value={employee.joining ? new Date(employee.joining).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'} />
+                    <ProfileInfoItem icon={<CheckCircle2 />} label="Gender" value={employee.gender || '—'} />
+                    <ProfileInfoItem icon={<CheckCircle2 />} label="Blood Group" value={employee.bloodGroup || '—'} />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">Contact Information</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <ProfileInfoItem icon={<Mail />} label="Official Email" value={employee.email || '—'} color="bg-blue-50 text-blue-600" />
+                    <ProfileInfoItem icon={<Mail />} label="Personal Email" value={employee.personalEmail || '—'} color="bg-indigo-50 text-indigo-600" />
+                    <ProfileInfoItem icon={<Phone />} label="Official Phone" value={employee.officialPhone || '—'} color="bg-slate-100 text-slate-600" />
+                    <ProfileInfoItem icon={<Phone />} label="Primary Phone" value={employee.phone || '—'} color="bg-emerald-50 text-emerald-600" />
+                    <ProfileInfoItem icon={<Phone />} label="Alternate Phone" value={employee.alternatePhone || '—'} color="bg-slate-100 text-slate-600" />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">Bank Account Details</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <ProfileInfoItem icon={<Building2 />} label="Bank Name" value={employee.bankName || '—'} />
+                    <ProfileInfoItem icon={<Building2 />} label="Branch Name" value={employee.bankBranch || '—'} />
+                    <ProfileInfoItem icon={<FileText />} label="Account Number" value={employee.accountNumber || '—'} />
+                    <ProfileInfoItem icon={<FileText />} label="IFSC / Routing" value={employee.ifscCode || '—'} />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">Government IDs</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <ProfileInfoItem icon={<FileText />} label="PAN Number" value={employee.panNumber || '—'} />
+                    <ProfileInfoItem icon={<FileText />} label="Aadhaar Number" value={employee.aadhaarNumber || '—'} />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">Documents Upload</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/30 p-4">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">Aadhaar Card</p>
+                      <p className="text-sm font-bold text-slate-800 break-words">{employee.documents?.aadhaar || 'Not uploaded'}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/30 p-4">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">PAN Card</p>
+                      <p className="text-sm font-bold text-slate-800 break-words">{employee.documents?.pan || 'Not uploaded'}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/30 p-4">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">Resume/CV</p>
+                      <p className="text-sm font-bold text-slate-800 break-words">{employee.documents?.resume || 'Not uploaded'}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {employee.status === 'exit' && employee.exitWorkflow && (
@@ -3370,6 +3639,20 @@ function EmployeeCard({
                     <History className="h-4 w-4" />
                     Exit Workflow Progress
                   </h4>
+
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-600 mb-2">
+                      <span>Exit Progress</span>
+                      <span>{exitProgress}% Complete</span>
+                    </div>
+                    <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-rose-500 to-purple-500 rounded-full"
+                        style={{ width: `${Math.max(0, Math.min(100, exitProgress))}%` }}
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-3">
                     {employee.exitWorkflow.steps.map((step: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between bg-white/60 p-3 rounded-xl border border-rose-100/50">
@@ -3387,17 +3670,21 @@ function EmployeeCard({
               )}
 
               <div className="flex gap-4">
-                <Button 
+                <Button
+                  variant="outline"
                   onClick={() => {
-                    handleEditEmployee(employee);
-                    setIsDetailsModalOpen(false);
+                    generateEmployeeProfilePDF(employee);
+                    toast({
+                      title: "Profile PDF Downloaded",
+                      description: `Employee profile PDF has been downloaded for ${employee.name}.`,
+                    });
                   }}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-2xl py-7 h-auto font-bold shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
+                  className="flex-1 rounded-2xl py-7 h-auto text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 font-bold transition-all active:scale-[0.98]"
                 >
-                  <Edit className="h-5 w-5 mr-3" />
-                  Edit Profile
+                  <Download className="h-5 w-5 mr-3" />
+                  Download PDF
                 </Button>
-                
+
                 <Dialog open={isExitDialogOpen} onOpenChange={setIsExitDialogOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="flex-1 rounded-2xl py-7 h-auto text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 font-bold transition-all active:scale-[0.98]">

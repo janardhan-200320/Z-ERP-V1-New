@@ -86,6 +86,34 @@ export default function HRMAttendance() {
     checkOutNote?: string;
   };
 
+  type LeaveRequestRow = {
+    id: string;
+    employee: string;
+    type: string;
+    from: string;
+    to: string;
+    days: number;
+    status: 'pending' | 'approved' | 'rejected';
+    reason: string;
+    avatar: string;
+  };
+
+  type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+
+  type ShiftDefinition = {
+    id: number;
+    name: string;
+    startTime: string;
+    endTime: string;
+    color: string;
+    isCustom?: boolean;
+  };
+
+  type RosterRow = {
+    employee: string;
+    email: string;
+  } & Record<DayKey, number>;
+
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('today');
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,6 +121,8 @@ export default function HRMAttendance() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isTimesheetModalOpen, setIsTimesheetModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [isLeaveDetailsModalOpen, setIsLeaveDetailsModalOpen] = useState(false);
+  const [selectedLeaveRequest, setSelectedLeaveRequest] = useState<LeaveRequestRow | null>(null);
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [trackerFeed, setTrackerFeed] = useState<AttendanceFeedRecord[]>([]);
   const { toast } = useToast();
@@ -106,7 +136,7 @@ export default function HRMAttendance() {
     { id: 'EMP006', name: 'Lisa Anderson', department: 'Marketing', checkIn: '09:05 AM', checkOut: '05:30 PM', status: 'present', hours: '8.2h', avatar: 'LA', workMode: 'Remote', workLocation: 'Anywhere', workStyle: 'Flexible', workDate: new Date().toLocaleDateString('en-CA') }
   ];
 
-  const [leaveRequests, setLeaveRequests] = useState([
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequestRow[]>([
     { id: 'LR001', employee: 'Emily Davis', type: 'Sick Leave', from: '2025-06-15', to: '2025-06-16', days: 2, status: 'pending', reason: 'Medical checkup', avatar: 'ED' },
     { id: 'LR002', employee: 'Alex Wilson', type: 'Casual Leave', from: '2025-06-20', to: '2025-06-22', days: 3, status: 'approved', reason: 'Family function', avatar: 'AW' },
     { id: 'LR003', employee: 'Mike Brown', type: 'WFH', from: '2025-06-18', to: '2025-06-18', days: 1, status: 'approved', reason: 'Internet installation', avatar: 'MB' }
@@ -277,20 +307,145 @@ export default function HRMAttendance() {
     }
   ]);
 
-  const shifts = [
-    { id: 1, name: 'Morning Shift', time: '09:00 AM - 06:00 PM', color: 'bg-blue-100 text-blue-700' },
-    { id: 2, name: 'Evening Shift', time: '02:00 PM - 11:00 PM', color: 'bg-indigo-100 text-indigo-700' },
-    { id: 3, name: 'Night Shift', time: '10:00 PM - 07:00 AM', color: 'bg-slate-700 text-white' },
+  const DAY_KEYS: DayKey[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const DAY_LABELS: Record<DayKey, string> = {
+    mon: 'Mon',
+    tue: 'Tue',
+    wed: 'Wed',
+    thu: 'Thu',
+    fri: 'Fri',
+    sat: 'Sat',
+    sun: 'Sun',
+  };
+
+  const SHIFT_COLOR_OPTIONS = [
+    { label: 'Blue', value: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400' },
+    { label: 'Amber', value: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400' },
+    { label: 'Indigo', value: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-400' },
+    { label: 'Slate', value: 'bg-slate-700 text-white', dot: 'bg-slate-600' },
+    { label: 'Emerald', value: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+    { label: 'Rose', value: 'bg-rose-100 text-rose-700', dot: 'bg-rose-400' },
   ];
 
-  const [roster, setRoster] = useState([
-    { employee: 'John Smith', mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 0, sun: 0 },
-    { employee: 'Sarah Johnson', mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 0, sun: 0 },
-    { employee: 'Mike Brown', mon: 2, tue: 2, wed: 2, thu: 2, fri: 2, sat: 1, sun: 0 },
+  const [shifts, setShifts] = useState<ShiftDefinition[]>([
+    { id: 1, name: 'Morning Shift', startTime: '09:00', endTime: '13:00', color: 'bg-blue-100 text-blue-700' },
+    { id: 2, name: 'Noon Shift', startTime: '13:00', endTime: '17:00', color: 'bg-amber-100 text-amber-700' },
+    { id: 3, name: 'Evening Shift', startTime: '17:00', endTime: '22:00', color: 'bg-indigo-100 text-indigo-700' },
+    { id: 4, name: 'Night Shift', startTime: '22:00', endTime: '06:00', color: 'bg-slate-700 text-white' },
+  ]);
+
+  const [newShiftName, setNewShiftName] = useState('');
+  const [newShiftStartTime, setNewShiftStartTime] = useState('09:00');
+  const [newShiftEndTime, setNewShiftEndTime] = useState('17:00');
+  const [newShiftColor, setNewShiftColor] = useState('bg-emerald-100 text-emerald-700');
+  const [memberShiftViewDay, setMemberShiftViewDay] = useState<DayKey>('mon');
+
+  const [roster, setRoster] = useState<RosterRow[]>([
+    { employee: 'John Smith', email: 'john.smith@company.com', mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 0, sun: 0 },
+    { employee: 'Sarah Johnson', email: 'sarah.johnson@company.com', mon: 2, tue: 2, wed: 2, thu: 2, fri: 2, sat: 0, sun: 0 },
+    { employee: 'Mike Brown', email: 'mike.brown@company.com', mon: 3, tue: 3, wed: 3, thu: 3, fri: 3, sat: 1, sun: 0 },
   ]);
 
   const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
-  const [selectedRosterIndex, setSelectedRosterIndex] = useState<number | null>(null);
+
+  const formatTimeTo12Hour = (timeValue: string) => {
+    const [hourRaw = '0', minuteRaw = '00'] = timeValue.split(':');
+    const hourNum = Number(hourRaw);
+    const safeHour = Number.isNaN(hourNum) ? 0 : hourNum;
+    const period = safeHour >= 12 ? 'PM' : 'AM';
+    const hour12 = safeHour % 12 || 12;
+    return `${String(hour12).padStart(2, '0')}:${minuteRaw} ${period}`;
+  };
+
+  const formatShiftTime = (startTime: string, endTime: string) => {
+    return `${formatTimeTo12Hour(startTime)} - ${formatTimeTo12Hour(endTime)}`;
+  };
+
+  const getShiftById = (shiftId: number) => {
+    return shifts.find((shift) => shift.id === shiftId);
+  };
+
+  const getShiftShortCode = (shiftName: string) => {
+    return shiftName
+      .split(' ')
+      .filter(Boolean)
+      .map((word) => word[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  };
+
+  const updateShiftDefinition = (shiftId: number, updates: Partial<ShiftDefinition>) => {
+    setShifts((prev) => prev.map((shift) => (
+      shift.id === shiftId ? { ...shift, ...updates } : shift
+    )));
+  };
+
+  const addCustomShift = () => {
+    if (!newShiftName.trim()) {
+      toast({
+        title: 'Shift Name Required',
+        description: 'Please enter a custom shift name before adding.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newShiftStartTime === newShiftEndTime) {
+      toast({
+        title: 'Invalid Shift Time',
+        description: 'Start time and end time cannot be the same.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const nextShiftId = shifts.length ? Math.max(...shifts.map((shift) => shift.id)) + 1 : 1;
+    setShifts((prev) => [
+      ...prev,
+      {
+        id: nextShiftId,
+        name: newShiftName.trim(),
+        startTime: newShiftStartTime,
+        endTime: newShiftEndTime,
+        color: newShiftColor,
+        isCustom: true,
+      },
+    ]);
+
+    setNewShiftName('');
+    setNewShiftStartTime('09:00');
+    setNewShiftEndTime('17:00');
+    setNewShiftColor('bg-emerald-100 text-emerald-700');
+
+    toast({
+      title: 'Custom Shift Added',
+      description: 'New custom shift has been added and is ready for assignment.',
+    });
+  };
+
+  const removeCustomShift = (shiftId: number) => {
+    const shiftToRemove = getShiftById(shiftId);
+    if (!shiftToRemove || !shiftToRemove.isCustom) {
+      return;
+    }
+
+    setShifts((prev) => prev.filter((shift) => shift.id !== shiftId));
+    setRoster((prev) => prev.map((member) => {
+      const updated: RosterRow = { ...member };
+      DAY_KEYS.forEach((day) => {
+        if (updated[day] === shiftId) {
+          updated[day] = 0;
+        }
+      });
+      return updated;
+    }));
+
+    toast({
+      title: 'Custom Shift Removed',
+      description: `${shiftToRemove.name} was removed and related assignments moved to Day Off.`,
+    });
+  };
 
   const handleMonthChange = (month: string) => {
     // Mocking data update
@@ -358,7 +513,7 @@ export default function HRMAttendance() {
     }
   };
 
-  const handleAssignShift = async (empName: string, day: string, shiftId: number) => {
+  const handleAssignShift = async (empName: string, day: DayKey, shiftId: number) => {
     const loadingKey = `shift-${empName}-${day}`;
     setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
     
@@ -366,14 +521,14 @@ export default function HRMAttendance() {
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      setRoster(roster.map(r => 
-        r.employee === empName ? { ...r, [day.toLowerCase()]: shiftId } : r
-      ));
+      setRoster((prev) => prev.map((member) => (
+        member.employee === empName ? { ...member, [day]: shiftId } : member
+      )));
       
-      const shiftName = shiftId === 0 ? 'Day Off' : shifts.find(s => s.id === shiftId)?.name || 'Unknown';
+      const shiftName = shiftId === 0 ? 'Day Off' : getShiftById(shiftId)?.name || 'Unknown';
       toast({ 
         title: "Shift Assignment Updated!", 
-        description: `${empName}'s ${day.toUpperCase()} shift changed to ${shiftName}.` 
+        description: `${empName}'s ${DAY_LABELS[day]} shift changed to ${shiftName}.` 
       });
     } catch (error) {
       toast({
@@ -386,7 +541,7 @@ export default function HRMAttendance() {
     }
   };
 
-  const handleBulkAssignShift = async (assignments: { employee: string; shifts: Record<string, number> }[]) => {
+  const handleBulkAssignShift = async (assignments: { employee: string; shifts: Partial<Record<DayKey, number>> }[]) => {
     setLoadingStates(prev => ({ ...prev, 'bulk-assign': true }));
     
     try {
@@ -418,7 +573,74 @@ export default function HRMAttendance() {
     }
   };
 
-  const [bulkShiftAssignments, setBulkShiftAssignments] = useState<Record<string, Record<string, number>>>({});
+  const [bulkShiftAssignments, setBulkShiftAssignments] = useState<Record<string, Partial<Record<DayKey, number>>>>({});
+
+  const membersByShiftForSelectedDay = useMemo(() => {
+    const grouped = shifts.map((shift) => ({
+      key: `shift-${shift.id}`,
+      name: shift.name,
+      time: formatShiftTime(shift.startTime, shift.endTime),
+      color: shift.color,
+      members: roster.filter((member) => member[memberShiftViewDay] === shift.id),
+    }));
+
+    grouped.push({
+      key: 'day-off',
+      name: 'Day Off',
+      time: 'No shift assigned',
+      color: 'bg-slate-100 text-slate-700',
+      members: roster.filter((member) => member[memberShiftViewDay] === 0),
+    });
+
+    return grouped;
+  }, [memberShiftViewDay, roster, shifts]);
+
+  const handleSendShiftNotification = (employee: string) => {
+    const member = roster.find((record) => record.employee === employee);
+    if (!member) {
+      return;
+    }
+
+    const subject = encodeURIComponent(`Weekly Shift Schedule - ${member.employee}`);
+    const body = encodeURIComponent(
+      `Hello ${member.employee},\n\nYour weekly shift schedule has been updated.\n\n${DAY_KEYS.map((day) => {
+        const shiftId = member[day];
+        const shift = getShiftById(shiftId);
+        const shiftLabel = shift
+          ? `${shift.name} (${formatShiftTime(shift.startTime, shift.endTime)})`
+          : 'Day Off';
+        return `${DAY_LABELS[day]}: ${shiftLabel}`;
+      }).join('\n')}\n\nRegards,\nHR Team`
+    );
+
+    window.open(`mailto:${member.email}?subject=${subject}&body=${body}`, '_blank');
+    toast({
+      title: 'Mail Draft Opened',
+      description: `Email draft opened for ${member.employee}.`,
+    });
+  };
+
+  const handleNotifyAllScheduledMembers = () => {
+    const recipients = roster.filter((member) => DAY_KEYS.some((day) => member[day] !== 0));
+    if (recipients.length === 0) {
+      toast({
+        title: 'No Scheduled Members',
+        description: 'Assign at least one shift before sending notifications.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const recipientEmails = recipients.map((member) => member.email).join(',');
+    const subject = encodeURIComponent('Weekly Shift Schedule Notification');
+    const body = encodeURIComponent('Hello Team,\n\nYour weekly shift schedule has been updated. Please review your assigned shifts in the HRM portal.\n\nRegards,\nHR Team');
+
+    window.open(`mailto:?bcc=${recipientEmails}&subject=${subject}&body=${body}`, '_blank');
+    toast({
+      title: 'Bulk Mail Draft Opened',
+      description: `Email draft prepared for ${recipients.length} member(s).`,
+    });
+  };
 
   const handleApproveLeave = async (requestId: string) => {
     const loadingKey = `approve-${requestId}`;
@@ -566,6 +788,19 @@ export default function HRMAttendance() {
     );
   }, [searchQuery, combinedAttendance]);
 
+  const pendingLeaveRequests = useMemo(() => {
+    return leaveRequests.filter((request) => request.status === 'pending');
+  }, [leaveRequests]);
+
+  const selectedEmployeePendingLeaves = useMemo(() => {
+    if (!selectedLeaveRequest) {
+      return [];
+    }
+    return leaveRequests.filter((request) => (
+      request.status === 'pending' && request.employee === selectedLeaveRequest.employee
+    ));
+  }, [leaveRequests, selectedLeaveRequest]);
+
   const todayStats = useMemo(() => {
     const present = combinedAttendance.filter((row) => row.status === 'present').length;
     const late = combinedAttendance.filter((row) => row.status === 'late').length;
@@ -642,6 +877,79 @@ export default function HRMAttendance() {
       setIsExporting(false);
       toast({ title: "Export Ready", description: "Your report has been downloaded." });
     }, 1200);
+  };
+
+  const handleOpenLeaveDetails = (request: LeaveRequestRow) => {
+    setSelectedLeaveRequest(request);
+    setIsLeaveDetailsModalOpen(true);
+  };
+
+  const handleExportLeaveRequestPdf = (request: LeaveRequestRow) => {
+    try {
+      const doc = new jsPDF();
+      const fromDate = new Date(request.from).toLocaleDateString();
+      const toDate = new Date(request.to).toLocaleDateString();
+
+      doc.setFontSize(16);
+      doc.text('Leave Request Details', 14, 16);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
+
+      autoTable(doc, {
+        startY: 28,
+        head: [['Field', 'Value']],
+        body: [
+          ['Request ID', request.id],
+          ['Employee', request.employee],
+          ['Leave Type', request.type],
+          ['From Date', fromDate],
+          ['To Date', toDate],
+          ['Total Days', String(request.days)],
+          ['Status', leaveStatusConfig[request.status].label],
+          ['Reason', request.reason || 'Not provided'],
+        ],
+        styles: { fontSize: 9, cellPadding: 2.5 },
+        headStyles: { fillColor: [37, 99, 235] },
+        theme: 'striped',
+      });
+
+      const allPendingRows = pendingLeaveRequests.map((leave) => [
+        leave.id,
+        leave.employee,
+        leave.type,
+        `${new Date(leave.from).toLocaleDateString()} - ${new Date(leave.to).toLocaleDateString()}`,
+        String(leave.days),
+      ]);
+
+      if (allPendingRows.length > 0) {
+        const nextY = ((doc as any).lastAutoTable?.finalY || 40) + 8;
+        doc.setFontSize(12);
+        doc.setTextColor(30);
+        doc.text('Pending Leave Requests Snapshot', 14, nextY);
+
+        autoTable(doc, {
+          startY: nextY + 3,
+          head: [['ID', 'Employee', 'Type', 'Duration', 'Days']],
+          body: allPendingRows,
+          styles: { fontSize: 8.5, cellPadding: 2 },
+          headStyles: { fillColor: [245, 158, 11] },
+          theme: 'grid',
+        });
+      }
+
+      doc.save(`Leave_Request_${request.id}.pdf`);
+      toast({
+        title: 'PDF Downloaded',
+        description: `Leave request PDF for ${request.employee} has been downloaded.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'PDF Export Failed',
+        description: 'Unable to generate leave request PDF. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -1118,21 +1426,7 @@ export default function HRMAttendance() {
                           variant="outline" 
                           size="sm" 
                           className="h-8 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 font-bold text-xs transition-all hover:scale-105 active:scale-95"
-                          onClick={() => {
-                            const documentTypes = ['Medical Certificate', 'Leave Application Form', 'Supporting Documents'];
-                            const randomDoc = documentTypes[Math.floor(Math.random() * documentTypes.length)];
-                            toast({
-                              title: "Opening Documents",
-                              description: `${randomDoc} for ${request.employee}'s leave request is being loaded...`,
-                            });
-                            // Simulate document loading
-                            setTimeout(() => {
-                              toast({
-                                title: "Documents Ready",
-                                description: `All documents for ${request.employee} are now available for review.`,
-                              });
-                            }, 1500);
-                          }}
+                          onClick={() => handleOpenLeaveDetails(request)}
                         >
                           <FileText className="h-3 w-3 mr-1" />
                           View
@@ -1233,95 +1527,166 @@ export default function HRMAttendance() {
 
           <TabsContent value="shift" className="mt-6">
             <Card className="rounded-[1.5rem] border-slate-200/60 shadow-sm overflow-hidden">
-               <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-4">
+              <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="space-y-2">
                   <h3 className="font-bold text-slate-900">Weekly Shift Roster</h3>
-                  <div className="flex gap-2">
-                    {shifts.map(s => (
-                      <Badge key={s.id} className={cn("rounded-md text-[9px] px-2 py-0.5 border-none", s.color)}>{s.name}</Badge>
+                  <div className="flex flex-wrap gap-2">
+                    {shifts.map((shift) => (
+                      <Badge key={shift.id} className={cn('rounded-md text-[10px] px-2 py-0.5 border-none', shift.color)}>
+                        {shift.name}: {formatShiftTime(shift.startTime, shift.endTime)}
+                      </Badge>
                     ))}
+                    <Badge className="rounded-md text-[10px] px-2 py-0.5 border-none bg-slate-100 text-slate-700">Day Off</Badge>
                   </div>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="rounded-xl border-slate-200 font-bold hover:bg-slate-50 transition-all active:scale-95"
-                  onClick={() => setIsShiftDialogOpen(true)}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />
-                  Assign Shift
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl border-slate-200 font-bold hover:bg-slate-50 transition-all active:scale-95"
+                    onClick={handleNotifyAllScheduledMembers}
+                  >
+                    <Mail className="h-3.5 w-3.5 mr-1.5" />
+                    Notify Members
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl border-slate-200 font-bold hover:bg-slate-50 transition-all active:scale-95"
+                    onClick={() => setIsShiftDialogOpen(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1.5" />
+                    Bulk & Setup
+                  </Button>
+                </div>
               </div>
+
+              <div className="p-5 border-b border-slate-100 bg-white">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <h4 className="font-bold text-slate-800">Members By Shift</h4>
+                  <Select value={memberShiftViewDay} onValueChange={(value) => setMemberShiftViewDay(value as DayKey)}>
+                    <SelectTrigger className="w-[140px] rounded-xl h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {DAY_KEYS.map((day) => (
+                        <SelectItem key={day} value={day}>{DAY_LABELS[day]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {membersByShiftForSelectedDay.map((group) => (
+                    <div key={group.key} className="rounded-xl border border-slate-200 p-3">
+                      <div className="flex items-center justify-between">
+                        <Badge className={cn('rounded-md border-none text-[10px] font-bold', group.color)}>{group.name}</Badge>
+                        <span className="text-xs font-bold text-slate-500">{group.members.length} member(s)</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">{group.time}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {group.members.length === 0 ? (
+                          <span className="text-[11px] text-slate-400">No members</span>
+                        ) : (
+                          group.members.map((member) => (
+                            <Badge key={`${group.key}-${member.employee}`} variant="outline" className="text-[10px]">
+                              {member.employee}
+                            </Badge>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/30">
                     <TableHead className="font-bold text-slate-700">Employee</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-center">Mon</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-center">Tue</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-center">Wed</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-center">Thu</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-center">Fri</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-center">Sat</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-center">Sun</TableHead>
+                    <TableHead className="font-bold text-slate-700">Email</TableHead>
+                    {DAY_KEYS.map((day) => (
+                      <TableHead key={day} className="font-bold text-slate-700 text-center">{DAY_LABELS[day]}</TableHead>
+                    ))}
+                    <TableHead className="font-bold text-slate-700 text-center">Notify</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {roster.map((row, i) => (
                     <TableRow key={i} className="hover:bg-slate-50/50 transition-colors">
                       <TableCell className="font-bold text-slate-700">{row.employee}</TableCell>
-                      {[row.mon, row.tue, row.wed, row.thu, row.fri, row.sat, row.sun].map((sId, dayIdx) => (
-                        <TableCell key={dayIdx} className="text-center p-2">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <div className="cursor-pointer relative">
-                                {loadingStates[`shift-${row.employee}-${['mon','tue','wed','thu','fri','sat','sun'][dayIdx]}`] ? (
-                                  <div className="flex items-center justify-center">
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600" />
-                                  </div>
-                                ) : sId === 0 ? (
-                                  <span className="text-[10px] text-slate-300 font-bold hover:text-slate-500 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100">OFF</span>
-                                ) : (
-                                  <Badge className={cn("rounded-lg text-[10px] font-black hover:scale-110 transition-all cursor-pointer px-2 py-1", shifts.find(s => s.id === sId)?.color)}>
-                                    {shifts.find(s => s.id === sId)?.name.split(' ')[0][0]}
-                                  </Badge>
-                                )}
-                              </div>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="rounded-xl p-2 shadow-xl border-slate-200">
-                              <DropdownMenuLabel className="font-bold text-xs text-slate-500 uppercase tracking-wider px-3">
-                                Assign Shift - {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][dayIdx]}
-                              </DropdownMenuLabel>
-                              <DropdownMenuSeparator className="my-2 bg-slate-100" />
-                              <DropdownMenuItem 
-                                className="rounded-lg font-medium py-2.5 cursor-pointer hover:bg-slate-50"
-                                onClick={() => handleAssignShift(row.employee, ['mon','tue','wed','thu','fri','sat','sun'][dayIdx], 0)}
-                                disabled={loadingStates[`shift-${row.employee}-${['mon','tue','wed','thu','fri','sat','sun'][dayIdx]}`]}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <div className="w-3 h-3 rounded-full bg-slate-300" />
-                                  <span className="text-xs font-bold text-slate-500">Day Off</span>
+                      <TableCell className="text-xs text-slate-600">{row.email}</TableCell>
+                      {DAY_KEYS.map((dayKey) => {
+                        const shiftId = row[dayKey];
+                        const loadingKey = `shift-${row.employee}-${dayKey}`;
+                        const assignedShift = getShiftById(shiftId);
+
+                        return (
+                          <TableCell key={dayKey} className="text-center p-2">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <div className="cursor-pointer relative">
+                                  {loadingStates[loadingKey] ? (
+                                    <div className="flex items-center justify-center">
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600" />
+                                    </div>
+                                  ) : shiftId === 0 ? (
+                                    <span className="text-[10px] text-slate-400 font-bold hover:text-slate-600 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100">OFF</span>
+                                  ) : (
+                                    <Badge className={cn('rounded-lg text-[10px] font-black hover:scale-110 transition-all cursor-pointer px-2 py-1', assignedShift?.color || 'bg-slate-100 text-slate-700')}>
+                                      {assignedShift ? getShiftShortCode(assignedShift.name) : 'NA'}
+                                    </Badge>
+                                  )}
                                 </div>
-                              </DropdownMenuItem>
-                              {shifts.map(s => (
-                                <DropdownMenuItem 
-                                  key={s.id} 
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="rounded-xl p-2 shadow-xl border-slate-200">
+                                <DropdownMenuLabel className="font-bold text-xs text-slate-500 uppercase tracking-wider px-3">
+                                  Assign Shift - {DAY_LABELS[dayKey]}
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator className="my-2 bg-slate-100" />
+                                <DropdownMenuItem
                                   className="rounded-lg font-medium py-2.5 cursor-pointer hover:bg-slate-50"
-                                  onClick={() => handleAssignShift(row.employee, ['mon','tue','wed','thu','fri','sat','sun'][dayIdx], s.id)}
-                                  disabled={loadingStates[`shift-${row.employee}-${['mon','tue','wed','thu','fri','sat','sun'][dayIdx]}`]}
+                                  onClick={() => handleAssignShift(row.employee, dayKey, 0)}
+                                  disabled={loadingStates[loadingKey]}
                                 >
                                   <div className="flex items-center gap-2">
-                                    <div className={cn("w-3 h-3 rounded-full", s.color.split(' ')[0].replace('bg-', 'bg-'))} />
-                                    <div className="flex flex-col">
-                                      <span className="text-xs font-bold">{s.name}</span>
-                                      <span className="text-[10px] text-slate-400">{s.time}</span>
-                                    </div>
+                                    <div className="w-3 h-3 rounded-full bg-slate-300" />
+                                    <span className="text-xs font-bold text-slate-500">Day Off</span>
                                   </div>
                                 </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      ))}
+                                {shifts.map((shift) => (
+                                  <DropdownMenuItem
+                                    key={shift.id}
+                                    className="rounded-lg font-medium py-2.5 cursor-pointer hover:bg-slate-50"
+                                    onClick={() => handleAssignShift(row.employee, dayKey, shift.id)}
+                                    disabled={loadingStates[loadingKey]}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <Badge className={cn('rounded-md text-[10px] border-none', shift.color)}>
+                                        {getShiftShortCode(shift.name)}
+                                      </Badge>
+                                      <div className="flex flex-col">
+                                        <span className="text-xs font-bold">{shift.name}</span>
+                                        <span className="text-[10px] text-slate-400">{formatShiftTime(shift.startTime, shift.endTime)}</span>
+                                      </div>
+                                    </div>
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50"
+                          onClick={() => handleSendShiftNotification(row.employee)}
+                        >
+                          <Mail className="h-3.5 w-3.5 mr-1.5" />
+                          Mail
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1551,6 +1916,160 @@ export default function HRMAttendance() {
         </DialogContent>
       </Dialog>
 
+      {/* Leave Request Details Modal */}
+      <Dialog open={isLeaveDetailsModalOpen} onOpenChange={setIsLeaveDetailsModalOpen}>
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-600" />
+              Leave Request Details
+            </DialogTitle>
+            <DialogDescription className="text-slate-600">
+              Complete leave request information with pending request context.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedLeaveRequest && (
+            <div className="space-y-6 py-4">
+              <div className="p-5 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+                <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12 border border-white shadow-sm">
+                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedLeaveRequest.employee}`} />
+                      <AvatarFallback className="bg-blue-600 text-white font-bold">{selectedLeaveRequest.avatar}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-lg font-bold text-slate-900">{selectedLeaveRequest.employee}</p>
+                      <p className="text-sm text-slate-600">Request ID: {selectedLeaveRequest.id}</p>
+                    </div>
+                  </div>
+                  <Badge className={cn('rounded-full px-3 py-1 border font-bold text-[11px] uppercase', leaveStatusConfig[selectedLeaveRequest.status].class)}>
+                    {leaveStatusConfig[selectedLeaveRequest.status].label}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <Card className="border-slate-200">
+                  <CardContent className="p-4">
+                    <p className="text-xs font-bold uppercase text-slate-500">Leave Type</p>
+                    <p className="mt-1 font-bold text-slate-900">{selectedLeaveRequest.type}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200">
+                  <CardContent className="p-4">
+                    <p className="text-xs font-bold uppercase text-slate-500">From Date</p>
+                    <p className="mt-1 font-bold text-slate-900">{new Date(selectedLeaveRequest.from).toLocaleDateString()}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200">
+                  <CardContent className="p-4">
+                    <p className="text-xs font-bold uppercase text-slate-500">To Date</p>
+                    <p className="mt-1 font-bold text-slate-900">{new Date(selectedLeaveRequest.to).toLocaleDateString()}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200">
+                  <CardContent className="p-4">
+                    <p className="text-xs font-bold uppercase text-slate-500">Total Days</p>
+                    <p className="mt-1 font-bold text-slate-900">{selectedLeaveRequest.days} day(s)</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="border-slate-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Reason</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    {selectedLeaveRequest.reason || 'No reason provided.'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-amber-200 bg-amber-50/40">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base text-amber-800">Pending Leaves (All)</CardTitle>
+                  <CardDescription>
+                    {pendingLeaveRequests.length} pending leave request(s) currently awaiting approval.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {pendingLeaveRequests.length === 0 ? (
+                    <p className="text-sm text-slate-600">No pending leave requests.</p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-lg border border-amber-200 bg-white">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>ID</TableHead>
+                            <TableHead>Employee</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Duration</TableHead>
+                            <TableHead>Days</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pendingLeaveRequests.map((leave) => (
+                            <TableRow key={leave.id}>
+                              <TableCell className="font-medium">{leave.id}</TableCell>
+                              <TableCell>{leave.employee}</TableCell>
+                              <TableCell>{leave.type}</TableCell>
+                              <TableCell>
+                                {new Date(leave.from).toLocaleDateString()} - {new Date(leave.to).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell>{leave.days}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Pending Leaves for {selectedLeaveRequest.employee}</CardTitle>
+                  <CardDescription>
+                    {selectedEmployeePendingLeaves.length} pending request(s) for this employee.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {selectedEmployeePendingLeaves.length === 0 ? (
+                    <p className="text-sm text-slate-600">No pending requests found for this employee.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {selectedEmployeePendingLeaves.map((leave) => (
+                        <div key={leave.id} className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+                          <p className="font-semibold text-slate-800">{leave.type} ({leave.id})</p>
+                          <p className="text-sm text-slate-600">
+                            {new Date(leave.from).toLocaleDateString()} - {new Date(leave.to).toLocaleDateString()} • {leave.days} day(s)
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsLeaveDetailsModalOpen(false)} className="rounded-lg">
+              Close
+            </Button>
+            <Button
+              className="rounded-lg bg-blue-600 hover:bg-blue-700"
+              onClick={() => selectedLeaveRequest && handleExportLeaveRequestPdf(selectedLeaveRequest)}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Shift Assignment Dialog */}
       <Dialog open={isShiftDialogOpen} onOpenChange={setIsShiftDialogOpen}>
         <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
@@ -1565,28 +2084,119 @@ export default function HRMAttendance() {
           </DialogHeader>
           
           <div className="space-y-6 py-4">
-            {/* Shift Legend */}
-            <div className="p-4 bg-slate-50 rounded-xl">
+            {/* Shift Setup */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
               <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <Badge className="bg-slate-200 text-slate-700 text-xs">INFO</Badge>
-                Available Shifts
+                <Badge className="bg-slate-200 text-slate-700 text-xs">SETUP</Badge>
+                Shift Timings And Custom Shifts
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {shifts.map(shift => (
-                  <div key={shift.id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200">
-                    <div className={cn("w-4 h-4 rounded-full", shift.color.split(' ')[0])} />
-                    <div>
-                      <p className="font-bold text-sm text-slate-800">{shift.name}</p>
-                      <p className="text-xs text-slate-500">{shift.time}</p>
+
+              <div className="space-y-3">
+                {shifts.map((shift) => (
+                  <div key={shift.id} className="grid grid-cols-1 lg:grid-cols-12 gap-2 p-3 bg-white rounded-lg border border-slate-200 items-center">
+                    <div className="lg:col-span-3">
+                      <Label className="text-[10px] uppercase text-slate-500">Shift Name</Label>
+                      <Input
+                        value={shift.name}
+                        onChange={(event) => updateShiftDefinition(shift.id, { name: event.target.value })}
+                        className="h-9 rounded-lg mt-1"
+                      />
+                    </div>
+                    <div className="lg:col-span-2">
+                      <Label className="text-[10px] uppercase text-slate-500">Start</Label>
+                      <Input
+                        type="time"
+                        value={shift.startTime}
+                        onChange={(event) => updateShiftDefinition(shift.id, { startTime: event.target.value })}
+                        className="h-9 rounded-lg mt-1"
+                      />
+                    </div>
+                    <div className="lg:col-span-2">
+                      <Label className="text-[10px] uppercase text-slate-500">End</Label>
+                      <Input
+                        type="time"
+                        value={shift.endTime}
+                        onChange={(event) => updateShiftDefinition(shift.id, { endTime: event.target.value })}
+                        className="h-9 rounded-lg mt-1"
+                      />
+                    </div>
+                    <div className="lg:col-span-3">
+                      <Label className="text-[10px] uppercase text-slate-500">Color</Label>
+                      <Select value={shift.color} onValueChange={(value) => updateShiftDefinition(shift.id, { color: value })}>
+                        <SelectTrigger className="h-9 rounded-lg mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {SHIFT_COLOR_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              <div className="flex items-center gap-2">
+                                <span className={cn('w-2.5 h-2.5 rounded-full', option.dot)} />
+                                {option.label}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="lg:col-span-2 flex lg:justify-end gap-2 mt-1 lg:mt-5">
+                      <Badge className={cn('rounded-md border-none text-[10px]', shift.color)}>
+                        {formatShiftTime(shift.startTime, shift.endTime)}
+                      </Badge>
+                      {shift.isCustom && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-rose-600 border-rose-200 hover:bg-rose-50"
+                          onClick={() => removeCustomShift(shift.id)}
+                        >
+                          Remove
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
-                <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200">
-                  <div className="w-4 h-4 rounded-full bg-slate-300" />
-                  <div>
-                    <p className="font-bold text-sm text-slate-800">Day Off</p>
-                    <p className="text-xs text-slate-500">No shift assigned</p>
-                  </div>
+              </div>
+
+              <div className="mt-4 p-3 border border-dashed border-slate-300 rounded-lg bg-white">
+                <p className="text-xs font-bold text-slate-700 mb-2">Add Custom Shift</p>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                  <Input
+                    placeholder="Shift name"
+                    value={newShiftName}
+                    onChange={(event) => setNewShiftName(event.target.value)}
+                    className="h-9 rounded-lg"
+                  />
+                  <Input
+                    type="time"
+                    value={newShiftStartTime}
+                    onChange={(event) => setNewShiftStartTime(event.target.value)}
+                    className="h-9 rounded-lg"
+                  />
+                  <Input
+                    type="time"
+                    value={newShiftEndTime}
+                    onChange={(event) => setNewShiftEndTime(event.target.value)}
+                    className="h-9 rounded-lg"
+                  />
+                  <Select value={newShiftColor} onValueChange={setNewShiftColor}>
+                    <SelectTrigger className="h-9 rounded-lg">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {SHIFT_COLOR_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <div className="flex items-center gap-2">
+                            <span className={cn('w-2.5 h-2.5 rounded-full', option.dot)} />
+                            {option.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button className="h-9 rounded-lg" onClick={addCustomShift}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Shift
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1596,22 +2206,19 @@ export default function HRMAttendance() {
               <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
                 <h4 className="font-bold text-slate-800 flex items-center gap-2">
                   <UserCheck className="h-4 w-4 text-indigo-600" />
-                  Employee Shift Assignment
+                  Employee Shift Assignment (Bulk)
                 </h4>
               </div>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-200">
-                      <th className="text-left font-bold text-slate-700 p-3 min-w-[150px]">Employee</th>
-                      <th className="text-center font-bold text-slate-700 p-3 min-w-[100px]">Mon</th>
-                      <th className="text-center font-bold text-slate-700 p-3 min-w-[100px]">Tue</th>
-                      <th className="text-center font-bold text-slate-700 p-3 min-w-[100px]">Wed</th>
-                      <th className="text-center font-bold text-slate-700 p-3 min-w-[100px]">Thu</th>
-                      <th className="text-center font-bold text-slate-700 p-3 min-w-[100px]">Fri</th>
-                      <th className="text-center font-bold text-slate-700 p-3 min-w-[100px]">Sat</th>
-                      <th className="text-center font-bold text-slate-700 p-3 min-w-[100px]">Sun</th>
+                      <th className="text-left font-bold text-slate-700 p-3 min-w-[180px]">Employee</th>
+                      <th className="text-left font-bold text-slate-700 p-3 min-w-[220px]">Email</th>
+                      {DAY_KEYS.map((day) => (
+                        <th key={day} className="text-center font-bold text-slate-700 p-3 min-w-[100px]">{DAY_LABELS[day]}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -1622,24 +2229,25 @@ export default function HRMAttendance() {
                             <Avatar className="h-8 w-8">
                               <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${row.employee}`} />
                               <AvatarFallback className="text-xs font-bold">
-                                {row.employee.split(' ').map(n => n[0]).join('')}
+                                {row.employee.split(' ').map((n) => n[0]).join('')}
                               </AvatarFallback>
                             </Avatar>
                             <span className="font-bold text-slate-800">{row.employee}</span>
                           </div>
                         </td>
-                        {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day) => (
+                        <td className="p-3 text-xs text-slate-600">{row.email}</td>
+                        {DAY_KEYS.map((day) => (
                           <td key={day} className="p-3 text-center">
                             <Select
-                              value={bulkShiftAssignments[row.employee]?.[day]?.toString() || row[day as keyof typeof row].toString()}
+                              value={bulkShiftAssignments[row.employee]?.[day]?.toString() || row[day].toString()}
                               onValueChange={(value) => {
-                                const shiftId = parseInt(value);
-                                setBulkShiftAssignments(prev => ({
+                                const shiftId = Number.parseInt(value, 10);
+                                setBulkShiftAssignments((prev) => ({
                                   ...prev,
                                   [row.employee]: {
                                     ...prev[row.employee],
-                                    [day]: shiftId
-                                  }
+                                    [day]: shiftId,
+                                  },
                                 }));
                               }}
                             >
@@ -1647,17 +2255,14 @@ export default function HRMAttendance() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="rounded-xl">
-                                <SelectItem value="0" className="text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-slate-300" />
-                                    Day Off
-                                  </div>
-                                </SelectItem>
-                                {shifts.map(shift => (
+                                <SelectItem value="0" className="text-xs">Day Off</SelectItem>
+                                {shifts.map((shift) => (
                                   <SelectItem key={shift.id} value={shift.id.toString()} className="text-xs">
                                     <div className="flex items-center gap-2">
-                                      <div className={cn("w-2 h-2 rounded-full", shift.color.split(' ')[0])} />
-                                      {shift.name.split(' ')[0][0]}
+                                      <Badge className={cn('rounded-md border-none text-[10px]', shift.color)}>
+                                        {getShiftShortCode(shift.name)}
+                                      </Badge>
+                                      <span>{shift.name}</span>
                                     </div>
                                   </SelectItem>
                                 ))}
@@ -1673,16 +2278,15 @@ export default function HRMAttendance() {
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <Button
                 variant="outline"
                 className="rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50"
                 onClick={() => {
-                  // Set all to morning shift
-                  const assignments: Record<string, Record<string, number>> = {};
-                  roster.forEach(emp => {
+                  const assignments: Record<string, Partial<Record<DayKey, number>>> = {};
+                  roster.forEach((emp) => {
                     assignments[emp.employee] = {
-                      mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 0, sun: 0
+                      mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 0, sun: 0,
                     };
                   });
                   setBulkShiftAssignments(assignments);
@@ -1696,11 +2300,10 @@ export default function HRMAttendance() {
                 variant="outline"
                 className="rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50"
                 onClick={() => {
-                  // Set all to day off
-                  const assignments: Record<string, Record<string, number>> = {};
-                  roster.forEach(emp => {
+                  const assignments: Record<string, Partial<Record<DayKey, number>>> = {};
+                  roster.forEach((emp) => {
                     assignments[emp.employee] = {
-                      mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0
+                      mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0,
                     };
                   });
                   setBulkShiftAssignments(assignments);
@@ -1720,6 +2323,15 @@ export default function HRMAttendance() {
               >
                 <History className="h-4 w-4 mr-2 text-amber-500" />
                 Reset Changes
+              </Button>
+
+              <Button
+                variant="outline"
+                className="rounded-xl font-bold border-slate-200 text-blue-600 hover:bg-blue-50"
+                onClick={handleNotifyAllScheduledMembers}
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Mail Scheduled Members
               </Button>
             </div>
           </div>

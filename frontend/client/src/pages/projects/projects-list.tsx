@@ -650,7 +650,7 @@ export default function ProjectsList() {
           <ScrollArea className="flex-1 min-h-0 px-6 py-4">
             <div className="grid gap-6">
               {/* Basic Information Section */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                 <div className="space-y-1.5">
                   <Label htmlFor="name" className="text-xs font-bold text-slate-600 uppercase tracking-tight">Project Name <span className="text-red-500">*</span></Label>
                   <Input
@@ -658,9 +658,11 @@ export default function ProjectsList() {
                     value={projectForm.name}
                     onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
                     placeholder="e.g. Website Redesign"
-                    className={`h-10 ${formErrors.name ? 'border-red-500 bg-red-50/30' : 'border-slate-200 focus:ring-2 focus:ring-blue-100'}`}
+                    className={`h-10 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100 focus-visible:ring-offset-0 ${formErrors.name ? 'border-red-500 bg-red-50/30' : 'border-slate-200 focus-visible:border-blue-300'}`}
                   />
-                  {formErrors.name && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.name}</p>}
+                  <div className="min-h-[12px]">
+                    {formErrors.name && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.name}</p>}
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="customer" className="text-xs font-bold text-slate-600 uppercase tracking-tight">Customer <span className="text-red-500">*</span></Label>
@@ -670,14 +672,16 @@ export default function ProjectsList() {
                     value={projectForm.customer}
                     onChange={(e) => setProjectForm({ ...projectForm, customer: e.target.value })}
                     placeholder="e.g. Acme Corp"
-                    className={`h-10 ${formErrors.customer ? 'border-red-500 bg-red-50/30' : 'border-slate-200 focus:ring-2 focus:ring-blue-100'}`}
+                    className={`h-10 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100 focus-visible:ring-offset-0 ${formErrors.customer ? 'border-red-500 bg-red-50/30' : 'border-slate-200 focus-visible:border-blue-300'}`}
                   />
                   <datalist id="project-customer-suggestions">
                     {customerSuggestions.map((customerName) => (
                       <option key={customerName} value={customerName} />
                     ))}
                   </datalist>
-                  {formErrors.customer && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.customer}</p>}
+                  <div className="min-h-[12px]">
+                    {formErrors.customer && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.customer}</p>}
+                  </div>
                 </div>
               </div>
 

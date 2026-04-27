@@ -39,7 +39,8 @@ import {
   Users,
   TrendingUp,
   PieChart,
-  BarChart3
+  BarChart3,
+  Pencil
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
@@ -52,6 +53,29 @@ export default function Insurance() {
   const [activeTab, setActiveTab] = useState('policies');
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [policyStatusFilter, setPolicyStatusFilter] = useState('all');
+  const [policyProviderFilter, setPolicyProviderFilter] = useState('all');
+  const [policyStartFromFilter, setPolicyStartFromFilter] = useState('');
+  const [policyEndToFilter, setPolicyEndToFilter] = useState('');
+  const [isPolicyFilterDialogOpen, setIsPolicyFilterDialogOpen] = useState(false);
+  const [newPolicyType, setNewPolicyType] = useState('');
+  const [customPolicyType, setCustomPolicyType] = useState('');
+  const [policyDocuments, setPolicyDocuments] = useState<File[]>([]);
+  const [isPolicyDetailsOpen, setIsPolicyDetailsOpen] = useState(false);
+  const [selectedPolicy, setSelectedPolicy] = useState<any>(null);
+  const [isEditPolicyDialogOpen, setIsEditPolicyDialogOpen] = useState(false);
+  const [editingPolicyId, setEditingPolicyId] = useState('');
+  const [editExistingPolicyDocuments, setEditExistingPolicyDocuments] = useState<string[]>([]);
+  const [editPolicyDocuments, setEditPolicyDocuments] = useState<File[]>([]);
+  const [editPolicyForm, setEditPolicyForm] = useState({
+    policyType: '',
+    provider: '',
+    coverage: '',
+    premium: '',
+    startDate: '',
+    endDate: '',
+    status: 'active',
+  });
   const { toast } = useToast();
   
   // Mock data - Insurance policies
@@ -68,7 +92,8 @@ export default function Insurance() {
       status: 'active',
       startDate: '2025-01-01',
       endDate: '2025-12-31',
-      avatar: 'JS'
+      avatar: 'JS',
+      documents: ['policy-hi-2025-001.pdf', 'kyc-john-smith.pdf']
     },
     {
       id: 'POL002',
@@ -82,7 +107,8 @@ export default function Insurance() {
       status: 'active',
       startDate: '2025-01-01',
       endDate: '2025-12-31',
-      avatar: 'SJ'
+      avatar: 'SJ',
+      documents: ['policy-li-2025-002.pdf']
     },
     {
       id: 'POL003',
@@ -96,7 +122,8 @@ export default function Insurance() {
       status: 'pending',
       startDate: '2025-06-15',
       endDate: '2026-06-14',
-      avatar: 'MB'
+      avatar: 'MB',
+      documents: ['medical-cover-letter.pdf', 'pre-approval-note.txt']
     }
   ]);
 
@@ -145,9 +172,24 @@ export default function Insurance() {
       const matchesSearch = p.employee.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           p.policyNumber.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = typeFilter === 'all' || p.policyType === typeFilter;
-      return matchesSearch && matchesType;
+      const matchesStatus = policyStatusFilter === 'all' || p.status === policyStatusFilter;
+      const matchesProvider = policyProviderFilter === 'all' || p.provider === policyProviderFilter;
+      const matchesStartFrom = !policyStartFromFilter || new Date(p.startDate) >= new Date(policyStartFromFilter);
+      const matchesEndTo = !policyEndToFilter || new Date(p.endDate) <= new Date(policyEndToFilter);
+      return matchesSearch && matchesType && matchesStatus && matchesProvider && matchesStartFrom && matchesEndTo;
     });
-  }, [policies, searchQuery, typeFilter]);
+  }, [policies, searchQuery, typeFilter, policyStatusFilter, policyProviderFilter, policyStartFromFilter, policyEndToFilter]);
+
+  const uniqueProviders = useMemo(() => {
+    return Array.from(new Set(policies.map((policy) => policy.provider))).sort();
+  }, [policies]);
+
+  const resetPolicyFilters = () => {
+    setPolicyStatusFilter('all');
+    setPolicyProviderFilter('all');
+    setPolicyStartFromFilter('');
+    setPolicyEndToFilter('');
+  };
 
   const filteredClaims = useMemo(() => {
     return claims.filter(c => {
@@ -200,6 +242,138 @@ export default function Insurance() {
     expired: { label: 'Expired', class: 'bg-red-100 text-red-700 border-red-200', icon: AlertCircle },
     approved: { label: 'Approved', class: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle },
     rejected: { label: 'Rejected', class: 'bg-red-100 text-red-700 border-red-200', icon: AlertCircle }
+  };
+
+  const handlePolicyDocumentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setPolicyDocuments(files);
+  };
+
+  const handleViewPolicyDetails = (policy: any) => {
+    setSelectedPolicy(policy);
+    setIsPolicyDetailsOpen(true);
+  };
+
+  const handleDownloadPolicyPdf = (policy: any) => {
+    const doc = new jsPDF();
+
+    doc.setFontSize(16);
+    doc.text('Insurance Policy Details', 14, 16);
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
+
+    autoTable(doc, {
+      startY: 28,
+      head: [['Field', 'Value']],
+      body: [
+        ['Employee', `${policy.employee} (${policy.empId})`],
+        ['Policy ID', policy.id],
+        ['Policy Type', policy.policyType],
+        ['Provider', policy.provider],
+        ['Policy Number', policy.policyNumber],
+        ['Coverage', policy.coverage],
+        ['Premium', policy.premium],
+        ['Start Date', policy.startDate],
+        ['End Date', policy.endDate],
+        ['Status', statusConfig[policy.status]?.label || policy.status],
+      ],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [79, 70, 229] },
+      theme: 'striped',
+    });
+
+    const documents = Array.isArray(policy.documents) && policy.documents.length > 0
+      ? policy.documents
+      : ['No documents attached'];
+
+    autoTable(doc, {
+      startY: ((doc as any).lastAutoTable?.finalY || 60) + 8,
+      head: [['Documents']],
+      body: documents.map((fileName: string) => [fileName]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [30, 41, 59] },
+      theme: 'grid',
+    });
+
+    doc.save(`Insurance_${policy.id}_${policy.employee.replace(/\s+/g, '_')}.pdf`);
+  };
+
+  const handleOpenEditPolicy = (policy: any) => {
+    setEditingPolicyId(policy.id);
+    setEditExistingPolicyDocuments(Array.isArray(policy.documents) ? policy.documents : []);
+    setEditPolicyDocuments([]);
+    setEditPolicyForm({
+      policyType: policy.policyType,
+      provider: policy.provider,
+      coverage: policy.coverage,
+      premium: policy.premium,
+      startDate: policy.startDate,
+      endDate: policy.endDate,
+      status: policy.status,
+    });
+    setIsEditPolicyDialogOpen(true);
+  };
+
+  const handleEditPolicyDocumentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setEditPolicyDocuments(files);
+  };
+
+  const handleRemoveExistingPolicyDocument = (docName: string) => {
+    setEditExistingPolicyDocuments((prev) => prev.filter((doc) => doc !== docName));
+  };
+
+  const handleSavePolicyEdit = () => {
+    if (!editingPolicyId) {
+      return;
+    }
+
+    if (!editPolicyForm.policyType.trim() || !editPolicyForm.provider.trim() || !editPolicyForm.coverage.trim() || !editPolicyForm.premium.trim() || !editPolicyForm.startDate || !editPolicyForm.endDate) {
+      toast({
+        title: 'Missing fields',
+        description: 'Please fill all required policy fields.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (new Date(editPolicyForm.startDate) > new Date(editPolicyForm.endDate)) {
+      toast({
+        title: 'Invalid dates',
+        description: 'End date cannot be before start date.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setPolicies((prev) => prev.map((policy) => (
+      policy.id === editingPolicyId
+        ? {
+            ...policy,
+            policyType: editPolicyForm.policyType.trim(),
+            provider: editPolicyForm.provider.trim(),
+            coverage: editPolicyForm.coverage.trim(),
+            premium: editPolicyForm.premium.trim(),
+            startDate: editPolicyForm.startDate,
+            endDate: editPolicyForm.endDate,
+            status: editPolicyForm.status,
+            documents: [
+              ...editExistingPolicyDocuments,
+              ...editPolicyDocuments.map((file) => file.name),
+            ],
+          }
+        : policy
+    )));
+
+    toast({
+      title: 'Policy Updated',
+      description: `Policy ${editingPolicyId} has been updated successfully.`,
+    });
+
+    setIsEditPolicyDialogOpen(false);
+    setEditingPolicyId('');
+    setEditPolicyDocuments([]);
+    setEditExistingPolicyDocuments([]);
   };
 
   return (
@@ -277,7 +451,7 @@ export default function Insurance() {
                   Add Policy
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Add Insurance Policy</DialogTitle>
                   <DialogDescription>Create a new insurance policy for an employee</DialogDescription>
@@ -298,7 +472,15 @@ export default function Insurance() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="policy-type">Policy Type</Label>
-                    <Select>
+                    <Select
+                      value={newPolicyType}
+                      onValueChange={(value) => {
+                        setNewPolicyType(value);
+                        if (value !== 'custom') {
+                          setCustomPolicyType('');
+                        }
+                      }}
+                    >
                       <SelectTrigger id="policy-type">
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
@@ -306,9 +488,21 @@ export default function Insurance() {
                         <SelectItem value="health">Health Insurance</SelectItem>
                         <SelectItem value="life">Life Insurance</SelectItem>
                         <SelectItem value="accident">Accident Insurance</SelectItem>
+                        <SelectItem value="custom">Custom (Type your own)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                  {newPolicyType === 'custom' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="custom-policy-type">Custom Policy Type</Label>
+                      <Input
+                        id="custom-policy-type"
+                        placeholder="Enter your policy type"
+                        value={customPolicyType}
+                        onChange={(e) => setCustomPolicyType(e.target.value)}
+                      />
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="provider">Provider</Label>
                     <Input id="provider" placeholder="Insurance provider name" />
@@ -332,6 +526,30 @@ export default function Insurance() {
                       <Label htmlFor="end-date">End Date</Label>
                       <Input id="end-date" type="date" />
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="policy-documents">Policy Documents</Label>
+                    <Input
+                      id="policy-documents"
+                      type="file"
+                      multiple
+                      accept="*/*"
+                      onChange={handlePolicyDocumentChange}
+                    />
+                    <p className="text-xs text-slate-500">Upload any related policy document(s).</p>
+                    {policyDocuments.length > 0 && (
+                      <div className="rounded-lg border border-slate-200 p-2 bg-slate-50">
+                        <p className="text-xs font-semibold text-slate-700 mb-1">Selected files:</p>
+                        <ul className="space-y-1">
+                          {policyDocuments.map((file) => (
+                            <li key={`${file.name}-${file.lastModified}`} className="text-xs text-slate-600 flex items-center gap-1">
+                              <Upload className="h-3 w-3" />
+                              <span>{file.name}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
@@ -426,7 +644,7 @@ export default function Insurance() {
                       className="pl-10 w-48"
                     />
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => setIsPolicyFilterDialogOpen(true)}>
                     <Filter className="h-4 w-4 mr-2" />
                     Filter
                   </Button>
@@ -478,10 +696,16 @@ export default function Insurance() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="sm" className="text-blue-600">
-                              <FileText className="h-3 w-3 mr-1" />
-                              View
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="sm" className="text-blue-600" onClick={() => handleViewPolicyDetails(policy)}>
+                                <FileText className="h-3 w-3 mr-1" />
+                                View
+                              </Button>
+                              <Button variant="ghost" size="sm" className="text-amber-600" onClick={() => handleOpenEditPolicy(policy)}>
+                                <Pencil className="h-3 w-3 mr-1" />
+                                Edit
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -909,6 +1133,233 @@ export default function Insurance() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <Dialog open={isPolicyDetailsOpen} onOpenChange={setIsPolicyDetailsOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Employee Insurance Details</DialogTitle>
+              <DialogDescription>Complete insurance details with attached documents.</DialogDescription>
+            </DialogHeader>
+
+            {selectedPolicy && (
+              <div className="space-y-4 py-2">
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-bold text-slate-900">{selectedPolicy.employee}</p>
+                      <p className="text-sm text-slate-600">{selectedPolicy.empId}</p>
+                    </div>
+                    <Badge variant="outline" className={statusConfig[selectedPolicy.status].class}>
+                      {statusConfig[selectedPolicy.status].label}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Policy Type</p><p className="font-semibold text-slate-900">{selectedPolicy.policyType}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Provider</p><p className="font-semibold text-slate-900">{selectedPolicy.provider}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Policy Number</p><p className="font-semibold text-slate-900">{selectedPolicy.policyNumber}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Policy ID</p><p className="font-semibold text-slate-900">{selectedPolicy.id}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Coverage</p><p className="font-semibold text-slate-900">{selectedPolicy.coverage}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Premium</p><p className="font-semibold text-slate-900">{selectedPolicy.premium}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Start Date</p><p className="font-semibold text-slate-900">{selectedPolicy.startDate}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">End Date</p><p className="font-semibold text-slate-900">{selectedPolicy.endDate}</p></CardContent></Card>
+                </div>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Policy Documents</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {Array.isArray(selectedPolicy.documents) && selectedPolicy.documents.length > 0 ? (
+                      <ul className="space-y-2">
+                        {selectedPolicy.documents.map((docName: string) => (
+                          <li key={docName} className="flex items-center gap-2 text-sm text-slate-700">
+                            <FileText className="h-4 w-4 text-indigo-600" />
+                            <span>{docName}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-slate-500">No documents attached.</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsPolicyDetailsOpen(false)}>Close</Button>
+                  <Button onClick={() => handleDownloadPolicyPdf(selectedPolicy)}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download PDF
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isPolicyFilterDialogOpen} onOpenChange={setIsPolicyFilterDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Filter Policies</DialogTitle>
+              <DialogDescription>Apply filters for status, provider and date range.</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="filter-status">Status</Label>
+                <Select value={policyStatusFilter} onValueChange={setPolicyStatusFilter}>
+                  <SelectTrigger id="filter-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="filter-provider">Provider</Label>
+                <Select value={policyProviderFilter} onValueChange={setPolicyProviderFilter}>
+                  <SelectTrigger id="filter-provider">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Providers</SelectItem>
+                    {uniqueProviders.map((provider) => (
+                      <SelectItem key={provider} value={provider}>{provider}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="filter-start-from">Start Date From</Label>
+                  <Input id="filter-start-from" type="date" value={policyStartFromFilter} onChange={(e) => setPolicyStartFromFilter(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-end-to">End Date To</Label>
+                  <Input id="filter-end-to" type="date" value={policyEndToFilter} onChange={(e) => setPolicyEndToFilter(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={resetPolicyFilters}>Clear</Button>
+                <Button onClick={() => setIsPolicyFilterDialogOpen(false)}>Apply</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isEditPolicyDialogOpen} onOpenChange={setIsEditPolicyDialogOpen}>
+          <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Insurance Policy</DialogTitle>
+              <DialogDescription>Update policy details and save changes.</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-policy-type">Policy Type</Label>
+                <Input id="edit-policy-type" value={editPolicyForm.policyType} onChange={(e) => setEditPolicyForm((prev) => ({ ...prev, policyType: e.target.value }))} />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-provider">Provider</Label>
+                <Input id="edit-provider" value={editPolicyForm.provider} onChange={(e) => setEditPolicyForm((prev) => ({ ...prev, provider: e.target.value }))} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-coverage">Coverage</Label>
+                  <Input id="edit-coverage" value={editPolicyForm.coverage} onChange={(e) => setEditPolicyForm((prev) => ({ ...prev, coverage: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-premium">Premium</Label>
+                  <Input id="edit-premium" value={editPolicyForm.premium} onChange={(e) => setEditPolicyForm((prev) => ({ ...prev, premium: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-start-date">Start Date</Label>
+                  <Input id="edit-start-date" type="date" value={editPolicyForm.startDate} onChange={(e) => setEditPolicyForm((prev) => ({ ...prev, startDate: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-end-date">End Date</Label>
+                  <Input id="edit-end-date" type="date" value={editPolicyForm.endDate} onChange={(e) => setEditPolicyForm((prev) => ({ ...prev, endDate: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">Status</Label>
+                <Select value={editPolicyForm.status} onValueChange={(value) => setEditPolicyForm((prev) => ({ ...prev, status: value }))}>
+                  <SelectTrigger id="edit-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-policy-documents">Policy Documents</Label>
+                <Input id="edit-policy-documents" type="file" multiple accept="*/*" onChange={handleEditPolicyDocumentChange} />
+
+                {editExistingPolicyDocuments.length > 0 && (
+                  <div className="rounded-lg border border-slate-200 p-2 bg-slate-50">
+                    <p className="text-xs font-semibold text-slate-700 mb-1">Existing documents:</p>
+                    <ul className="space-y-1">
+                      {editExistingPolicyDocuments.map((docName) => (
+                        <li key={docName} className="text-xs text-slate-600 flex items-center justify-between gap-2">
+                          <span className="flex items-center gap-1">
+                            <FileText className="h-3 w-3" />
+                            {docName}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-red-600"
+                            onClick={() => handleRemoveExistingPolicyDocument(docName)}
+                          >
+                            Remove
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {editPolicyDocuments.length > 0 && (
+                  <div className="rounded-lg border border-slate-200 p-2 bg-blue-50/40">
+                    <p className="text-xs font-semibold text-slate-700 mb-1">New uploads:</p>
+                    <ul className="space-y-1">
+                      {editPolicyDocuments.map((file) => (
+                        <li key={`${file.name}-${file.lastModified}`} className="text-xs text-slate-600 flex items-center gap-1">
+                          <Upload className="h-3 w-3" />
+                          <span>{file.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setIsEditPolicyDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleSavePolicyEdit}>Save Changes</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
       </div>
     </DashboardLayout>

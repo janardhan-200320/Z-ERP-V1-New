@@ -58,6 +58,49 @@ import { exportToExcel } from '@/lib/exportUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+type AssetRecord = {
+  id: string;
+  assetName: string;
+  category: string;
+  subcategory: string;
+  brand: string;
+  model: string;
+  serialNumber: string;
+  purchaseDate: string;
+  purchaseValue: string;
+  currentValue: string;
+  depreciation: string;
+  assignedTo: string;
+  empId: string;
+  department: string;
+  assignedDate: string;
+  location: string;
+  condition: string;
+  status: 'assigned' | 'available' | 'maintenance';
+  warrantyExpiry: string;
+  lastMaintenance: string;
+  nextMaintenance: string;
+  insuranceValue: string;
+  avatar: string;
+};
+
+const formatDate = (date: Date): string => date.toISOString().split('T')[0];
+
+const addDays = (baseDate: Date, days: number): string => {
+  const nextDate = new Date(baseDate);
+  nextDate.setDate(nextDate.getDate() + days);
+  return formatDate(nextDate);
+};
+
+const toValidDate = (rawDate: string): Date | null => {
+  if (!rawDate || rawDate === '-' || rawDate === 'Pending Repair') {
+    return null;
+  }
+
+  const parsed = new Date(rawDate);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 export default function HRMAssets() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -75,7 +118,7 @@ export default function HRMAssets() {
   const [customAssignmentLocation, setCustomAssignmentLocation] = useState('');
 
   // Mock data - Company Assets
-  const [assets, setAssets] = useState([
+  const [assets, setAssets] = useState<AssetRecord[]>([
     {
       id: 'AST001',
       assetName: 'MacBook Pro 16"',
@@ -510,6 +553,61 @@ export default function HRMAssets() {
     toast({ title: `Assets exported as ${format.toUpperCase()}` });
   };
 
+  const isMaintenanceDue = (asset: AssetRecord): boolean => {
+    const nextMaintenanceDate = toValidDate(asset.nextMaintenance);
+    if (!nextMaintenanceDate) {
+      return false;
+    }
+    return nextMaintenanceDate.getTime() <= Date.now();
+  };
+
+  const startMaintenance = (asset: AssetRecord) => {
+    const now = new Date();
+    const today = formatDate(now);
+
+    setAssets((currentAssets) =>
+      currentAssets.map((item) =>
+        item.id === asset.id
+          ? {
+              ...item,
+              status: 'maintenance',
+              lastMaintenance: item.lastMaintenance === '-' ? today : item.lastMaintenance,
+              nextMaintenance: addDays(now, 7),
+            }
+          : item
+      )
+    );
+
+    toast({
+      title: 'Maintenance Scheduled',
+      description: `${asset.assetName} is now marked for maintenance.`,
+    });
+  };
+
+  const completeMaintenance = (asset: AssetRecord) => {
+    const now = new Date();
+    const today = formatDate(now);
+
+    setAssets((currentAssets) =>
+      currentAssets.map((item) =>
+        item.id === asset.id
+          ? {
+              ...item,
+              status: item.assignedTo !== 'Unassigned' ? 'assigned' : 'available',
+              lastMaintenance: today,
+              nextMaintenance: addDays(now, 180),
+              condition: item.condition === 'Damaged' ? 'Good' : item.condition,
+            }
+          : item
+      )
+    );
+
+    toast({
+      title: 'Maintenance Completed',
+      description: `${asset.assetName} has been returned to active inventory.`,
+    });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -796,7 +894,7 @@ export default function HRMAssets() {
                 <div>
                   <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Needs Maintenance</p>
                   <h3 className="text-3xl font-black text-amber-700">
-                    {filteredAssets.filter(a => a.status === 'maintenance' || new Date(a.nextMaintenance) < new Date()).length}
+                    {filteredAssets.filter(a => a.status === 'maintenance' || isMaintenanceDue(a)).length}
                   </h3>
                   <p className="text-xs text-amber-600 mt-1">requires attention</p>
                 </div>
@@ -1332,10 +1430,17 @@ export default function HRMAssets() {
                                 <FileText className="h-4 w-4 mr-2" />
                                 View Documents
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <CalendarIcon className="h-4 w-4 mr-2" />
-                                Schedule Maintenance
-                              </DropdownMenuItem>
+                              {asset.status === 'maintenance' ? (
+                                <DropdownMenuItem onClick={() => completeMaintenance(asset)}>
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Complete Maintenance
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => startMaintenance(asset)}>
+                                  <CalendarIcon className="h-4 w-4 mr-2" />
+                                  Schedule Maintenance
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem 
                                 onClick={() => {
                                   setSelectedAsset(asset);
@@ -1485,8 +1590,15 @@ export default function HRMAssets() {
                         className={cn(
                           isUrgent ? "border-red-300 text-red-700 hover:bg-red-100" : "border-blue-300 text-blue-700 hover:bg-blue-100"
                         )}
+                        onClick={() => {
+                          if (asset.status === 'maintenance') {
+                            completeMaintenance(asset);
+                            return;
+                          }
+                          startMaintenance(asset);
+                        }}
                       >
-                        Schedule
+                        {asset.status === 'maintenance' ? 'Complete' : 'Schedule'}
                       </Button>
                     </div>
                   );

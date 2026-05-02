@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Menu,
   Building2,
+  Calendar,
   Sparkles,
   Search,
   Clock3,
@@ -52,10 +53,12 @@ import {
 } from '@/lib/attendance-reporting';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -120,6 +123,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [selectedWorkLocation, setSelectedWorkLocation] = useState<WorkLocation>('office');
   const [checkInNote, setCheckInNote] = useState('');
   const [checkOutNote, setCheckOutNote] = useState('');
+  const showAttendanceApplyLeave = location?.startsWith('/hrm/attendance');
   const [selectedBreakReason, setSelectedBreakReason] = useState<BreakReason>('lunch');
   const [otherReasonNote, setOtherReasonNote] = useState('');
   const [checkInAt, setCheckInAt] = useState<Date | null>(null);
@@ -416,7 +420,17 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       ]
     },
 
-    { name: 'Profile', icon: Users, path: '/profile' },
+    {
+      name: 'Profile',
+      icon: Users,
+      path: '/profile',
+      hasSubmenu: true,
+      submenuKey: 'profile',
+      submenu: [
+        { name: 'My Attendance', path: '/profile?tab=attendance' },
+        { name: 'My Leaves', path: '/profile?tab=leave' },
+      ]
+    },
     
     { name: 'Subscription', icon: CreditCard, path: '/subscriptions' },
     { name: 'Settings', icon: Settings, path: '/dashboard/settings' },
@@ -440,6 +454,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     admin: false,
     customers: false,
     'team-space': false,
+    profile: false,
     settings: false,
   });
 
@@ -653,6 +668,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     { name: 'Team Space', path: '/team-space', category: 'Communication', keywords: 'team collaboration meetings calls chats files' },
     { name: 'Flip Book', path: '/team-space/flip-books', category: 'Communication', keywords: 'flip book pdf documents reader pages' },
     { name: 'Profile', path: '/profile', category: 'Profile', keywords: 'account settings preferences' },
+    { name: 'My Attendance', path: '/profile?tab=attendance', category: 'Profile', keywords: 'attendance check in check out history' },
+    { name: 'My Leaves', path: '/profile?tab=leave', category: 'Profile', keywords: 'leave requests approvals status' },
   ], []);
 
   // Filter search results (memoized for performance)
@@ -1387,6 +1404,85 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                     className="mt-2 min-h-[100px] text-sm"
                   />
                 </div>
+
+                {showAttendanceApplyLeave && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button
+                        type="button"
+                        className="w-full h-11 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-100"
+                      >
+                        <Plus className="h-4 w-4 mr-2 text-blue-600" />
+                        Apply Leave
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
+                      <div className="h-24 bg-gradient-to-r from-blue-600 to-indigo-700 p-6">
+                        <DialogTitle className="text-2xl font-bold text-white tracking-tight">Apply for Leave</DialogTitle>
+                        <DialogDescription className="text-blue-100 font-medium">Submit your request for administrative review</DialogDescription>
+                      </div>
+                      <div className="p-8 space-y-5">
+                        <div className="space-y-2">
+                          <Label htmlFor="leave-type" className="text-xs font-bold uppercase tracking-wider text-slate-500 px-1">Leave Type</Label>
+                          <Select>
+                            <SelectTrigger id="leave-type" className="rounded-xl border-slate-200 h-11 bg-slate-50/50">
+                              <SelectValue placeholder="Select leave category" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              <SelectItem value="sick">Sick Leave</SelectItem>
+                              <SelectItem value="casual">Casual Leave</SelectItem>
+                              <SelectItem value="annual">Annual Leave</SelectItem>
+                              <SelectItem value="wfh">Work From Home (WFH)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="from-date" className="text-xs font-bold uppercase tracking-wider text-slate-500 px-1">Start Date</Label>
+                            <div className="relative">
+                              <Input id="from-date" type="date" className="rounded-xl border-slate-200 h-11 pl-10" />
+                              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="to-date" className="text-xs font-bold uppercase tracking-wider text-slate-500 px-1">End Date</Label>
+                            <div className="relative">
+                              <Input id="to-date" type="date" className="rounded-xl border-slate-200 h-11 pl-10" />
+                              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="reason" className="text-xs font-bold uppercase tracking-wider text-slate-500 px-1">Reason for Leave</Label>
+                          <Textarea
+                            id="reason"
+                            placeholder="Please provide details about your request..."
+                            rows={3}
+                            className="rounded-xl border-slate-200 bg-slate-50/50 resize-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="px-8 pb-8 flex gap-3">
+                        <DialogClose asChild>
+                          <Button variant="ghost" className="flex-1 rounded-xl h-11 font-bold text-slate-500 hover:bg-slate-100">Cancel</Button>
+                        </DialogClose>
+                        <DialogClose asChild>
+                          <Button
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-xl h-11 font-bold shadow-lg shadow-blue-100"
+                            onClick={() => {
+                              toast({
+                                title: "Leave Request Submitted",
+                                description: "Your leave application has been sent for approval.",
+                              });
+                            }}
+                          >
+                            Submit Request
+                          </Button>
+                        </DialogClose>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
 
                 <Button
                   type="button"

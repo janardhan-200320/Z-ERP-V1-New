@@ -44,7 +44,7 @@ import {
   Armchair,
   Wrench,
   Calendar as CalendarIcon,
-  DollarSign,
+  IndianRupee,
   MapPin,
   CheckCircle2,
   XCircle,
@@ -82,6 +82,13 @@ type AssetRecord = {
   nextMaintenance: string;
   insuranceValue: string;
   avatar: string;
+  documents: string[];
+  maintenanceVendor?: string;
+  maintenanceIssue?: string;
+  maintenanceIssueDate?: string;
+  maintenanceGivenDate?: string;
+  maintenanceReturnDate?: string;
+  maintenanceCost?: string;
 };
 
 const formatDate = (date: Date): string => date.toISOString().split('T')[0];
@@ -101,6 +108,19 @@ const toValidDate = (rawDate: string): Date | null => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+const formatCurrencyValue = (rawValue: string): string => {
+  if (!rawValue) {
+    return '₹0';
+  }
+
+  const numericValue = Number(rawValue);
+  if (Number.isNaN(numericValue)) {
+    return rawValue;
+  }
+
+  return `₹${numericValue.toLocaleString()}`;
+};
+
 export default function HRMAssets() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -109,6 +129,26 @@ export default function HRMAssets() {
   const [addAssetDialogOpen, setAddAssetDialogOpen] = useState(false);
   const [assignAssetDialogOpen, setAssignAssetDialogOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
+  const [assetDetailsOpen, setAssetDetailsOpen] = useState(false);
+  const [assetDetails, setAssetDetails] = useState<AssetRecord | null>(null);
+  const [editAssetDialogOpen, setEditAssetDialogOpen] = useState(false);
+  const [editAssetDocuments, setEditAssetDocuments] = useState<string[]>([]);
+  const [editAssetForm, setEditAssetForm] = useState({
+    id: '',
+    assetName: '',
+    category: '',
+    subcategory: '',
+    brand: '',
+    model: '',
+    serialNumber: '',
+    purchaseDate: '',
+    purchaseValue: '',
+    currentValue: '',
+    location: '',
+    condition: '',
+    status: 'available' as AssetRecord['status'],
+    warrantyExpiry: ''
+  });
   const [assetSearchQuery, setAssetSearchQuery] = useState('');
   const [assetCategoryFilter, setAssetCategoryFilter] = useState('all');
   const [assetStatusFilter, setAssetStatusFilter] = useState('all');
@@ -116,6 +156,31 @@ export default function HRMAssets() {
   const [addCustomCategory, setAddCustomCategory] = useState('');
   const [assignmentLocation, setAssignmentLocation] = useState('');
   const [customAssignmentLocation, setCustomAssignmentLocation] = useState('');
+  const [addAssetDocuments, setAddAssetDocuments] = useState<File[]>([]);
+  const [addAssetForm, setAddAssetForm] = useState({
+    assetName: '',
+    subcategory: '',
+    brand: '',
+    model: '',
+    serialNumber: '',
+    purchaseDate: '',
+    purchaseValue: '',
+    currentValue: '',
+    location: '',
+    warrantyExpiry: '',
+    condition: '',
+    notes: ''
+  });
+  const [maintenanceForm, setMaintenanceForm] = useState({
+    assetId: '',
+    vendor: '',
+    customVendor: '',
+    issueDetails: '',
+    issueDate: '',
+    givenDate: '',
+    returnDate: '',
+    serviceCost: ''
+  });
 
   // Mock data - Company Assets
   const [assets, setAssets] = useState<AssetRecord[]>([
@@ -142,7 +207,8 @@ export default function HRMAssets() {
       lastMaintenance: '2025-05-10',
       nextMaintenance: '2025-11-10',
       insuranceValue: '₹3,500',
-      avatar: 'JS'
+      avatar: 'JS',
+      documents: ['Warranty_Certificate.pdf', 'Purchase_Invoice_2025.pdf']
     },
     {
       id: 'AST002',
@@ -167,7 +233,8 @@ export default function HRMAssets() {
       lastMaintenance: '2025-04-15',
       nextMaintenance: '2025-10-15',
       insuranceValue: '₹1,200',
-      avatar: 'SJ'
+      avatar: 'SJ',
+      documents: ['AppleCare_Receipt.pdf']
     },
     {
       id: 'AST003',
@@ -192,7 +259,8 @@ export default function HRMAssets() {
       lastMaintenance: '2025-02-20',
       nextMaintenance: '2025-08-20',
       insuranceValue: '₹900',
-      avatar: 'MB'
+      avatar: 'MB',
+      documents: []
     },
     {
       id: 'AST004',
@@ -217,7 +285,8 @@ export default function HRMAssets() {
       lastMaintenance: '2025-12-15',
       nextMaintenance: '2026-06-15',
       insuranceValue: '₹30,000',
-      avatar: 'ED'
+      avatar: 'ED',
+      documents: ['Insurance_Coverage.pdf', 'Registration_Copy.pdf']
     },
     {
       id: 'AST005',
@@ -242,7 +311,8 @@ export default function HRMAssets() {
       lastMaintenance: '2025-05-01',
       nextMaintenance: '2025-11-01',
       insuranceValue: '₹350',
-      avatar: 'UN'
+      avatar: 'UN',
+      documents: []
     },
     {
       id: 'AST006',
@@ -267,7 +337,8 @@ export default function HRMAssets() {
       lastMaintenance: '2025-11-01',
       nextMaintenance: '2026-05-01',
       insuranceValue: '₹1,400',
-      avatar: 'AW'
+      avatar: 'AW',
+      documents: ['Ergonomic_Certificate.pdf']
     },
     {
       id: 'AST007',
@@ -292,7 +363,8 @@ export default function HRMAssets() {
       lastMaintenance: '2025-03-15',
       nextMaintenance: '2025-09-15',
       insuranceValue: '₹2,200',
-      avatar: 'DM'
+      avatar: 'DM',
+      documents: []
     },
     {
       id: 'AST008',
@@ -317,7 +389,8 @@ export default function HRMAssets() {
       lastMaintenance: '2025-01-10',
       nextMaintenance: '2025-07-10',
       insuranceValue: '₹1,600',
-      avatar: 'LA'
+      avatar: 'LA',
+      documents: []
     },
     {
       id: 'AST009',
@@ -342,7 +415,8 @@ export default function HRMAssets() {
       lastMaintenance: '2025-08-01',
       nextMaintenance: '2026-02-01',
       insuranceValue: '₹1,300',
-      avatar: 'UN'
+      avatar: 'UN',
+      documents: ['Logitech_Invoice.pdf']
     },
     {
       id: 'AST010',
@@ -367,7 +441,8 @@ export default function HRMAssets() {
       lastMaintenance: '2025-10-15',
       nextMaintenance: '2026-04-15',
       insuranceValue: '₹1,850',
-      avatar: 'RC'
+      avatar: 'RC',
+      documents: []
     },
     {
       id: 'AST011',
@@ -392,7 +467,8 @@ export default function HRMAssets() {
       lastMaintenance: '-',
       nextMaintenance: '2025-06-01',
       insuranceValue: '₹1,300',
-      avatar: 'UN'
+      avatar: 'UN',
+      documents: []
     },
     {
       id: 'AST012',
@@ -417,7 +493,8 @@ export default function HRMAssets() {
       lastMaintenance: '2025-12-20',
       nextMaintenance: 'Pending Repair',
       insuranceValue: '₹1,500',
-      avatar: 'UN'
+      avatar: 'UN',
+      documents: ['Repair_Assessment.pdf']
     },
     {
       id: 'AST013',
@@ -442,7 +519,8 @@ export default function HRMAssets() {
       lastMaintenance: '-',
       nextMaintenance: '2026-01-20',
       insuranceValue: '₹25',
-      avatar: 'JS'
+      avatar: 'JS',
+      documents: []
     },
     {
       id: 'AST014',
@@ -467,7 +545,8 @@ export default function HRMAssets() {
       lastMaintenance: '-',
       nextMaintenance: '2026-01-20',
       insuranceValue: '₹25',
-      avatar: 'SJ'
+      avatar: 'SJ',
+      documents: []
     },
     {
       id: 'AST015',
@@ -492,7 +571,8 @@ export default function HRMAssets() {
       lastMaintenance: '-',
       nextMaintenance: '2026-02-15',
       insuranceValue: '₹15',
-      avatar: 'MB'
+      avatar: 'MB',
+      documents: []
     },
     {
       id: 'AST016',
@@ -517,9 +597,24 @@ export default function HRMAssets() {
       lastMaintenance: '-',
       nextMaintenance: '2026-03-05',
       insuranceValue: '₹10',
-      avatar: 'ED'
+      avatar: 'ED',
+      documents: []
     }
   ]);
+
+  const vendorOptions = [
+    'Apex IT Services',
+    'Prime Hardware Labs',
+    'GreenTech Repairs',
+    'AutoFleet Care',
+    'Z-ERP Authorized Service',
+    'Custom'
+  ];
+
+  const selectedMaintenanceAsset = useMemo(
+    () => assets.find((asset) => asset.id === maintenanceForm.assetId) ?? null,
+    [assets, maintenanceForm.assetId]
+  );
 
   // Filtered assets with search and category filters
   const filteredAssets = useMemo(() => {
@@ -608,6 +703,194 @@ export default function HRMAssets() {
     });
   };
 
+  const resetAddAssetForm = () => {
+    setAddAssetForm({
+      assetName: '',
+      subcategory: '',
+      brand: '',
+      model: '',
+      serialNumber: '',
+      purchaseDate: '',
+      purchaseValue: '',
+      currentValue: '',
+      location: '',
+      warrantyExpiry: '',
+      condition: '',
+      notes: ''
+    });
+    setAddAssetCategory('');
+    setAddCustomCategory('');
+    setAddAssetDocuments([]);
+  };
+
+  const handleAddAsset = () => {
+    const categoryMap: Record<string, string> = {
+      'it-equipment': 'IT Equipment',
+      vehicle: 'Vehicle',
+      'office-equipment': 'Office Equipment',
+      furniture: 'Furniture',
+      'id-card': 'ID & Access'
+    };
+
+    const resolvedCategory = addAssetCategory === 'custom'
+      ? (addCustomCategory.trim() || 'Custom')
+      : (categoryMap[addAssetCategory] || addAssetCategory || 'Custom');
+    const purchaseValueNumeric = Number(addAssetForm.purchaseValue || 0);
+    const currentValueNumeric = Number(addAssetForm.currentValue || purchaseValueNumeric || 0);
+    const depreciationValue = purchaseValueNumeric > 0
+      ? Math.max(0, Math.round(((purchaseValueNumeric - currentValueNumeric) / purchaseValueNumeric) * 100))
+      : 0;
+
+    const newAsset: AssetRecord = {
+      id: `AST${String(assets.length + 1).padStart(3, '0')}`,
+      assetName: addAssetForm.assetName || 'New Asset',
+      category: resolvedCategory,
+      subcategory: addAssetForm.subcategory || 'General',
+      brand: addAssetForm.brand || 'Unknown',
+      model: addAssetForm.model || '-',
+      serialNumber: addAssetForm.serialNumber || '-',
+      purchaseDate: addAssetForm.purchaseDate || formatDate(new Date()),
+      purchaseValue: formatCurrencyValue(addAssetForm.purchaseValue),
+      currentValue: formatCurrencyValue(addAssetForm.currentValue || addAssetForm.purchaseValue),
+      depreciation: `${depreciationValue}%`,
+      assignedTo: 'Unassigned',
+      empId: '-',
+      department: 'General',
+      assignedDate: '-',
+      location: addAssetForm.location || 'Main Office',
+      condition: addAssetForm.condition || 'Good',
+      status: 'available',
+      warrantyExpiry: addAssetForm.warrantyExpiry || '-',
+      lastMaintenance: '-',
+      nextMaintenance: '-',
+      insuranceValue: formatCurrencyValue(addAssetForm.purchaseValue),
+      avatar: 'UN',
+      documents: addAssetDocuments.map((file) => file.name)
+    };
+
+    setAssets((currentAssets) => [newAsset, ...currentAssets]);
+    toast({
+      title: 'Asset Added!',
+      description: 'New asset has been registered to the inventory.',
+    });
+    setAddAssetDialogOpen(false);
+    resetAddAssetForm();
+  };
+
+  const handleScheduleMaintenance = () => {
+    const asset = assets.find((item) => item.id === maintenanceForm.assetId);
+    if (!asset) {
+      toast({
+        title: 'Select an asset',
+        description: 'Choose an asset before scheduling maintenance.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const vendorName = maintenanceForm.vendor === 'Custom'
+      ? maintenanceForm.customVendor.trim()
+      : maintenanceForm.vendor;
+    const issueDate = maintenanceForm.issueDate || formatDate(new Date());
+    const givenDate = maintenanceForm.givenDate || issueDate;
+    const returnDate = maintenanceForm.returnDate || addDays(new Date(), 7);
+
+    setAssets((currentAssets) =>
+      currentAssets.map((item) =>
+        item.id === asset.id
+          ? {
+              ...item,
+              status: 'maintenance',
+              lastMaintenance: issueDate,
+              nextMaintenance: returnDate,
+              maintenanceVendor: vendorName || item.maintenanceVendor,
+              maintenanceIssue: maintenanceForm.issueDetails || item.maintenanceIssue,
+              maintenanceIssueDate: issueDate,
+              maintenanceGivenDate: givenDate,
+              maintenanceReturnDate: maintenanceForm.returnDate || item.maintenanceReturnDate,
+              maintenanceCost: maintenanceForm.serviceCost
+                ? formatCurrencyValue(maintenanceForm.serviceCost)
+                : item.maintenanceCost
+            }
+          : item
+      )
+    );
+
+    toast({
+      title: 'Maintenance Scheduled',
+      description: `${asset.assetName} is now scheduled for maintenance.`
+    });
+
+    setMaintenanceForm({
+      assetId: '',
+      vendor: '',
+      customVendor: '',
+      issueDetails: '',
+      issueDate: '',
+      givenDate: '',
+      returnDate: '',
+      serviceCost: ''
+    });
+  };
+
+  const openAssetDetails = (asset: AssetRecord) => {
+    setAssetDetails(asset);
+    setAssetDetailsOpen(true);
+  };
+
+  const openEditAsset = (asset: AssetRecord) => {
+    setEditAssetForm({
+      id: asset.id,
+      assetName: asset.assetName,
+      category: asset.category,
+      subcategory: asset.subcategory,
+      brand: asset.brand,
+      model: asset.model,
+      serialNumber: asset.serialNumber,
+      purchaseDate: asset.purchaseDate,
+      purchaseValue: asset.purchaseValue.replace(/[₹,]/g, ''),
+      currentValue: asset.currentValue.replace(/[₹,]/g, ''),
+      location: asset.location,
+      condition: asset.condition,
+      status: asset.status,
+      warrantyExpiry: asset.warrantyExpiry
+    });
+    setEditAssetDocuments(asset.documents ?? []);
+    setEditAssetDialogOpen(true);
+  };
+
+  const handleSaveAssetEdits = () => {
+    setAssets((currentAssets) =>
+      currentAssets.map((item) =>
+        item.id === editAssetForm.id
+          ? {
+              ...item,
+              assetName: editAssetForm.assetName,
+              category: editAssetForm.category,
+              subcategory: editAssetForm.subcategory,
+              brand: editAssetForm.brand,
+              model: editAssetForm.model,
+              serialNumber: editAssetForm.serialNumber,
+              purchaseDate: editAssetForm.purchaseDate,
+              purchaseValue: formatCurrencyValue(editAssetForm.purchaseValue),
+              currentValue: formatCurrencyValue(editAssetForm.currentValue),
+              location: editAssetForm.location,
+              condition: editAssetForm.condition,
+              status: editAssetForm.status,
+              warrantyExpiry: editAssetForm.warrantyExpiry,
+              documents: editAssetDocuments
+            }
+          : item
+      )
+    );
+
+    toast({
+      title: 'Asset Updated',
+      description: 'Asset details have been updated successfully.'
+    });
+    setEditAssetDialogOpen(false);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -657,7 +940,12 @@ export default function HRMAssets() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="asset-name">Asset Name</Label>
-                      <Input id="asset-name" placeholder="e.g., MacBook Pro 16 inch" />
+                      <Input
+                        id="asset-name"
+                        placeholder="e.g., MacBook Pro 16 inch"
+                        value={addAssetForm.assetName}
+                        onChange={(e) => setAddAssetForm((prev) => ({ ...prev, assetName: e.target.value }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="asset-category">Category</Label>
@@ -689,46 +977,100 @@ export default function HRMAssets() {
                   )}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
+                      <Label htmlFor="asset-subcategory">Subcategory</Label>
+                      <Input
+                        id="asset-subcategory"
+                        placeholder="e.g., Laptop, Printer"
+                        value={addAssetForm.subcategory}
+                        onChange={(e) => setAddAssetForm((prev) => ({ ...prev, subcategory: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="asset-brand">Brand</Label>
-                      <Input id="asset-brand" placeholder="e.g., Apple" />
+                      <Input
+                        id="asset-brand"
+                        placeholder="e.g., Apple"
+                        value={addAssetForm.brand}
+                        onChange={(e) => setAddAssetForm((prev) => ({ ...prev, brand: e.target.value }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="asset-model">Model</Label>
-                      <Input id="asset-model" placeholder="e.g., MacBook Pro M3 Max" />
+                      <Input
+                        id="asset-model"
+                        placeholder="e.g., MacBook Pro M3 Max"
+                        value={addAssetForm.model}
+                        onChange={(e) => setAddAssetForm((prev) => ({ ...prev, model: e.target.value }))}
+                      />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="serial-number">Serial Number</Label>
-                      <Input id="serial-number" placeholder="e.g., C02YK3QGJG5H" />
+                      <Input
+                        id="serial-number"
+                        placeholder="e.g., C02YK3QGJG5H"
+                        value={addAssetForm.serialNumber}
+                        onChange={(e) => setAddAssetForm((prev) => ({ ...prev, serialNumber: e.target.value }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="purchase-date">Purchase Date</Label>
-                      <Input id="purchase-date" type="date" />
+                      <Input
+                        id="purchase-date"
+                        type="date"
+                        value={addAssetForm.purchaseDate}
+                        onChange={(e) => setAddAssetForm((prev) => ({ ...prev, purchaseDate: e.target.value }))}
+                      />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="purchase-value">Purchase Value (₹)</Label>
-                      <Input id="purchase-value" type="number" placeholder="3499" />
+                      <Input
+                        id="purchase-value"
+                        type="number"
+                        placeholder="3499"
+                        value={addAssetForm.purchaseValue}
+                        onChange={(e) => setAddAssetForm((prev) => ({ ...prev, purchaseValue: e.target.value }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="current-value">Current Value (₹)</Label>
-                      <Input id="current-value" type="number" placeholder="3150" />
+                      <Input
+                        id="current-value"
+                        type="number"
+                        placeholder="3150"
+                        value={addAssetForm.currentValue}
+                        onChange={(e) => setAddAssetForm((prev) => ({ ...prev, currentValue: e.target.value }))}
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="location">Location</Label>
-                    <Input id="location" placeholder="e.g., Office - Floor 3, Desk 24" />
+                    <Input
+                      id="location"
+                      placeholder="e.g., Office - Floor 3, Desk 24"
+                      value={addAssetForm.location}
+                      onChange={(e) => setAddAssetForm((prev) => ({ ...prev, location: e.target.value }))}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="warranty-expiry">Warranty Expiry</Label>
-                      <Input id="warranty-expiry" type="date" />
+                      <Input
+                        id="warranty-expiry"
+                        type="date"
+                        value={addAssetForm.warrantyExpiry}
+                        onChange={(e) => setAddAssetForm((prev) => ({ ...prev, warrantyExpiry: e.target.value }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="condition">Condition</Label>
-                      <Select>
+                      <Select
+                        value={addAssetForm.condition}
+                        onValueChange={(value) => setAddAssetForm((prev) => ({ ...prev, condition: value }))}
+                      >
                         <SelectTrigger id="condition">
                           <SelectValue placeholder="Select condition" />
                         </SelectTrigger>
@@ -743,23 +1085,52 @@ export default function HRMAssets() {
                     </div>
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="asset-documents">Asset Documents</Label>
+                    <Input
+                      id="asset-documents"
+                      type="file"
+                      multiple
+                      className="h-10 cursor-pointer file:mr-3 file:h-9 file:rounded-md file:border-0 file:bg-blue-600 file:px-4 file:py-0 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700"
+                      onChange={(e) => setAddAssetDocuments(Array.from(e.target.files || []))}
+                    />
+                    {addAssetDocuments.length > 0 && (
+                      <div className="rounded-lg border border-slate-200 p-2 bg-slate-50">
+                        <p className="text-xs font-semibold text-slate-700 mb-1">Selected documents:</p>
+                        <ul className="space-y-1">
+                          {addAssetDocuments.map((file) => (
+                            <li key={`${file.name}-${file.lastModified}`} className="text-xs text-slate-600 flex items-center gap-2">
+                              <FileText className="h-3 w-3 text-blue-600" />
+                              <span className="truncate">{file.name}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="notes">Additional Notes</Label>
-                    <Textarea id="notes" placeholder="Any additional information about this asset..." rows={3} />
+                    <Textarea
+                      id="notes"
+                      placeholder="Any additional information about this asset..."
+                      rows={3}
+                      value={addAssetForm.notes}
+                      onChange={(e) => setAddAssetForm((prev) => ({ ...prev, notes: e.target.value }))}
+                    />
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setAddAssetDialogOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setAddAssetDialogOpen(false);
+                      resetAddAssetForm();
+                    }}
+                  >
                     Cancel
                   </Button>
                   <Button 
                     className="bg-blue-600 hover:bg-blue-700"
-                    onClick={() => {
-                      toast({
-                        title: "Asset Added!",
-                        description: "New asset has been registered to the inventory.",
-                      });
-                      setAddAssetDialogOpen(false);
-                    }}
+                    onClick={handleAddAsset}
                   >
                     Add Asset
                   </Button>
@@ -867,7 +1238,7 @@ export default function HRMAssets() {
                   <p className="text-xs text-emerald-600 mt-1">current valuation</p>
                 </div>
                 <div className="p-3 bg-emerald-100 rounded-xl">
-                  <DollarSign className="h-6 w-6 text-emerald-600" />
+                  <IndianRupee className="h-6 w-6 text-emerald-600" />
                 </div>
               </div>
             </CardContent>
@@ -1201,7 +1572,7 @@ export default function HRMAssets() {
             </CardTitle>
             <CardDescription>Current status of all company assets</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="max-h-[70vh] overflow-y-auto">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="p-4 bg-emerald-50 rounded-lg border-2 border-emerald-200">
                 <div className="flex items-center gap-3 mb-3">
@@ -1293,22 +1664,23 @@ export default function HRMAssets() {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
+            <div className="max-h-[70vh] overflow-y-auto">
+              <Table className="w-full table-fixed">
+                <TableHeader className="sticky top-0 z-10 bg-white">
                 <TableRow>
                   <TableHead className="font-bold">Asset</TableHead>
                   <TableHead className="font-bold">Category</TableHead>
                   <TableHead className="font-bold">Assigned To</TableHead>
-                  <TableHead className="font-bold">Location</TableHead>
-                  <TableHead className="text-right font-bold">Purchase Value</TableHead>
-                  <TableHead className="text-right font-bold">Current Value</TableHead>
-                  <TableHead className="text-center font-bold">Depreciation</TableHead>
+                  <TableHead className="font-bold hidden xl:table-cell">Location</TableHead>
+                  <TableHead className="text-right font-bold hidden lg:table-cell">Purchase Value</TableHead>
+                  <TableHead className="text-right font-bold hidden lg:table-cell">Current Value</TableHead>
+                  <TableHead className="text-center font-bold hidden xl:table-cell">Depreciation</TableHead>
                   <TableHead className="font-bold">Condition</TableHead>
                   <TableHead className="font-bold">Status</TableHead>
                   <TableHead className="font-bold">Actions</TableHead>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
+                </TableHeader>
+                <TableBody>
                 {filteredAssets.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="text-center py-8">
@@ -1361,19 +1733,19 @@ export default function HRMAssets() {
                             <Badge variant="outline" className="bg-slate-50 text-slate-500">Unassigned</Badge>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden xl:table-cell">
                           <div className="flex items-center gap-1 text-xs text-slate-600">
                             <MapPin className="h-3 w-3" />
                             <span className="max-w-[150px] truncate">{asset.location}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right hidden lg:table-cell">
                           <span className="text-sm font-medium text-slate-700">{asset.purchaseValue}</span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right hidden lg:table-cell">
                           <span className="text-sm font-bold text-emerald-700">{asset.currentValue}</span>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center hidden xl:table-cell">
                           <Badge 
                             variant="outline"
                             className={cn(
@@ -1422,13 +1794,17 @@ export default function HRMAssets() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openAssetDetails(asset)}>
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openAssetDetails(asset)}>
                                 <FileText className="h-4 w-4 mr-2" />
                                 View Documents
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEditAsset(asset)}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                Edit Asset
                               </DropdownMenuItem>
                               {asset.status === 'maintenance' ? (
                                 <DropdownMenuItem onClick={() => completeMaintenance(asset)}>
@@ -1462,8 +1838,9 @@ export default function HRMAssets() {
                     );
                   })
                 )}
-              </TableBody>
-            </Table>
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 
@@ -1531,6 +1908,144 @@ export default function HRMAssets() {
           </Card>
         </div>
 
+        {/* Maintenance Intake */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-blue-600" />
+              Add Equipment to Maintenance
+            </CardTitle>
+            <CardDescription>Log maintenance details, vendor, and service timeline</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="maintenance-asset">Asset</Label>
+                <Select
+                  value={maintenanceForm.assetId}
+                  onValueChange={(value) => setMaintenanceForm((prev) => ({ ...prev, assetId: value }))}
+                >
+                  <SelectTrigger id="maintenance-asset">
+                    <SelectValue placeholder="Select asset" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assets.map((asset) => (
+                      <SelectItem key={asset.id} value={asset.id}>
+                        {asset.assetName} ({asset.id})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maintenance-vendor">Vendor</Label>
+                <Select
+                  value={maintenanceForm.vendor}
+                  onValueChange={(value) => setMaintenanceForm((prev) => ({ ...prev, vendor: value }))}
+                >
+                  <SelectTrigger id="maintenance-vendor">
+                    <SelectValue placeholder="Select vendor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vendorOptions.map((vendor) => (
+                      <SelectItem key={vendor} value={vendor}>
+                        {vendor}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {maintenanceForm.vendor === 'Custom' && (
+                  <Input
+                    placeholder="Enter vendor name"
+                    value={maintenanceForm.customVendor}
+                    onChange={(e) => setMaintenanceForm((prev) => ({ ...prev, customVendor: e.target.value }))}
+                  />
+                )}
+              </div>
+            </div>
+
+            {selectedMaintenanceAsset && (
+              <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/40 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{selectedMaintenanceAsset.assetName}</p>
+                    <p className="text-xs text-slate-600">{selectedMaintenanceAsset.brand} {selectedMaintenanceAsset.model}</p>
+                    <p className="text-xs text-slate-500">Serial: {selectedMaintenanceAsset.serialNumber}</p>
+                  </div>
+                  <Badge variant="outline" className="bg-white text-blue-700 border-blue-200">
+                    {selectedMaintenanceAsset.condition}
+                  </Badge>
+                </div>
+                <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+                  <p>Assigned: {selectedMaintenanceAsset.assignedTo !== 'Unassigned' ? selectedMaintenanceAsset.assignedTo : 'Unassigned'}</p>
+                  <p>Location: {selectedMaintenanceAsset.location}</p>
+                  <p>Category: {selectedMaintenanceAsset.category}</p>
+                  <p>Warranty: {selectedMaintenanceAsset.warrantyExpiry}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="maintenance-issue">Maintenance Issue Details</Label>
+                <Textarea
+                  id="maintenance-issue"
+                  placeholder="Describe the issue or service required"
+                  rows={3}
+                  value={maintenanceForm.issueDetails}
+                  onChange={(e) => setMaintenanceForm((prev) => ({ ...prev, issueDetails: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maintenance-cost">Service Cost (₹)</Label>
+                <Input
+                  id="maintenance-cost"
+                  type="number"
+                  placeholder="2500"
+                  value={maintenanceForm.serviceCost}
+                  onChange={(e) => setMaintenanceForm((prev) => ({ ...prev, serviceCost: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="maintenance-issue-date">Issue Date</Label>
+                <Input
+                  id="maintenance-issue-date"
+                  type="date"
+                  value={maintenanceForm.issueDate}
+                  onChange={(e) => setMaintenanceForm((prev) => ({ ...prev, issueDate: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maintenance-given-date">Device Given Date</Label>
+                <Input
+                  id="maintenance-given-date"
+                  type="date"
+                  value={maintenanceForm.givenDate}
+                  onChange={(e) => setMaintenanceForm((prev) => ({ ...prev, givenDate: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maintenance-return-date">Expected Return Date</Label>
+                <Input
+                  id="maintenance-return-date"
+                  type="date"
+                  value={maintenanceForm.returnDate}
+                  onChange={(e) => setMaintenanceForm((prev) => ({ ...prev, returnDate: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleScheduleMaintenance}>
+                Add to Maintenance
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Maintenance Schedule */}
         <Card>
           <CardHeader>
@@ -1567,7 +2082,13 @@ export default function HRMAssets() {
                         </div>
                         <div>
                           <p className="font-semibold text-sm text-slate-900">{asset.assetName}</p>
-                          <p className="text-xs text-slate-600">{asset.assignedTo !== 'Unassigned' ? `${asset.assignedTo} (${asset.empId})` : asset.location}</p>
+                          <p className="text-xs text-slate-600">
+                            {asset.brand} {asset.model} • {asset.serialNumber}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {asset.assignedTo !== 'Unassigned' ? `${asset.assignedTo} (${asset.empId})` : asset.location}
+                            {asset.maintenanceVendor ? ` • Vendor: ${asset.maintenanceVendor}` : ''}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -1606,6 +2127,249 @@ export default function HRMAssets() {
             </div>
           </CardContent>
         </Card>
+
+        <Dialog open={assetDetailsOpen} onOpenChange={setAssetDetailsOpen}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Asset Details</DialogTitle>
+              <DialogDescription>Complete asset information and attached documents.</DialogDescription>
+            </DialogHeader>
+
+            {assetDetails && (
+              <div className="space-y-4 py-2">
+                <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-bold text-slate-900">{assetDetails.assetName}</p>
+                      <p className="text-sm text-slate-600">{assetDetails.brand} {assetDetails.model}</p>
+                    </div>
+                    <Badge variant="outline" className="bg-white border-blue-200 text-blue-700">
+                      {assetDetails.status}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Asset ID</p><p className="font-semibold text-slate-900">{assetDetails.id}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Category</p><p className="font-semibold text-slate-900">{assetDetails.category}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Subcategory</p><p className="font-semibold text-slate-900">{assetDetails.subcategory}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Serial Number</p><p className="font-semibold text-slate-900">{assetDetails.serialNumber}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Assigned To</p><p className="font-semibold text-slate-900">{assetDetails.assignedTo}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Location</p><p className="font-semibold text-slate-900">{assetDetails.location}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Condition</p><p className="font-semibold text-slate-900">{assetDetails.condition}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Warranty Expiry</p><p className="font-semibold text-slate-900">{assetDetails.warrantyExpiry}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Purchase Value</p><p className="font-semibold text-slate-900">{assetDetails.purchaseValue}</p></CardContent></Card>
+                  <Card><CardContent className="p-3"><p className="text-xs text-slate-500">Current Value</p><p className="font-semibold text-slate-900">{assetDetails.currentValue}</p></CardContent></Card>
+                </div>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Attached Documents</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {assetDetails.documents.length > 0 ? (
+                      <ul className="space-y-2">
+                        {assetDetails.documents.map((docName) => (
+                          <li key={docName} className="flex items-center gap-2 text-sm text-slate-700">
+                            <FileText className="h-4 w-4 text-blue-600" />
+                            <span>{docName}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-slate-500">No documents attached.</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setAssetDetailsOpen(false)}>Close</Button>
+                  <Button
+                    className="bg-blue-600 hover:bg-blue-700"
+                    onClick={() => {
+                      setAssetDetailsOpen(false);
+                      openEditAsset(assetDetails);
+                    }}
+                  >
+                    Edit Asset
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={editAssetDialogOpen} onOpenChange={setEditAssetDialogOpen}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Asset</DialogTitle>
+              <DialogDescription>Update asset details and documents.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-asset-name">Asset Name</Label>
+                  <Input
+                    id="edit-asset-name"
+                    value={editAssetForm.assetName}
+                    onChange={(e) => setEditAssetForm((prev) => ({ ...prev, assetName: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-asset-category">Category</Label>
+                  <Input
+                    id="edit-asset-category"
+                    value={editAssetForm.category}
+                    onChange={(e) => setEditAssetForm((prev) => ({ ...prev, category: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-asset-subcategory">Subcategory</Label>
+                  <Input
+                    id="edit-asset-subcategory"
+                    value={editAssetForm.subcategory}
+                    onChange={(e) => setEditAssetForm((prev) => ({ ...prev, subcategory: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-asset-serial">Serial Number</Label>
+                  <Input
+                    id="edit-asset-serial"
+                    value={editAssetForm.serialNumber}
+                    onChange={(e) => setEditAssetForm((prev) => ({ ...prev, serialNumber: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-asset-brand">Brand</Label>
+                  <Input
+                    id="edit-asset-brand"
+                    value={editAssetForm.brand}
+                    onChange={(e) => setEditAssetForm((prev) => ({ ...prev, brand: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-asset-model">Model</Label>
+                  <Input
+                    id="edit-asset-model"
+                    value={editAssetForm.model}
+                    onChange={(e) => setEditAssetForm((prev) => ({ ...prev, model: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-asset-location">Location</Label>
+                  <Input
+                    id="edit-asset-location"
+                    value={editAssetForm.location}
+                    onChange={(e) => setEditAssetForm((prev) => ({ ...prev, location: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-asset-condition">Condition</Label>
+                  <Input
+                    id="edit-asset-condition"
+                    value={editAssetForm.condition}
+                    onChange={(e) => setEditAssetForm((prev) => ({ ...prev, condition: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-asset-status">Status</Label>
+                  <Select
+                    value={editAssetForm.status}
+                    onValueChange={(value) => setEditAssetForm((prev) => ({ ...prev, status: value as AssetRecord['status'] }))}
+                  >
+                    <SelectTrigger id="edit-asset-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="assigned">Assigned</SelectItem>
+                      <SelectItem value="available">Available</SelectItem>
+                      <SelectItem value="maintenance">Maintenance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-asset-warranty">Warranty Expiry</Label>
+                  <Input
+                    id="edit-asset-warranty"
+                    type="date"
+                    value={editAssetForm.warrantyExpiry}
+                    onChange={(e) => setEditAssetForm((prev) => ({ ...prev, warrantyExpiry: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-asset-purchase">Purchase Value (₹)</Label>
+                  <Input
+                    id="edit-asset-purchase"
+                    type="number"
+                    value={editAssetForm.purchaseValue}
+                    onChange={(e) => setEditAssetForm((prev) => ({ ...prev, purchaseValue: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-asset-current">Current Value (₹)</Label>
+                  <Input
+                    id="edit-asset-current"
+                    type="number"
+                    value={editAssetForm.currentValue}
+                    onChange={(e) => setEditAssetForm((prev) => ({ ...prev, currentValue: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-asset-documents">Asset Documents</Label>
+                <Input
+                  id="edit-asset-documents"
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []).map((file) => file.name);
+                    if (files.length > 0) {
+                      setEditAssetDocuments((prev) => [...prev, ...files]);
+                    }
+                  }}
+                />
+                {editAssetDocuments.length > 0 && (
+                  <div className="rounded-lg border border-slate-200 p-2 bg-slate-50">
+                    <p className="text-xs font-semibold text-slate-700 mb-1">Documents:</p>
+                    <ul className="space-y-1">
+                      {editAssetDocuments.map((docName) => (
+                        <li key={docName} className="text-xs text-slate-600 flex items-center justify-between gap-2">
+                          <span className="flex items-center gap-2">
+                            <FileText className="h-3 w-3" />
+                            {docName}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-red-600"
+                            onClick={() => setEditAssetDocuments((prev) => prev.filter((doc) => doc !== docName))}
+                          >
+                            Remove
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditAssetDialogOpen(false)}>Cancel</Button>
+              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveAssetEdits}>Save Changes</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Asset Assignment Dialog */}
         <Dialog open={assignAssetDialogOpen} onOpenChange={setAssignAssetDialogOpen}>

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { 
   Users, 
   Calendar, 
-  DollarSign, 
+  IndianRupee, 
   Shield, 
   TrendingUp, 
   FileText, 
@@ -12,7 +12,6 @@ import {
   Zap,
   UserCheck,
   Clock,
-  AlertCircle,
   ArrowRight,
   Sparkles,
   Activity,
@@ -39,12 +38,20 @@ export default function HRMDashboard() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [requestType, setRequestType] = useState('');
 
+  const leaveRequests = [
+    { id: 'LR001', employee: 'Emily Davis', type: 'Sick Leave', from: '2025-06-15', to: '2025-06-16', days: 2, status: 'pending', reason: 'Medical checkup', avatar: 'ED' },
+    { id: 'LR002', employee: 'Alex Wilson', type: 'Casual Leave', from: '2025-06-20', to: '2025-06-22', days: 3, status: 'approved', reason: 'Family function', avatar: 'AW' },
+    { id: 'LR003', employee: 'Mike Brown', type: 'WFH', from: '2025-06-18', to: '2025-06-18', days: 1, status: 'approved', reason: 'Internet installation', avatar: 'MB' }
+  ];
+
+  const pendingLeaveRequests = leaveRequests.filter((request) => request.status === 'pending');
+
   const kpiStats = [
     { title: 'Total Employees', value: '248', icon: Users, color: 'text-blue-600', bgColor: 'bg-blue-50', gradient: 'from-blue-500/10 to-indigo-500/10' },
     { title: 'Active Now', value: '235', icon: UserCheck, color: 'text-emerald-600', bgColor: 'bg-emerald-50', gradient: 'from-emerald-500/10 to-teal-500/10' },
     { title: 'On Leave', value: '12', icon: Calendar, color: 'text-amber-600', bgColor: 'bg-amber-50', gradient: 'from-amber-500/10 to-orange-500/10' },
-    { title: 'Payroll', value: '₹485K', icon: DollarSign, color: 'text-violet-600', bgColor: 'bg-violet-50', gradient: 'from-violet-500/10 to-purple-500/10' },
-    { title: 'Pending', value: '18', icon: AlertCircle, color: 'text-rose-600', bgColor: 'bg-rose-50', gradient: 'from-rose-500/10 to-pink-500/10' }
+    { title: 'Payroll', value: '₹485K', icon: IndianRupee, color: 'text-violet-600', bgColor: 'bg-violet-50', gradient: 'from-violet-500/10 to-purple-500/10' },
+    { title: 'Leave Pending', value: pendingLeaveRequests.length.toString(), icon: Plane, color: 'text-amber-600', bgColor: 'bg-amber-50', gradient: 'from-amber-500/10 to-orange-500/10' }
   ];
 
   const hrmModules = [
@@ -67,7 +74,7 @@ export default function HRMDashboard() {
       accent: 'border-emerald-200'
     },
     {
-      icon: DollarSign,
+      icon: IndianRupee,
       title: 'Payroll',
       description: 'Process salaries, statutory compliance, and payslips',
       route: '/hrm/payroll',
@@ -237,7 +244,7 @@ export default function HRMDashboard() {
             icon={<Activity className="h-4 w-4 text-blue-600" />}
             items={[
               { label: "5 New employees joined", detail: "View Profiles", type: "success" },
-              { label: "18 Leave requests pending", detail: "Review Now", type: "warning" },
+              { label: `${pendingLeaveRequests.length} Leave requests pending`, detail: "Review Now", type: "warning" },
               { label: "Payroll January processed", detail: "Download Report", type: "info" }
             ]}
           />

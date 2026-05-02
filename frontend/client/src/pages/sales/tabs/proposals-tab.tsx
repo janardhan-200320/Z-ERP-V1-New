@@ -1875,8 +1875,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                       <TableHeader className="bg-gradient-to-r from-slate-100 to-slate-50">
                         <TableRow>
                           <TableHead className="w-8"></TableHead>
-                          <TableHead className="w-40 font-semibold">Item</TableHead>
-                          <TableHead className="font-semibold">Description</TableHead>
+                          <TableHead className="w-56 font-semibold">Item</TableHead>
                           <TableHead className="w-24 font-semibold">
                             {showQtyAs === 'hours' ? 'Hours' : showQtyAs === 'both' ? 'Qty/Hours' : 'Qty'}
                           </TableHead>
@@ -1890,25 +1889,25 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         {proposalItems.map((item, index) => (
                           <TableRow key={item.id}>
                             <TableCell className="align-top"></TableCell>
-                            <TableCell className="align-top pt-5 w-40">
-                              <Input
-                                placeholder="Item name"
-                                value={item.description}
-                                onChange={(e) => updateProposalItem(item.id, 'description', e.target.value)}
-                                className="h-9 text-sm"
-                              />
-                            </TableCell>
-                            <TableCell className="align-top py-4">
-                              <Textarea
-                                placeholder="Description"
-                                value={item.longDescription}
-                                onChange={(e) => updateProposalItem(item.id, 'longDescription', e.target.value)}
-                                className="min-h-[88px] resize-y text-sm"
-                                rows={3}
-                              />
-                              <Button variant="link" size="sm" className="h-6 px-0 text-xs text-blue-600">
-                                Link
-                              </Button>
+                            <TableCell className="align-top pt-5">
+                              <div className="space-y-2">
+                                <Input
+                                  placeholder="Item name"
+                                  value={item.description}
+                                  onChange={(e) => updateProposalItem(item.id, 'description', e.target.value)}
+                                  className="h-9 text-sm"
+                                />
+                                <Textarea
+                                  placeholder="Description"
+                                  value={item.longDescription}
+                                  onChange={(e) => updateProposalItem(item.id, 'longDescription', e.target.value)}
+                                  className="min-h-[88px] resize-y text-sm"
+                                  rows={3}
+                                />
+                                <Button variant="link" size="sm" className="h-6 px-0 text-xs text-blue-600">
+                                  Link
+                                </Button>
+                              </div>
                             </TableCell>
                             <TableCell className="align-top">
                               <Input
@@ -3072,8 +3071,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                       <TableHeader className="bg-slate-50">
                         <TableRow>
                           <TableHead className="w-8 text-center">●</TableHead>
-                          <TableHead className="w-40">Item</TableHead>
-                          <TableHead>Description</TableHead>
+                          <TableHead className="w-56">Item</TableHead>
                           <TableHead className="w-24 text-center">
                             {showQtyAs === 'hours' ? 'Hours' : showQtyAs === 'both' ? 'Qty/Hours' : 'Qty'}
                           </TableHead>
@@ -3090,26 +3088,25 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                               <div className="w-3 h-3 rounded-full border-2 border-slate-300"></div>
                             </TableCell>
                             <TableCell className="align-top">
-                              <Textarea
-                                placeholder="Description"
-                                value={item.description}
-                                onChange={(e) => updateEditItem(item.id, 'description', e.target.value)}
-                                className="min-h-[60px] resize-y text-sm border-dashed"
-                                rows={2}
-                              />
-                            </TableCell>
-                            <TableCell className="align-top">
-                              <Textarea
-                                placeholder="Long description"
-                                value={item.longDescription}
-                                onChange={(e) => updateEditItem(item.id, 'longDescription', e.target.value)}
-                                className="min-h-[60px] resize-y text-sm border-dashed"
-                                rows={2}
-                              />
-                              <button className="text-xs text-blue-600 hover:underline mt-1 flex items-center gap-1">
-                                <LinkIcon className="h-3 w-3" />
-                                Link
-                              </button>
+                              <div className="space-y-2">
+                                <Input
+                                  placeholder="Item name"
+                                  value={item.description}
+                                  onChange={(e) => updateEditItem(item.id, 'description', e.target.value)}
+                                  className="h-9 text-sm"
+                                />
+                                <Textarea
+                                  placeholder="Description"
+                                  value={item.longDescription}
+                                  onChange={(e) => updateEditItem(item.id, 'longDescription', e.target.value)}
+                                  className="min-h-[60px] resize-y text-sm border-dashed"
+                                  rows={2}
+                                />
+                                <button className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                  <LinkIcon className="h-3 w-3" />
+                                  Link
+                                </button>
+                              </div>
                             </TableCell>
                             <TableCell className="align-top">
                               <Input

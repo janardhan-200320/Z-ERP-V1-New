@@ -18,6 +18,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'wouter';
 import DashboardLayout from '@/components/DashboardLayout';
 import { 
   Download, Calendar as CalendarIcon, Clock, CheckCircle, XCircle, 
@@ -89,6 +90,7 @@ interface AttRec {
 export default function EmployeeProfile() {
   // Tab state
   const [activeTab, setActiveTab] = useState('overview');
+  const [location] = useLocation();
   
   // Employee data
   const [employeeData, setEmployeeData] = useState<Employee | null>(null);
@@ -224,6 +226,16 @@ export default function EmployeeProfile() {
     fetchInsurance();
     fetchPayroll();
   }, [fetchEmployee, fetchAttendance, fetchLeaveRequests, fetchInsurance, fetchPayroll]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (!tab) return;
+    const allowedTabs = new Set(['overview', 'insurance', 'attendance', 'leave', 'payroll']);
+    if (allowedTabs.has(tab)) {
+      setActiveTab(tab);
+    }
+  }, [location]);
 
   // Initialize edit form when modal opens
   useEffect(() => {

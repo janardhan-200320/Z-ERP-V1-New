@@ -123,7 +123,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [selectedWorkLocation, setSelectedWorkLocation] = useState<WorkLocation>('office');
   const [checkInNote, setCheckInNote] = useState('');
   const [checkOutNote, setCheckOutNote] = useState('');
-  const showAttendanceApplyLeave = location?.startsWith('/hrm/attendance');
+  const showAttendanceApplyLeave = true;
   const [selectedBreakReason, setSelectedBreakReason] = useState<BreakReason>('lunch');
   const [otherReasonNote, setOtherReasonNote] = useState('');
   const [checkInAt, setCheckInAt] = useState<Date | null>(null);

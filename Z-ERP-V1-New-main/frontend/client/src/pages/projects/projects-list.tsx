@@ -1,0 +1,1572 @@
+import { useEffect, useState } from 'react';
+import DashboardLayout from '@/components/DashboardLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  FolderKanban,
+  Plus,
+  Upload,
+  Filter,
+  Download,
+  RefreshCw,
+  Search,
+  MoreVertical,
+  Eye,
+  Edit,
+  Trash2,
+  Users,
+  Clock,
+  CheckCircle,
+  Tag,
+  XCircle,
+  PauseCircle,
+  Circle,
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  Undo2,
+  Redo2,
+  Image as ImageIcon,
+  ChevronDown,
+  Type,
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  AlignJustify,
+  UserPlus,
+  AlertCircle,
+  Bell,
+  Send,
+  Mail,
+  Calendar,
+  Zap
+} from 'lucide-react';
+import { useLocation } from 'wouter';
+import { useToast } from '@/hooks/use-toast';
+import { fetchCustomers, fetchProjects, createProject, updateProject, deleteProject, uploadProjectDocuments, type ProjectRecord } from '@/lib/supabase-data';
+import { exportToExcel } from '@/lib/exportUtils';
+
+type ProjectItem = {
+  id: number;
+  name: string;
+  customer: string;
+  tags: string[];
+  startDate: string;
+  deadline: string;
+  members: number;
+  teamMembers?: string[];
+  status: string;
+  progress: number;
+  description?: string;
+  budget?: number | null;
+  spent?: number | null;
+  calculateProgress?: boolean;
+  billingType?: string;
+  totalRate?: number | null;
+  estimatedHours?: number | null;
+  sendEmail?: boolean;
+  projectDocuments?: Array<{
+    name: string;
+    size: number;
+    type: string;
+    lastModified?: number | null;
+    bucket?: string;
+    storage_path?: string;
+    file_url?: string | null;
+    uploaded_at?: string;
+  }>;
+};
+
+const RichTextEditor = ({ value, onChange }: { value: string; onChange: (val: string) => void }) => {
+  return (
+    <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm bg-white focus-within:ring-2 focus-within:ring-blue-100/50 transition-all">
+      <div className="bg-slate-50 border-b border-slate-200 p-1.5 flex flex-wrap gap-1 items-center">
+        <div className="flex bg-white rounded border border-slate-200 p-0.5 shadow-sm">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-600 hover:text-blue-600"><Bold className="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-600 hover:text-blue-600"><Italic className="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-600 hover:text-blue-600"><List className="h-3.5 w-3.5" /></Button>
+        </div>
+        <div className="flex bg-white rounded border border-slate-200 p-0.5 shadow-sm">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-600 hover:text-blue-600"><AlignLeft className="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-600 hover:text-blue-600"><AlignCenter className="h-3.5 w-3.5" /></Button>
+        </div>
+        <div className="ml-auto flex items-center gap-1.5">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded shadow-sm"><ImageIcon className="h-3.5 w-3.5" /></Button>
+        </div>
+      </div>
+      <textarea
+        className="w-full min-h-[100px] p-3 text-sm text-slate-700 bg-white placeholder:text-slate-400 focus:outline-none resize-none leading-relaxed"
+        placeholder="Enter project description..."
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <div className="bg-slate-50 border-t border-slate-100 px-3 py-1 flex justify-between items-center">
+        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest italic">Live Editor</span>
+        <span className="text-[9px] text-slate-500 font-bold">{value.length} CHARS</span>
+      </div>
+    </div>
+  );
+};
+
+export default function ProjectsList() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [customerSuggestions, setCustomerSuggestions] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [entriesPerPage, setEntriesPerPage] = useState('25');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showTeamMemberDialog, setShowTeamMemberDialog] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
+  const [teamMemberEmail, setTeamMemberEmail] = useState('');
+  
+  // Form state for new/edit project
+  const [projectForm, setProjectForm] = useState({
+    name: '',
+    customer: '',
+    description: '',
+    startDate: new Date().toISOString().split('T')[0],
+    deadline: '',
+    budget: '',
+    status: 'in-progress',
+    tags: '',
+    calculateProgress: true,
+    billingType: 'fixed-rate',
+    totalRate: '',
+    estimatedHours: '',
+    members: [] as string[],
+    sendEmail: false,
+    projectDocuments: [] as File[]
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let active = true;
+
+    Promise.all([fetchProjects(), fetchCustomers()])
+      .then(([projectRows, customerRows]) => {
+        if (!active) return;
+
+        const mapped = projectRows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          customer: row.customer,
+          tags: row.tags ?? [],
+          startDate: row.start_date,
+          deadline: row.deadline,
+          members: row.members ?? 0,
+          teamMembers: row.team_members ?? [],
+          status: row.status,
+          progress: row.progress ?? 0,
+          calculateProgress: row.calculate_progress ?? true,
+          billingType: row.billing_type ?? 'fixed-rate',
+          totalRate: row.total_rate ?? null,
+          estimatedHours: row.estimated_hours ?? null,
+          sendEmail: row.send_email ?? false,
+          projectDocuments: row.project_documents ?? [],
+          description: row.description ?? '',
+          budget: row.budget ?? null,
+          spent: row.spent ?? null,
+        }));
+
+        setProjects(mapped);
+        setCustomerSuggestions(
+          Array.from(
+            new Set([
+              ...customerRows.map((customer) => customer.company_name.trim()).filter(Boolean),
+              ...mapped.map((project) => project.customer.trim()).filter(Boolean),
+            ])
+          ).sort((a, b) => a.localeCompare(b))
+        );
+
+        const pendingEditId = localStorage.getItem('z_erp_project_edit_id');
+        if (pendingEditId) {
+          const projectToEdit = mapped.find((project) => String(project.id) === pendingEditId);
+          if (projectToEdit) {
+            handleEditProject(projectToEdit);
+            localStorage.removeItem('z_erp_project_edit_id');
+          }
+        }
+      })
+      .catch((error) => {
+        if (!active) return;
+        toast({
+          title: 'Failed to load projects',
+          description: error.message || 'Could not load project data from Supabase',
+          variant: 'destructive',
+        });
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [toast]);
+
+  const statusStats = [
+    { label: 'Not Started', value: projects.filter((project) => project.status === 'not-started').length, icon: Circle, color: 'text-slate-600', bgColor: 'bg-slate-100', borderColor: 'border-slate-200' },
+    { label: 'In Progress', value: projects.filter((project) => project.status === 'in-progress').length, icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-100', borderColor: 'border-blue-200' },
+    { label: 'Urgent', value: projects.filter((project) => project.status === 'urgent').length, icon: Zap, color: 'text-orange-600', bgColor: 'bg-orange-100', borderColor: 'border-orange-200' },
+    { label: 'On Hold', value: projects.filter((project) => project.status === 'on-hold').length, icon: PauseCircle, color: 'text-yellow-600', bgColor: 'bg-yellow-100', borderColor: 'border-yellow-200' },
+    { label: 'Finished', value: projects.filter((project) => project.status === 'finished').length, icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-100', borderColor: 'border-green-200' }
+  ];
+
+  const statusConfig: Record<string, { label: string; class: string; icon: any }> = {
+    'not-started': { label: 'Not Started', class: 'bg-slate-100 text-slate-700 border-slate-200', icon: Circle },
+    'in-progress': { label: 'In Progress', class: 'bg-blue-100 text-blue-700 border-blue-200', icon: Clock },
+    'on-hold': { label: 'On Hold', class: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: PauseCircle },
+    'urgent': { label: 'Urgent', class: 'bg-red-100 text-red-700 border-red-300 animate-pulse', icon: Zap },
+    cancelled: { label: 'Cancelled', class: 'bg-red-100 text-red-700 border-red-200', icon: XCircle },
+    finished: { label: 'Finished', class: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle }
+  };
+
+  const filteredProjects = projects.filter(project => {
+    const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         project.customer.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleExport = () => {
+    if (filteredProjects.length === 0) {
+      toast({
+        title: 'No projects to export',
+        description: 'Try adjusting filters or search before exporting.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const exportRows = filteredProjects.map((project) => ({
+      'Project Name': project.name,
+      Customer: project.customer,
+      Tags: project.tags?.length ? project.tags.join(', ') : '',
+      'Start Date': project.startDate,
+      Deadline: project.deadline,
+      Members: project.members,
+      Status: project.status,
+    }));
+
+    exportToExcel(exportRows, `projects-summary-${new Date().toISOString().slice(0, 10)}`);
+  };
+
+  const handleViewProject = (projectId: number) => {
+    setLocation(`/projects/${projectId}`);
+  };
+
+  const validateProjectForm = () => {
+    const errors: Record<string, string> = {};
+    if (!projectForm.name.trim()) errors.name = 'Project name is required';
+    if (!projectForm.customer.trim()) errors.customer = 'Customer is required';
+    if (!projectForm.startDate) errors.startDate = 'Start date is required';
+    if (!projectForm.deadline) errors.deadline = 'Deadline is required';
+    if (projectForm.startDate && projectForm.deadline && projectForm.startDate > projectForm.deadline) {
+      errors.deadline = 'Deadline must be after start date';
+    }
+    if (projectForm.budget && isNaN(Number(projectForm.budget))) {
+      errors.budget = 'Budget must be a valid number';
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const resetProjectForm = () => {
+    setProjectForm({
+      name: '',
+      customer: '',
+      description: '',
+      startDate: new Date().toISOString().split('T')[0],
+      deadline: '',
+      budget: '',
+      status: 'in-progress',
+      tags: '',
+      calculateProgress: true,
+      billingType: 'fixed-rate',
+      totalRate: '',
+      estimatedHours: '',
+      members: [] as string[],
+      sendEmail: false,
+      projectDocuments: [] as File[]
+    });
+    setFormErrors({});
+  };
+
+  const handleCreateProject = async () => {
+    if (!validateProjectForm()) return;
+
+    try {
+      const created = await createProject({
+        name: projectForm.name.trim(),
+        customer: projectForm.customer.trim(),
+        description: projectForm.description.trim() || null,
+        start_date: projectForm.startDate,
+        deadline: projectForm.deadline,
+        members: projectForm.members.length || 0,
+        team_members: projectForm.members,
+        status: projectForm.status,
+        calculate_progress: projectForm.calculateProgress,
+        billing_type: projectForm.billingType,
+        total_rate: projectForm.totalRate ? Number(projectForm.totalRate) : null,
+        estimated_hours: projectForm.estimatedHours ? Number(projectForm.estimatedHours) : null,
+        send_email: projectForm.sendEmail,
+        project_documents: [],
+        tags: projectForm.tags
+          ? projectForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+          : [],
+        progress: 0,
+        budget: projectForm.budget ? Number(projectForm.budget) : null,
+        spent: 0,
+      });
+
+      let uploadedDocuments = created.project_documents ?? [];
+
+      if (projectForm.projectDocuments.length > 0) {
+        const uploaded = await uploadProjectDocuments(created.id, projectForm.projectDocuments);
+        uploadedDocuments = uploaded;
+
+        await updateProject(created.id, {
+          project_documents: uploadedDocuments,
+        });
+      }
+
+      setProjects((prev) => [
+        {
+          id: created.id,
+          name: created.name,
+          customer: created.customer,
+          tags: created.tags ?? [],
+          startDate: created.start_date,
+          deadline: created.deadline,
+          members: created.members ?? 0,
+          teamMembers: created.team_members ?? [],
+          status: created.status,
+          progress: created.progress ?? 0,
+          calculateProgress: created.calculate_progress ?? true,
+          billingType: created.billing_type ?? 'fixed-rate',
+          totalRate: created.total_rate ?? null,
+          estimatedHours: created.estimated_hours ?? null,
+          sendEmail: created.send_email ?? false,
+          projectDocuments: uploadedDocuments,
+          description: created.description ?? '',
+          budget: created.budget ?? null,
+          spent: created.spent ?? null,
+        },
+        ...prev,
+      ]);
+
+      toast({
+        title: 'Project Created',
+        description:
+          projectForm.projectDocuments.length > 0
+            ? `Project "${projectForm.name}" saved and ${projectForm.projectDocuments.length} file(s) uploaded to Supabase Storage.`
+            : `Project "${projectForm.name}" has been saved to Supabase.`,
+      });
+      setShowNewProjectDialog(false);
+      resetProjectForm();
+    } catch (error: any) {
+      toast({
+        title: 'Failed to create project',
+        description: error?.message || 'Supabase rejected the project payload',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEditProject = (project: any) => {
+    setSelectedProject(project);
+    setProjectForm({
+      name: project.name,
+      customer: project.customer,
+      description: project.description || '',
+      startDate: project.startDate,
+      deadline: project.deadline,
+      budget: project.budget || '',
+      status: project.status,
+      tags: Array.isArray(project.tags) ? project.tags.join(', ') : (project.tags || ''),
+      calculateProgress: project.calculateProgress ?? true,
+      billingType: project.billingType || 'fixed-rate',
+      totalRate: project.totalRate || '',
+      estimatedHours: project.estimatedHours || '',
+      members: Array.isArray(project.teamMembers) ? project.teamMembers : [],
+      sendEmail: project.sendEmail || false,
+      projectDocuments: []
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateProject = () => {
+    if (!validateProjectForm()) return;
+
+    if (!selectedProject?.id) return;
+
+    updateProject(selectedProject.id, {
+      name: projectForm.name.trim(),
+      customer: projectForm.customer.trim(),
+      description: projectForm.description.trim() || null,
+      start_date: projectForm.startDate,
+      deadline: projectForm.deadline,
+      members: projectForm.members.length || 0,
+      team_members: projectForm.members,
+      status: projectForm.status,
+      calculate_progress: projectForm.calculateProgress,
+      billing_type: projectForm.billingType,
+      total_rate: projectForm.totalRate ? Number(projectForm.totalRate) : null,
+      estimated_hours: projectForm.estimatedHours ? Number(projectForm.estimatedHours) : null,
+      send_email: projectForm.sendEmail,
+      ...(projectForm.projectDocuments.length > 0
+        ? {
+            project_documents: projectForm.projectDocuments.map((file) => ({
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              lastModified: file.lastModified,
+            })),
+          }
+        : {}),
+      tags: projectForm.tags
+        ? projectForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+        : [],
+      budget: projectForm.budget ? Number(projectForm.budget) : null,
+    })
+      .then((updated) => {
+        setProjects((prev) => prev.map((project) => project.id === updated.id ? {
+          id: updated.id,
+          name: updated.name,
+          customer: updated.customer,
+          tags: updated.tags ?? [],
+          startDate: updated.start_date,
+          deadline: updated.deadline,
+          members: updated.members ?? 0,
+          teamMembers: updated.team_members ?? [],
+          status: updated.status,
+          progress: updated.progress ?? 0,
+          calculateProgress: updated.calculate_progress ?? true,
+          billingType: updated.billing_type ?? 'fixed-rate',
+          totalRate: updated.total_rate ?? null,
+          estimatedHours: updated.estimated_hours ?? null,
+          sendEmail: updated.send_email ?? false,
+          projectDocuments: updated.project_documents ?? [],
+          description: updated.description ?? '',
+          budget: updated.budget ?? null,
+          spent: updated.spent ?? null,
+        } : project));
+
+        toast({
+          title: 'Project Updated',
+          description: `Project "${projectForm.name}" was updated in Supabase.`,
+        });
+        setShowEditDialog(false);
+        resetProjectForm();
+        setSelectedProject(null);
+      })
+      .catch((error) => {
+        toast({
+          title: 'Failed to update project',
+          description: error.message || 'Supabase rejected the update',
+          variant: 'destructive',
+        });
+      });
+  };
+
+  const handleDeleteProject = (project: any) => {
+    setSelectedProject(project);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteProject = () => {
+    if (!selectedProject?.id) return;
+
+    deleteProject(selectedProject.id)
+      .then(() => {
+        setProjects((prev) => prev.filter((project) => project.id !== selectedProject.id));
+        toast({
+          title: 'Project Deleted',
+          description: `Project "${selectedProject?.name}" has been deleted from Supabase.`,
+          variant: 'destructive'
+        });
+        setShowDeleteDialog(false);
+        setSelectedProject(null);
+      })
+      .catch((error) => {
+        toast({
+          title: 'Failed to delete project',
+          description: error.message || 'Supabase rejected the delete request',
+          variant: 'destructive',
+        });
+      });
+  };
+
+  // Available team members
+  const availableTeamMembers = [
+    { id: '1', name: 'John Doe', email: 'john@example.com', role: 'Developer' },
+    { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'Designer' },
+    { id: '3', name: 'Mike Johnson', email: 'mike@example.com', role: 'Project Manager' },
+    { id: '4', name: 'Sarah Williams', email: 'sarah@example.com', role: 'QA Engineer' },
+    { id: '5', name: 'Tom Brown', email: 'tom@example.com', role: 'DevOps' },
+  ];
+
+  const handleAddTeamMember = () => {
+    if (selectedTeamMembers.length === 0) {
+      toast({
+        title: "No Members Selected",
+        description: "Please select at least one team member to add.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Send notifications with enhanced feedback
+    selectedTeamMembers.forEach(memberId => {
+      const member = availableTeamMembers.find(m => m.id === memberId);
+      if (member) {
+        // Show success toast notification
+        toast({
+          title: "✓ Team Member Added Successfully",
+          description: (
+            <div className="space-y-2 mt-2">
+              <p className="font-semibold">{member.name} - {member.role}</p>
+              <div className="flex items-center gap-2 text-xs">
+                <Mail className="h-3 w-3" />
+                <span>Email sent to {member.email}</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <Bell className="h-3 w-3" />
+                <span>In-app notification delivered</span>
+              </div>
+            </div>
+          ),
+          duration: 5000,
+        });
+      }
+    });
+
+    // Show final summary toast
+    setTimeout(() => {
+      toast({
+        title: "All Notifications Sent",
+        description: `${selectedTeamMembers.length} team member${selectedTeamMembers.length !== 1 ? 's' : ''} added and notified successfully.`,
+      });
+    }, 500);
+
+    // Reset and close
+    setSelectedTeamMembers([]);
+    setShowTeamMemberDialog(false);
+  };
+
+  const toggleTeamMember = (memberId: string) => {
+    setSelectedTeamMembers(prev => 
+      prev.includes(memberId) 
+        ? prev.filter(id => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header Section */}
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+              <FolderKanban className="h-8 w-8 text-blue-600" />
+              Projects Summary
+            </h1>
+            <p className="text-sm text-slate-600 mt-1">View and manage all projects</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Project
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem 
+                  onClick={() => setShowNewProjectDialog(true)}
+                  className="cursor-pointer gap-2 py-2.5"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <FolderKanban className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-slate-700">Create New Project</span>
+                    <span className="text-xs text-slate-500">Start a new project</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {/* Status Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          {statusStats.map((stat, index) => (
+            <Card key={index} className={`hover:shadow-md transition-shadow border ${stat.borderColor}`}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-slate-600">{stat.label}</CardTitle>
+                <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
+                <p className="text-xs text-slate-600 mt-1">projects</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Table Controls */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2">
+                <Select value={entriesPerPage} onValueChange={setEntriesPerPage}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+                <Button variant="outline" size="icon">
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="not-started">Not Started</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                    <SelectItem value="on-hold">On Hold</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="finished">Finished</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Search projects..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 w-64"
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Projects Table */}
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Project Name</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Tags</TableHead>
+                  <TableHead>Start Date</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Members</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProjects.map((project) => (
+                  <TableRow key={project.id} className="hover:bg-slate-50">
+                    <TableCell>
+                      <button
+                        onClick={() => handleViewProject(project.id)}
+                        className="font-medium text-blue-600 hover:text-blue-700 hover:underline text-left"
+                      >
+                        {project.name}
+                      </button>
+                    </TableCell>
+                    <TableCell className="text-slate-600">{project.customer}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {project.tags.map((tag, idx) => (
+                          <Badge key={idx} variant="outline" className="bg-purple-100 text-purple-700 border-purple-200">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-slate-600">{project.startDate}</TableCell>
+                    <TableCell className="text-slate-600">{project.deadline}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-slate-500" />
+                        <span className="text-slate-600">{project.members}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={`${statusConfig[project.status].class} flex items-center gap-1.5 w-fit`}
+                      >
+                        {(() => {
+                          const StatusIcon = statusConfig[project.status].icon;
+                          return <StatusIcon className="h-3.5 w-3.5" />;
+                        })()}
+                        {statusConfig[project.status].label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewProject(project.id)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteProject(project)}>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-600">
+            Showing {filteredProjects.length} of {projects.length} projects
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm">
+              1
+            </Button>
+            <Button variant="outline" size="sm" disabled>
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* New Project Dialog */}
+      <Dialog open={showNewProjectDialog} onOpenChange={setShowNewProjectDialog}>
+        <DialogContent className="max-w-2xl w-[95vw] h-[85vh] max-h-[800px] flex flex-col p-0 overflow-hidden shadow-2xl border-none sm:rounded-2xl bg-white">
+          <DialogHeader className="px-6 py-4 bg-white border-b shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-100">
+                <Plus className="h-6 w-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-slate-800">Create New Project</DialogTitle>
+                <DialogDescription className="text-slate-500 text-xs">Enter the project details below to get started.</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <ScrollArea className="flex-1 min-h-0 px-6 py-4">
+            <div className="grid gap-6">
+              {/* Basic Information Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-xs font-bold text-slate-600 uppercase tracking-tight">Project Name <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="name"
+                    value={projectForm.name}
+                    onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
+                    placeholder="e.g. Website Redesign"
+                    className={`h-10 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100 focus-visible:ring-offset-0 ${formErrors.name ? 'border-red-500 bg-red-50/30' : 'border-slate-200 focus-visible:border-blue-300'}`}
+                  />
+                  <div className="min-h-[12px]">
+                    {formErrors.name && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.name}</p>}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="customer" className="text-xs font-bold text-slate-600 uppercase tracking-tight">Customer <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="customer"
+                    list="project-customer-suggestions"
+                    value={projectForm.customer}
+                    onChange={(e) => setProjectForm({ ...projectForm, customer: e.target.value })}
+                    placeholder="e.g. Acme Corp"
+                    className={`h-10 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100 focus-visible:ring-offset-0 ${formErrors.customer ? 'border-red-500 bg-red-50/30' : 'border-slate-200 focus-visible:border-blue-300'}`}
+                  />
+                  <datalist id="project-customer-suggestions">
+                    {customerSuggestions.map((customerName) => (
+                      <option key={customerName} value={customerName} />
+                    ))}
+                  </datalist>
+                  <div className="min-h-[12px]">
+                    {formErrors.customer && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.customer}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress & Billing Section */}
+              <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-1.5 rounded-lg ${projectForm.calculateProgress ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-400'}`}>
+                      <CheckCircle className="h-4 w-4" />
+                    </div>
+                    <Label htmlFor="calculateProgress" className="text-sm font-semibold text-slate-700 cursor-pointer">
+                      Calculate progress through tasks
+                    </Label>
+                  </div>
+                  <Checkbox 
+                    id="calculateProgress" 
+                    checked={projectForm.calculateProgress}
+                    onCheckedChange={(checked) => setProjectForm({ ...projectForm, calculateProgress: !!checked })}
+                    className="h-5 w-5 rounded-md border-slate-300 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <span>Project Progress</span>
+                    <span>0%</span>
+                  </div>
+                  <Progress value={0} className="h-2 bg-slate-200" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="billingType" className="text-xs font-bold text-slate-600 uppercase">Billing Type <span className="text-red-500">*</span></Label>
+                    <Select 
+                      value={projectForm.billingType} 
+                      onValueChange={(value) => setProjectForm({ ...projectForm, billingType: value })}
+                    >
+                      <SelectTrigger id="billingType" className="h-10 border-slate-200 bg-white shadow-sm">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fixed-rate">Fixed Rate</SelectItem>
+                        <SelectItem value="project-hours">Project Hours</SelectItem>
+                        <SelectItem value="task-hours">Task Hours</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="status" className="text-xs font-bold text-slate-600 uppercase">Status</Label>
+                    <Select 
+                      value={projectForm.status} 
+                      onValueChange={(value) => setProjectForm({ ...projectForm, status: value })}
+                    >
+                      <SelectTrigger id="status" className="h-10 border-slate-200 bg-white shadow-sm">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="not-started">
+                          <div className="flex items-center gap-2">
+                            <Circle className="h-3.5 w-3.5 text-slate-500" />
+                            <span>Not Started</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="in-progress">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3.5 w-3.5 text-blue-500" />
+                            <span>In Progress</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="urgent">
+                          <div className="flex items-center gap-2">
+                            <Zap className="h-3.5 w-3.5 text-orange-500" />
+                            <span className="font-semibold text-orange-600">Urgent</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="on-hold">
+                          <div className="flex items-center gap-2">
+                            <PauseCircle className="h-3.5 w-3.5 text-yellow-500" />
+                            <span>On Hold</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="finished">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                            <span>Finished</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="cancelled">
+                          <div className="flex items-center gap-2">
+                            <XCircle className="h-3.5 w-3.5 text-red-500" />
+                            <span>Cancelled</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial & Team Section */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="totalRate" className="text-xs font-bold text-slate-600 uppercase">Total Rate</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                    <Input
+                      id="totalRate"
+                      value={projectForm.totalRate}
+                      onChange={(e) => setProjectForm({ ...projectForm, totalRate: e.target.value })}
+                      placeholder="0.00"
+                      className="pl-7 h-10 border-slate-200 shadow-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="estimatedHours" className="text-xs font-bold text-slate-600 uppercase">Est. Hours</Label>
+                  <Input
+                    id="estimatedHours"
+                    value={projectForm.estimatedHours}
+                    onChange={(e) => setProjectForm({ ...projectForm, estimatedHours: e.target.value })}
+                    placeholder="0"
+                    className="h-10 border-slate-200 shadow-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-600 uppercase">Team Members</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left h-auto min-h-[40px] border-slate-200 bg-white shadow-sm font-medium flex-wrap gap-1 px-3 py-2">
+                        {projectForm.members && projectForm.members.length > 0 ? (
+                          projectForm.members.map(memberId => {
+                            const selectedMem = availableTeamMembers.find(m => m.id === memberId);
+                            return selectedMem ? (
+                              <Badge variant="secondary" key={memberId} className="mr-1 mb-1 bg-slate-100 text-slate-800 hover:bg-slate-200 border-none px-2 py-0.5 rounded-full text-xs">
+                                {selectedMem.name}
+                              </Badge>
+                            ) : null;
+                          })
+                        ) : (
+                          <span className="text-slate-500">Select team members...</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search members..." />
+                        <CommandList>
+                          <CommandEmpty>No members found.</CommandEmpty>
+                          <CommandGroup className="max-h-64 overflow-auto">
+                            {availableTeamMembers.map((member) => {
+                              const isSelected = projectForm.members?.includes(member.id);
+                              return (
+                                <CommandItem
+                                  key={member.id}
+                                  onSelect={() => {
+                                    const newMembers = isSelected 
+                                      ? projectForm.members.filter(id => id !== member.id)
+                                      : [...(projectForm.members || []), member.id];
+                                    setProjectForm({ ...projectForm, members: newMembers });
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2 w-full">
+                                    <Checkbox checked={isSelected} className="h-4 w-4 rounded-sm" />
+                                    <div className="flex flex-col">
+                                      <span className="font-medium text-sm text-slate-700">{member.name}</span>
+                                      <span className="text-xs text-slate-500">{member.role}</span>
+                                    </div>
+                                  </div>
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              {/* Timeline Section */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="startDate" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1.5">
+                    <Calendar className="h-3 w-3 text-green-500" />
+                    Start Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={projectForm.startDate}
+                    onChange={(e) => setProjectForm({ ...projectForm, startDate: e.target.value })}
+                    className={`h-10 border-slate-200 shadow-sm font-medium ${formErrors.startDate ? 'border-red-500 bg-red-50' : ''}`}
+                  />
+                  {formErrors.startDate && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.startDate}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="deadline" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1.5">
+                    <AlertCircle className="h-3 w-3 text-orange-500" />
+                    Deadline / Due Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="deadline"
+                    type="date"
+                    value={projectForm.deadline}
+                    onChange={(e) => setProjectForm({ ...projectForm, deadline: e.target.value })}
+                    className={`h-10 border-slate-200 shadow-sm font-medium ${formErrors.deadline ? 'border-red-500 bg-red-50' : ''}`}
+                  />
+                  {formErrors.deadline && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.deadline}</p>}
+                </div>
+              </div>
+
+              {/* Tags Section */}
+              {/* Description Section */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-600 uppercase">Description</Label>
+                <RichTextEditor 
+                  value={projectForm.description} 
+                  onChange={(val) => setProjectForm({ ...projectForm, description: val })} 
+                />
+              </div>
+
+              {/* Project Documents */}
+              <div className="space-y-2 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                <Label htmlFor="project-documents" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-2">
+                  <Upload className="h-3.5 w-3.5 text-blue-500" />
+                  Project Files & Documents
+                </Label>
+                <Input
+                  id="project-documents"
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setProjectForm({ ...projectForm, projectDocuments: files });
+                  }}
+                  className="h-10 border-slate-200 bg-white file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
+                />
+                {projectForm.projectDocuments.length > 0 && (
+                  <div className="rounded-lg border border-slate-200 bg-white p-2.5 space-y-1.5 max-h-32 overflow-auto">
+                    {projectForm.projectDocuments.map((file, index) => (
+                      <p key={`${file.name}-${index}`} className="text-xs text-slate-600 truncate">
+                        {file.name}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[10px] text-slate-500">You can upload multiple files (documents, briefs, and related project assets).</p>
+              </div>
+
+              {/* Email Notification */}
+              <div className="flex items-center space-x-2.5 p-3 rounded-xl bg-blue-50/40 border border-blue-100 shadow-sm">
+                <Checkbox 
+                  id="sendEmail" 
+                  checked={projectForm.sendEmail}
+                  onCheckedChange={(checked) => setProjectForm({ ...projectForm, sendEmail: !!checked })}
+                  className="h-4 w-4 border-blue-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 shadow-none"
+                />
+                <label
+                  htmlFor="sendEmail"
+                  className="text-xs font-semibold text-blue-800 cursor-pointer flex flex-col"
+                >
+                  Send Email Notification
+                  <span className="text-[10px] font-normal text-blue-600">Notify team members about the new project.</span>
+                </label>
+              </div>
+            </div>
+          </ScrollArea>
+          
+          <DialogFooter className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+            <Button variant="outline" onClick={() => { setShowNewProjectDialog(false); resetProjectForm(); }} className="h-10 px-6 border-slate-200 text-slate-600 font-bold hover:bg-slate-100">
+              Cancel
+            </Button>
+            <Button onClick={handleCreateProject} className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100 h-10 px-8 font-bold transition-all transform active:scale-95">
+              Create Project
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Project Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl w-[95vw] h-[85vh] max-h-[800px] flex flex-col p-0 overflow-hidden shadow-2xl border-none sm:rounded-2xl bg-white">
+          <DialogHeader className="px-6 py-4 bg-white border-b shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-slate-800">Edit Project</DialogTitle>
+                <DialogDescription className="text-slate-500 text-xs">Modify the existing project details.</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 min-h-0 px-6 py-4">
+            <div className="grid gap-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-name" className="text-xs font-bold text-slate-600 uppercase tracking-tight">Project Name <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="edit-name"
+                    value={projectForm.name}
+                    onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
+                    className={`h-10 ${formErrors.name ? 'border-red-500 bg-red-50/30' : 'border-slate-200 focus:ring-2 focus:ring-indigo-100'}`}
+                  />
+                  {formErrors.name && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.name}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-customer" className="text-xs font-bold text-slate-600 uppercase tracking-tight">Customer <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="edit-customer"
+                    list="project-customer-suggestions"
+                    value={projectForm.customer}
+                    onChange={(e) => setProjectForm({ ...projectForm, customer: e.target.value })}
+                    className={`h-10 ${formErrors.customer ? 'border-red-500 bg-red-50/30' : 'border-slate-200 focus:ring-2 focus:ring-indigo-100'}`}
+                  />
+                  {formErrors.customer && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.customer}</p>}
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-1.5 rounded-lg ${projectForm.calculateProgress ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-400'}`}>
+                      <CheckCircle className="h-4 w-4" />
+                    </div>
+                    <Label htmlFor="edit-calculateProgress" className="text-sm font-semibold text-slate-700 cursor-pointer">
+                      Calculate progress through tasks
+                    </Label>
+                  </div>
+                  <Checkbox 
+                    id="edit-calculateProgress" 
+                    checked={projectForm.calculateProgress}
+                    onCheckedChange={(checked) => setProjectForm({ ...projectForm, calculateProgress: !!checked })}
+                    className="h-5 w-5 rounded-md border-slate-300 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <span className="flex items-center gap-1">CURRENT STATUS</span>
+                    <span>{selectedProject?.progress || 0}%</span>
+                  </div>
+                  <Progress value={selectedProject?.progress || 0} className="h-2 bg-slate-200" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-billingType" className="text-xs font-bold text-slate-600 uppercase">Billing Type <span className="text-red-500">*</span></Label>
+                    <Select 
+                      value={projectForm.billingType} 
+                      onValueChange={(value) => setProjectForm({ ...projectForm, billingType: value })}
+                    >
+                      <SelectTrigger id="edit-billingType" className="h-10 border-slate-200 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fixed-rate">Fixed Rate</SelectItem>
+                        <SelectItem value="project-hours">Project Hours</SelectItem>
+                        <SelectItem value="task-hours">Task Hours</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-status" className="text-xs font-bold text-slate-600 uppercase">Project Status</Label>
+                    <Select 
+                      value={projectForm.status} 
+                      onValueChange={(value) => setProjectForm({ ...projectForm, status: value })}
+                    >
+                      <SelectTrigger id="edit-status" className="h-10 border-slate-200 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="not-started">
+                          <div className="flex items-center gap-2">
+                            <Circle className="h-3.5 w-3.5 text-slate-500" />
+                            <span>Not Started</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="in-progress">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3.5 w-3.5 text-blue-500" />
+                            <span>In Progress</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="urgent">
+                          <div className="flex items-center gap-2">
+                            <Zap className="h-3.5 w-3.5 text-orange-500" />
+                            <span className="font-semibold text-orange-600">Urgent</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="on-hold">
+                          <div className="flex items-center gap-2">
+                            <PauseCircle className="h-3.5 w-3.5 text-yellow-500" />
+                            <span>On Hold</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="finished">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                            <span>Finished</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="cancelled">
+                          <div className="flex items-center gap-2">
+                            <XCircle className="h-3.5 w-3.5 text-red-500" />
+                            <span>Cancelled</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-totalRate" className="text-xs font-bold text-slate-600 uppercase">Total Rate</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                    <Input
+                      id="edit-totalRate"
+                      value={projectForm.totalRate}
+                      onChange={(e) => setProjectForm({ ...projectForm, totalRate: e.target.value })}
+                      className="pl-7 h-10 border-slate-200 shadow-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-estimatedHours" className="text-xs font-bold text-slate-600 uppercase">Est. Hours</Label>
+                  <Input
+                    id="edit-estimatedHours"
+                    value={projectForm.estimatedHours}
+                    onChange={(e) => setProjectForm({ ...projectForm, estimatedHours: e.target.value })}
+                    className="h-10 border-slate-200 shadow-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-600 uppercase">Team Members</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left h-auto min-h-[40px] border-slate-200 bg-white shadow-sm font-medium flex-wrap gap-1 px-3 py-2">
+                        {projectForm.members && projectForm.members.length > 0 ? (
+                          projectForm.members.map(memberId => {
+                            const selectedMem = availableTeamMembers.find(m => m.id === memberId);
+                            return selectedMem ? (
+                              <Badge variant="secondary" key={memberId} className="mr-1 mb-1 bg-slate-100 text-slate-800 hover:bg-slate-200 border-none px-2 py-0.5 rounded-full text-xs">
+                                {selectedMem.name}
+                              </Badge>
+                            ) : null;
+                          })
+                        ) : (
+                          <span className="text-slate-500">Select team members...</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search members..." />
+                        <CommandList>
+                          <CommandEmpty>No members found.</CommandEmpty>
+                          <CommandGroup className="max-h-64 overflow-auto">
+                            {availableTeamMembers.map((member) => {
+                              const isSelected = projectForm.members?.includes(member.id);
+                              return (
+                                <CommandItem
+                                  key={member.id}
+                                  onSelect={() => {
+                                    const newMembers = isSelected 
+                                      ? projectForm.members.filter(id => id !== member.id)
+                                      : [...(projectForm.members || []), member.id];
+                                    setProjectForm({ ...projectForm, members: newMembers });
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2 w-full">
+                                    <Checkbox checked={isSelected} className="h-4 w-4 rounded-sm" />
+                                    <div className="flex flex-col">
+                                      <span className="font-medium text-sm text-slate-700">{member.name}</span>
+                                      <span className="text-xs text-slate-500">{member.role}</span>
+                                    </div>
+                                  </div>
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-startDate" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1.5">
+                    <Calendar className="h-3 w-3 text-green-500" />
+                    Start Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="edit-startDate"
+                    type="date"
+                    value={projectForm.startDate}
+                    onChange={(e) => setProjectForm({ ...projectForm, startDate: e.target.value })}
+                    className={`h-10 border-slate-200 shadow-sm font-medium ${formErrors.startDate ? 'border-red-500 bg-red-50' : ''}`}
+                  />
+                  {formErrors.startDate && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.startDate}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-deadline" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1.5">
+                    <AlertCircle className="h-3 w-3 text-orange-500" />
+                    Deadline / Due Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="edit-deadline"
+                    type="date"
+                    value={projectForm.deadline}
+                    onChange={(e) => setProjectForm({ ...projectForm, deadline: e.target.value })}
+                    className={`h-10 border-slate-200 shadow-sm font-medium ${formErrors.deadline ? 'border-red-500 bg-red-50' : ''}`}
+                  />
+                  {formErrors.deadline && <p className="text-[10px] font-medium text-red-500 leading-none mt-1">{formErrors.deadline}</p>}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-tags" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1.5">
+                  <Tag className="h-3 w-3 text-indigo-400" /> Tags
+                </Label>
+                <Input
+                  id="edit-tags"
+                  value={projectForm.tags}
+                  onChange={(e) => setProjectForm({ ...projectForm, tags: e.target.value })}
+                  placeholder="e.g. Design, Frontend"
+                  className="border-dashed border border-slate-300 h-10 bg-slate-50"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-600 uppercase">Description</Label>
+                <RichTextEditor 
+                  value={projectForm.description} 
+                  onChange={(val) => setProjectForm({ ...projectForm, description: val })} 
+                />
+              </div>
+
+              <div className="space-y-2 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                <Label htmlFor="edit-project-documents" className="text-xs font-bold text-slate-600 uppercase flex items-center gap-2">
+                  <Upload className="h-3.5 w-3.5 text-indigo-500" />
+                  Project Files & Documents
+                </Label>
+                <Input
+                  id="edit-project-documents"
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setProjectForm({ ...projectForm, projectDocuments: files });
+                  }}
+                  className="h-10 border-slate-200 bg-white file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
+                />
+                {projectForm.projectDocuments.length > 0 && (
+                  <div className="rounded-lg border border-slate-200 bg-white p-2.5 space-y-1.5 max-h-32 overflow-auto">
+                    {projectForm.projectDocuments.map((file, index) => (
+                      <p key={`${file.name}-edit-${index}`} className="text-xs text-slate-600 truncate">
+                        {file.name}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[10px] text-slate-500">Select one or more files to attach to this project.</p>
+              </div>
+            </div>
+          </ScrollArea>
+          
+          <DialogFooter className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3">
+            <Button variant="outline" onClick={() => { setShowEditDialog(false); resetProjectForm(); setSelectedProject(null); }} className="h-10 px-6 border-slate-200 text-slate-600 font-bold hover:bg-slate-100">
+              Cancel Updates
+            </Button>
+            <Button onClick={handleUpdateProject} className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 h-10 px-8 font-bold transition-all transform active:scale-95">
+              Update Project
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Project</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{selectedProject?.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowDeleteDialog(false); setSelectedProject(null); }}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteProject}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Team Member Dialog */}
+      <Dialog open={showTeamMemberDialog} onOpenChange={setShowTeamMemberDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white shadow-lg">
+                <UserPlus className="h-6 w-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-bold text-slate-900">Add Team Members to Project</DialogTitle>
+                <DialogDescription className="text-slate-600 mt-1">
+                  Select team members to add. They will receive email and popup notifications.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Info Banner */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-3">
+              <Bell className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-semibold text-blue-900">Notifications will be sent</p>
+                <p className="text-blue-700 text-xs mt-0.5">Selected members will receive an email notification and an in-app popup message about their assignment.</p>
+              </div>
+            </div>
+
+            {/* Team Members List */}
+            <ScrollArea className="h-[400px] pr-4">
+              <div className="space-y-2">
+                {availableTeamMembers.map((member) => {
+                  const isSelected = selectedTeamMembers.includes(member.id);
+                  return (
+                    <div
+                      key={member.id}
+                      onClick={() => toggleTeamMember(member.id)}
+                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                        isSelected 
+                          ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-300 shadow-md' 
+                          : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Checkbox 
+                            checked={isSelected}
+                            onCheckedChange={() => toggleTeamMember(member.id)}
+                            className={`h-5 w-5 ${isSelected ? 'data-[state=checked]:bg-purple-600' : ''}`}
+                          />
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-md">
+                            {member.name.split(' ').map(n => n[0]).join('')}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-900">{member.name}</p>
+                            <p className="text-sm text-slate-600">{member.role}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-slate-500">
+                          <Mail className="h-4 w-4" />
+                          <span className="text-xs">{member.email}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+
+            {/* Selected Count */}
+            {selectedTeamMembers.length > 0 && (
+              <div className="bg-gradient-to-r from-purple-100 to-pink-100 border border-purple-200 rounded-lg p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-purple-700" />
+                  <span className="font-semibold text-purple-900">
+                    {selectedTeamMembers.length} member{selectedTeamMembers.length !== 1 ? 's' : ''} selected
+                  </span>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setSelectedTeamMembers([])}
+                  className="text-purple-700 hover:text-purple-900 hover:bg-purple-200"
+                >
+                  Clear All
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 px-6 py-4 rounded-b-lg">
+            <Button 
+              variant="outline" 
+              onClick={() => { 
+                setShowTeamMemberDialog(false); 
+                setSelectedTeamMembers([]); 
+              }}
+              className="font-semibold"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddTeamMember}
+              disabled={selectedTeamMembers.length === 0}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 font-semibold shadow-lg"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Add {selectedTeamMembers.length > 0 ? `${selectedTeamMembers.length} ` : ''}Member{selectedTeamMembers.length !== 1 ? 's' : ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </DashboardLayout>
+  );
+}

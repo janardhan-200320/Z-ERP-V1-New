@@ -1,0 +1,373 @@
+import { useEffect, useMemo, useState } from "react";
+import { Save, IndianRupee } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import DashboardLayout from "@/components/DashboardLayout";
+import { useToast } from "@/hooks/use-toast";
+import { getFinanceSettings, saveFinanceSettings } from "@/lib/finance-settings";
+
+export default function FinanceSettings() {
+  const { toast } = useToast();
+  const [settings, setSettings] = useState(() => getFinanceSettings());
+
+  const resolveTaxRate = (option: string, customRate: number) => {
+    if (option === "custom") {
+      return Number(customRate) || 0;
+    }
+
+    return Number(option) || 0;
+  };
+
+  const gstRate = useMemo(() => {
+    const cgstRate = resolveTaxRate(settings.cgstTaxOption, settings.cgstCustomRate);
+    const sgstRate = resolveTaxRate(settings.sgstTaxOption, settings.sgstCustomRate);
+    return Number((cgstRate + sgstRate).toFixed(2));
+  }, [settings.cgstTaxOption, settings.cgstCustomRate, settings.sgstTaxOption, settings.sgstCustomRate]);
+
+  const effectiveGstRate = useMemo(() => {
+    if (settings.gstRateMode === "custom") {
+      return Number(settings.gstCustomRate) || 0;
+    }
+
+    return gstRate;
+  }, [settings.gstRateMode, settings.gstCustomRate, gstRate]);
+
+  useEffect(() => {
+    setSettings((prev) => {
+      if (prev.defaultTaxRate === effectiveGstRate) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        defaultTaxRate: effectiveGstRate,
+      };
+    });
+  }, [effectiveGstRate]);
+
+  const currencyOptions = useMemo(() => {
+    const fallback = [
+      { code: "USD", label: "USD - US Dollar" },
+      { code: "EUR", label: "EUR - Euro" },
+      { code: "GBP", label: "GBP - British Pound" },
+      { code: "INR", label: "INR - Indian Rupee" },
+      { code: "JPY", label: "JPY - Japanese Yen" },
+    ];
+
+    try {
+      const intlAny = Intl as any;
+      const supported: string[] | undefined = intlAny.supportedValuesOf?.("currency");
+      if (!supported || supported.length === 0) {
+        return fallback;
+      }
+
+      const displayNames = intlAny.DisplayNames
+        ? new intlAny.DisplayNames(["en"], { type: "currency" })
+        : null;
+
+      return supported
+        .map((code) => {
+          const upperCode = String(code).toUpperCase();
+          const currencyName = displayNames?.of?.(upperCode) || upperCode;
+          return {
+            code: upperCode,
+            label: `${upperCode} - ${currencyName}`,
+          };
+        })
+        .sort((a, b) => a.code.localeCompare(b.code));
+    } catch {
+      return fallback;
+    }
+  }, []);
+
+  const taxRateOptions = ["0", "2.5", "5", "6", "9", "12", "14", "18", "28", "custom"];
+
+  const handleSave = () => {
+    const saved = saveFinanceSettings(settings);
+    setSettings(saved);
+    toast({ title: "Settings Saved", description: "Finance settings have been updated successfully." });
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Finance Settings</h1>
+          <p className="text-muted-foreground">Configure financial settings, currency, and payment options</p>
+        </div>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <IndianRupee className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Currency & Tax Settings</CardTitle>
+            </div>
+            <CardDescription>Set default currency and tax configurations</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="default-currency">Default Currency</Label>
+                <Select
+                  value={settings.defaultCurrency}
+                  onValueChange={(value) => setSettings((prev) => ({ ...prev, defaultCurrency: value.toUpperCase() }))}
+                >
+                  <SelectTrigger id="default-currency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {currencyOptions.map((currency) => (
+                      <SelectItem key={currency.code} value={currency.code}>
+                        {currency.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="currency-format">Currency Display Format</Label>
+                <Select
+                  value={settings.currencyFormat}
+                  onValueChange={(value) => setSettings((prev) => ({ ...prev, currencyFormat: value }))}
+                >
+                  <SelectTrigger id="currency-format">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="symbol">₹1,234.56</SelectItem>
+                    <SelectItem value="code">USD 1,234.56</SelectItem>
+                    <SelectItem value="name">1,234.56 Dollar</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Separator />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="gst-rate">GST Rate</Label>
+                <div className="flex gap-2">
+                  <Select
+                    value={settings.gstRateMode}
+                    onValueChange={(value) => setSettings((prev) => ({
+                      ...prev,
+                      gstRateMode: value as "auto" | "custom",
+                    }))}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="gst-rate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={effectiveGstRate}
+                    disabled={settings.gstRateMode !== "custom"}
+                    onChange={(e) => setSettings((prev) => ({
+                      ...prev,
+                      gstCustomRate: Number(e.target.value) || 0,
+                    }))}
+                  />
+                  <div className="h-10 min-w-10 rounded-md border bg-muted px-3 text-sm flex items-center justify-center">%</div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {settings.gstRateMode === "custom"
+                    ? "Custom GST is used as main tax rate"
+                    : "Auto calculated as CGST + SGST"}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tax-number">Tax ID / VAT Number</Label>
+                <Input
+                  id="tax-number"
+                  placeholder="Enter Tax ID"
+                  value={settings.taxNumber}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, taxNumber: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="cgst-rate">CGST Rate</Label>
+                <Select
+                  value={settings.cgstTaxOption}
+                  onValueChange={(value) => setSettings((prev) => ({ ...prev, cgstTaxOption: value }))}
+                >
+                  <SelectTrigger id="cgst-rate">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {taxRateOptions.map((option) => (
+                      <SelectItem key={`cgst-${option}`} value={option}>
+                        {option === "custom" ? "Custom" : `${option}%`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sgst-rate">SGST Rate</Label>
+                <Select
+                  value={settings.sgstTaxOption}
+                  onValueChange={(value) => setSettings((prev) => ({ ...prev, sgstTaxOption: value }))}
+                >
+                  <SelectTrigger id="sgst-rate">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {taxRateOptions.map((option) => (
+                      <SelectItem key={`sgst-${option}`} value={option}>
+                        {option === "custom" ? "Custom" : `${option}%`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {(settings.cgstTaxOption === "custom" || settings.sgstTaxOption === "custom") && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="cgst-custom">Custom CGST (%)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="cgst-custom"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={settings.cgstCustomRate}
+                      onChange={(e) => setSettings((prev) => ({ ...prev, cgstCustomRate: Number(e.target.value) || 0 }))}
+                    />
+                    <div className="h-10 min-w-10 rounded-md border bg-muted px-3 text-sm flex items-center justify-center">%</div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sgst-custom">Custom SGST (%)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="sgst-custom"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={settings.sgstCustomRate}
+                      onChange={(e) => setSettings((prev) => ({ ...prev, sgstCustomRate: Number(e.target.value) || 0 }))}
+                    />
+                    <div className="h-10 min-w-10 rounded-md border bg-muted px-3 text-sm flex items-center justify-center">%</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between py-2">
+              <div className="space-y-0.5">
+                <Label>Include Tax in Prices</Label>
+                <p className="text-sm text-muted-foreground">Show prices with tax included</p>
+              </div>
+              <Switch
+                checked={settings.includeTaxInPrices}
+                onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, includeTaxInPrices: checked }))}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Invoice Settings</CardTitle>
+            <CardDescription>Configure invoice numbering and defaults</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="invoice-prefix">Invoice Number Prefix</Label>
+                <Input
+                  id="invoice-prefix"
+                  placeholder="INV-"
+                  value={settings.invoicePrefix}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, invoicePrefix: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invoice-start">Starting Invoice Number</Label>
+                <Input
+                  id="invoice-start"
+                  type="number"
+                  placeholder="1000"
+                  value={settings.invoiceStartNumber}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, invoiceStartNumber: Number(e.target.value) || 0 }))}
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="payment-terms">Default Payment Terms (Days)</Label>
+                <Select
+                  value={String(settings.paymentTermsDays)}
+                  onValueChange={(value) => setSettings((prev) => ({ ...prev, paymentTermsDays: Number(value) || 0 }))}
+                >
+                  <SelectTrigger id="payment-terms">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">Net 7</SelectItem>
+                    <SelectItem value="15">Net 15</SelectItem>
+                    <SelectItem value="30">Net 30</SelectItem>
+                    <SelectItem value="60">Net 60</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="late-fee">Late Payment Fee (%)</Label>
+                <Input
+                  id="late-fee"
+                  type="number"
+                  placeholder="5"
+                  value={settings.lateFeePercent}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, lateFeePercent: Number(e.target.value) || 0 }))}
+                />
+              </div>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between py-2">
+              <div className="space-y-0.5">
+                <Label>Auto-Generate Invoice Numbers</Label>
+                <p className="text-sm text-muted-foreground">Automatically increment invoice numbers</p>
+              </div>
+              <Switch
+                checked={settings.autoGenerateInvoiceNumbers}
+                onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, autoGenerateInvoiceNumbers: checked }))}
+              />
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <div className="space-y-0.5">
+                <Label>Send Payment Reminders</Label>
+                <p className="text-sm text-muted-foreground">Email reminders for overdue invoices</p>
+              </div>
+              <Switch
+                checked={settings.sendPaymentReminders}
+                onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, sendPaymentReminders: checked }))}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button onClick={handleSave}>
+            <Save className="mr-2 h-4 w-4" />
+            Save Changes
+          </Button>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}

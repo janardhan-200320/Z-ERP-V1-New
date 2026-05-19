@@ -1,0 +1,687 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  Plus, 
+  Download, 
+  Filter, 
+  Search,
+  Eye,
+  Edit,
+  Printer,
+  CheckCircle,
+  CreditCard,
+  MoreVertical,
+  Trash2,
+  FileCheck,
+  Building2,
+  Calendar,
+  IndianRupee,
+  Send,
+  FileSpreadsheet,
+  FileText
+} from 'lucide-react';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
+import { exportToExcel } from '@/lib/exportUtils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { cn } from "@/lib/utils";
+import { BANK_ACCOUNTS_UPDATED_EVENT, getActiveBankAccountOptions } from '@/lib/bank-accounts';
+import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
+
+export default function PaymentsTab() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
+  const [showReceiptView, setShowReceiptView] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [recordPaymentMode, setRecordPaymentMode] = useState('bank');
+  const [recordInvoiceId, setRecordInvoiceId] = useState('inv-001');
+  const [recordAmountPaid, setRecordAmountPaid] = useState(0);
+  const [selectedSuggestedBank, setSelectedSuggestedBank] = useState('');
+  const [bankAccountOptions, setBankAccountOptions] = useState(() => getActiveBankAccountOptions());
+  const [eSignatures, setESignatures] = useState(() => getESignatureProfiles());
+  const [recordESignatureId, setRecordESignatureId] = useState('');
+  const [recordSignatureDesignation, setRecordSignatureDesignation] = useState('');
+  const { toast } = useToast();
+
+  const recordInvoiceOptions = [
+    { value: 'inv-001', invoice: 'INV-001', customer: 'Acme Corporation', amount: 45000 },
+    { value: 'inv-002', invoice: 'INV-002', customer: 'Global Tech', amount: 85000 },
+    { value: 'inv-003', invoice: 'INV-003', customer: 'Nexus Solutions', amount: 25000 },
+  ];
+
+  const selectedRecordInvoice =
+    recordInvoiceOptions.find((invoiceOption) => invoiceOption.value === recordInvoiceId) || recordInvoiceOptions[0];
+
+  const suggestedBankNames = useMemo(() => {
+    if (bankAccountOptions.length > 0) {
+      return bankAccountOptions.slice(0, 6).map((account) => account.name);
+    }
+    return ['State Bank of India', 'HDFC Bank', 'ICICI Bank', 'Axis Bank'];
+  }, [bankAccountOptions]);
+
+  useEffect(() => {
+    if (recordPaymentMode === 'bank' && suggestedBankNames.length > 0) {
+      const stillAvailable = suggestedBankNames.includes(selectedSuggestedBank);
+      if (!stillAvailable) {
+        setSelectedSuggestedBank(suggestedBankNames[0]);
+      }
+    }
+  }, [recordPaymentMode, suggestedBankNames, selectedSuggestedBank]);
+
+  useEffect(() => {
+    const reloadBankAccounts = () => {
+      setBankAccountOptions(getActiveBankAccountOptions());
+    };
+
+    window.addEventListener(BANK_ACCOUNTS_UPDATED_EVENT, reloadBankAccounts);
+    window.addEventListener('storage', reloadBankAccounts);
+
+    return () => {
+      window.removeEventListener(BANK_ACCOUNTS_UPDATED_EVENT, reloadBankAccounts);
+      window.removeEventListener('storage', reloadBankAccounts);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshESignatures = () => {
+      setESignatures(getESignatureProfiles());
+    };
+
+    window.addEventListener(ESIGN_SIGNATURES_UPDATED_EVENT, refreshESignatures);
+    window.addEventListener('storage', refreshESignatures);
+
+    return () => {
+      window.removeEventListener(ESIGN_SIGNATURES_UPDATED_EVENT, refreshESignatures);
+      window.removeEventListener('storage', refreshESignatures);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (recordESignatureId) return;
+
+    const defaultSignature = getDefaultESignatureProfile();
+    if (!defaultSignature) return;
+
+    setRecordESignatureId(defaultSignature.id);
+    setRecordSignatureDesignation(defaultSignature.designation || '');
+  }, [recordESignatureId, eSignatures]);
+
+  useEffect(() => {
+    if (!recordESignatureId) return;
+
+    const selectedSignature = eSignatures.find((signature) => signature.id === recordESignatureId);
+    if (!selectedSignature) return;
+
+    setRecordSignatureDesignation(selectedSignature.designation || '');
+  }, [recordESignatureId, eSignatures]);
+
+  // Mock data
+  const [payments, setPayments] = useState([
+    {
+      id: 'PAY-001',
+      invoice: 'INV-001',
+      customer: 'Acme Corporation',
+      amount: '₹45,000',
+      mode: 'Bank Transfer',
+      transactionId: 'TXN-2026-001',
+      date: '2026-01-10',
+      status: 'completed'
+    },
+    {
+      id: 'PAY-002',
+      invoice: 'INV-005',
+      customer: 'TechStart Inc.',
+      amount: '₹25,000',
+      mode: 'Credit Card',
+      transactionId: 'TXN-2026-002',
+      date: '2026-01-12',
+      status: 'completed'
+    },
+    {
+      id: 'PAY-003',
+      invoice: 'INV-007',
+      customer: 'Global Brands Ltd.',
+      amount: '₹15,000',
+      mode: 'PayPal',
+      transactionId: 'TXN-2026-003',
+      date: '2026-01-15',
+      status: 'pending'
+    },
+    {
+      id: 'PAY-004',
+      invoice: 'INV-009',
+      customer: 'Enterprise Solutions',
+      amount: '₹125,000',
+      mode: 'Bank Transfer',
+      transactionId: 'TXN-2026-004',
+      date: '2026-01-18',
+      status: 'completed'
+    }
+  ]);
+
+  const filteredPayments = useMemo(() => {
+    return payments.filter(pay => {
+      const matchesSearch = 
+        pay.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pay.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pay.invoice.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || pay.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [searchQuery, statusFilter, payments]);
+
+  const handleExport = (type: 'excel' | 'pdf') => {
+    setIsExporting(true);
+    toast({ title: "Exporting...", description: `Preparing payment records in ${type.toUpperCase()}.` });
+
+    setTimeout(() => {
+      if (type === 'excel') {
+        exportToExcel(filteredPayments, `Payments_${new Date().toISOString().split('T')[0]}.xlsx`);
+      } else {
+        const doc = new jsPDF();
+        doc.text("Payments Report", 14, 15);
+        autoTable(doc, {
+          startY: 25,
+          head: [['ID', 'Invoice', 'Customer', 'Amount', 'Date', 'Status']],
+          body: filteredPayments.map(p => [p.id, p.invoice, p.customer, p.amount, p.date, p.status]),
+        });
+        doc.save(`Payments_${new Date().toISOString().split('T')[0]}.pdf`);
+      }
+      setIsExporting(false);
+      toast({ title: "Export Ready", description: "Download started." });
+    }, 1200);
+  };
+
+  const statusConfig: Record<string, { label: string; class: string }> = {
+    completed: { label: 'Completed', class: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    pending: { label: 'Pending', class: 'bg-amber-100 text-amber-700 border-amber-200' },
+    failed: { label: 'Failed', class: 'bg-rose-100 text-rose-700 border-rose-200' }
+  };
+
+  const handlePaymentAction = (action: 'record' | 'send') => {
+    const title = action === 'send' ? 'Saved & Sent' : 'Payment Recorded';
+    const description = action === 'send'
+      ? 'Payment saved and receipt has been sent.'
+      : 'Payment entry has been saved successfully.';
+
+    toast({ title, description });
+    setIsRecordPaymentOpen(false);
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50/50">
+          <div className="flex flex-col gap-1">
+            <CardTitle className="text-xl font-bold text-slate-900">Payments</CardTitle>
+            <p className="text-sm text-slate-500">Record and track customer payments</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <Input
+                placeholder="Search payments..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 w-64 bg-white border-slate-200 focus:border-blue-400 transition-all"
+              />
+            </div>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("h-9 gap-2", statusFilter !== 'all' && "border-blue-500 bg-blue-50 text-blue-700")}>
+                  <Filter className="h-4 w-4" />
+                  {statusFilter === 'all' ? 'Status' : `Status: ${statusFilter}`}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setStatusFilter('all')}>All Payments</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter('completed')}>Completed</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter('pending')}>Pending</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter('failed')}>Failed</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 gap-2" disabled={isExporting}>
+                  <Download className="h-4 w-4" />
+                  {isExporting ? 'Exporting...' : 'Export'}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Export Formats</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleExport('excel')}>
+                  <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" /> Excel (.xlsx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                  <FileText className="mr-2 h-4 w-4 text-rose-600" /> PDF (.pdf)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Dialog open={isRecordPaymentOpen} onOpenChange={setIsRecordPaymentOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="h-9 bg-blue-600 hover:bg-blue-700 shadow-sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Record Payment
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-hidden p-0">
+                <DialogHeader className="px-6 pt-6 pb-2">
+                  <DialogTitle>Record Payment</DialogTitle>
+                  <DialogDescription>Enter payment details</DialogDescription>
+                </DialogHeader>
+                <ScrollArea className="max-h-[calc(90vh-150px)]">
+                <div className="space-y-4 px-6 py-4">
+                  {/* Payment Info */}
+                  <div className="space-y-2">
+                    <Label htmlFor="pay-date">Payment Date</Label>
+                    <Input id="pay-date" type="date" />
+                  </div>
+
+                  {/* Invoice & Customer */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="pay-invoice">Invoice</Label>
+                      <Select value={recordInvoiceId} onValueChange={setRecordInvoiceId}>
+                        <SelectTrigger id="pay-invoice">
+                          <SelectValue placeholder="Select invoice" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {recordInvoiceOptions.map((invoiceOption) => (
+                            <SelectItem key={invoiceOption.value} value={invoiceOption.value}>
+                              {invoiceOption.invoice} - ₹{invoiceOption.amount.toLocaleString('en-IN')}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pay-customer">Customer</Label>
+                      <Input id="pay-customer" value={selectedRecordInvoice.customer} disabled />
+                    </div>
+                  </div>
+
+                  {/* Amount & Mode */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="pay-amount">Amount Paid</Label>
+                      <Input
+                        id="pay-amount"
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={recordAmountPaid === 0 ? '' : String(recordAmountPaid)}
+                        onChange={(e) => {
+                          const sanitized = e.target.value.replace(/[^0-9.]/g, '');
+                          const parsed = parseFloat(sanitized);
+                          setRecordAmountPaid(Number.isFinite(parsed) ? parsed : 0);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pay-mode">Payment Mode</Label>
+                      <Select value={recordPaymentMode} onValueChange={setRecordPaymentMode}>
+                        <SelectTrigger id="pay-mode">
+                          <SelectValue placeholder="Select mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bank">Bank Transfer</SelectItem>
+                          <SelectItem value="card">Credit Card</SelectItem>
+                          <SelectItem value="paypal">PayPal</SelectItem>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="check">Check</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {recordPaymentMode === 'bank' && (
+                    <div className="space-y-2">
+                      <Label>Suggested Banks</Label>
+                      <div className="flex flex-wrap gap-2 rounded-md border bg-slate-50 p-3">
+                        {suggestedBankNames.map((bankName) => (
+                          <button
+                            key={bankName}
+                            type="button"
+                            onClick={() => setSelectedSuggestedBank(bankName)}
+                            className={cn(
+                              'inline-flex items-center rounded-md border px-2.5 py-1 text-xs transition-colors',
+                              selectedSuggestedBank === bankName
+                                ? 'border-blue-600 bg-blue-100 text-blue-700'
+                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100',
+                            )}
+                          >
+                            {bankName}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="pay-esignature">E-Signature</Label>
+                      <Select value={recordESignatureId} onValueChange={setRecordESignatureId}>
+                        <SelectTrigger id="pay-esignature">
+                          <SelectValue placeholder="Select signature from E-Sign Settings" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {eSignatures.map((signature) => (
+                            <SelectItem key={signature.id} value={signature.id}>
+                              {signature.signerName} - {signature.designation}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pay-signature-designation">Designation</Label>
+                      <Input
+                        id="pay-signature-designation"
+                        value={recordSignatureDesignation}
+                        onChange={(e) => setRecordSignatureDesignation(e.target.value)}
+                        placeholder="Signer designation"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Transaction Details */}
+                  <div className="space-y-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="pay-txn">Transaction ID</Label>
+                      <Input id="pay-txn" placeholder="TXN-2026-001" />
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-2">
+                    <Label htmlFor="pay-notes">Notes</Label>
+                    <Textarea id="pay-notes" placeholder="Additional payment notes..." rows={3} />
+                  </div>
+
+                  {/* Invoice Amount Summary */}
+                  <div className="p-4 bg-slate-50 rounded-lg space-y-2">
+                    {recordPaymentMode === 'bank' && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Selected Bank:</span>
+                        <span className="font-semibold">{selectedSuggestedBank || 'Not selected'}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">Invoice Amount:</span>
+                      <span className="font-semibold">₹{selectedRecordInvoice.amount.toLocaleString('en-IN')}.00</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">Amount Paid:</span>
+                      <span className="font-semibold text-green-700">₹{recordAmountPaid.toLocaleString('en-IN')}.00</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-bold pt-2 border-t">
+                      <span>Amount Due:</span>
+                      <span className="text-red-700">₹{Math.max(selectedRecordInvoice.amount - recordAmountPaid, 0).toLocaleString('en-IN')}.00</span>
+                    </div>
+                  </div>
+                </div>
+                </ScrollArea>
+                <div className="sticky bottom-0 border-t bg-white px-6 py-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsRecordPaymentOpen(false)}>Cancel</Button>
+                  <Button className="w-full sm:w-auto bg-black text-white hover:bg-black/90" onClick={() => handlePaymentAction('send')}>
+                    <Send className="h-4 w-4 mr-2" />
+                    Save & Send
+                  </Button>
+                  <Button className="w-full sm:w-auto" onClick={() => handlePaymentAction('record')}>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Record Payment
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader className="bg-slate-50/50">
+              <TableRow>
+                <TableHead>Invoice #</TableHead>
+                <TableHead>Payment Mode</TableHead>
+                <TableHead>Transaction ID</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredPayments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                    No entries found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredPayments.map((payment) => (
+                  <TableRow key={payment.id} className="hover:bg-slate-50 transition-colors group">
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="font-medium text-blue-600 cursor-pointer hover:underline">{payment.invoice}</div>
+                        <div className="text-xs">
+                          <button
+                            className="text-blue-600 hover:text-blue-800 hover:underline"
+                            onClick={() => {
+                              setSelectedPayment(payment);
+                              setShowReceiptView(true);
+                            }}
+                          >
+                            View
+                          </button>
+                          <span className="text-slate-300 mx-1">|</span>
+                          <button
+                            className="text-red-600 hover:text-red-800 hover:underline"
+                            onClick={() => {
+                              setPayments(payments.filter(p => p.id !== payment.id));
+                              toast({ title: "Deleted", description: "Payment record removed.", variant: "destructive" });
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm">{payment.mode}</TableCell>
+                    <TableCell className="font-mono text-xs text-slate-600">{payment.transactionId}</TableCell>
+                    <TableCell className="font-medium">{payment.customer}</TableCell>
+                    <TableCell className="font-semibold text-green-700">{payment.amount}</TableCell>
+                    <TableCell className="text-sm text-slate-600">{payment.date}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+          
+          {/* Pagination Footer */}
+          {filteredPayments.length > 0 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t bg-slate-50/30">
+              <span className="text-sm text-slate-600">
+                Showing 1 to {filteredPayments.length} of {filteredPayments.length} entries
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled>
+                  Previous
+                </Button>
+                <Button variant="outline" size="sm" disabled>
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Payment Receipt View Modal */}
+      <Dialog open={showReceiptView} onOpenChange={setShowReceiptView}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Payment for Invoice {selectedPayment?.invoice || 'INV-000001'}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-6 py-4">
+            {/* Left Column - Payment Details Form */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-slate-600">Amount Received</Label>
+                <Input 
+                  value={selectedPayment?.amount || '₹45,000.00'} 
+                  disabled 
+                  className="bg-slate-50"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-slate-600">Payment Date</Label>
+                <Input 
+                  value={selectedPayment?.date || '2026-01-10'} 
+                  disabled 
+                  className="bg-slate-50"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-slate-600">Payment Mode</Label>
+                <Input 
+                  value={selectedPayment?.mode || 'Bank Transfer'} 
+                  disabled 
+                  className="bg-slate-50"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-slate-600">Payment Method</Label>
+                <Input 
+                  value="Primary Account" 
+                  disabled 
+                  className="bg-slate-50"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-slate-600">Transaction ID</Label>
+                <Input 
+                  value={selectedPayment?.transactionId || 'TXN-2026-001'} 
+                  disabled 
+                  className="bg-slate-50"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-slate-600">Note</Label>
+                <Textarea 
+                  value="Payment received in full." 
+                  disabled 
+                  rows={3}
+                  className="bg-slate-50"
+                />
+              </div>
+            </div>
+            
+            {/* Right Column - Payment Receipt Preview */}
+            <div className="border rounded-lg p-6 bg-white shadow-sm">
+              <div className="text-center mb-6">
+                <h3 className="text-lg font-bold text-slate-900">Payment Receipt</h3>
+                <p className="text-sm text-slate-500">{selectedPayment?.id || 'PAY-001'}</p>
+              </div>
+              
+              {/* Receipt Content */}
+              <div className="space-y-4">
+                <div className="border-b pb-4">
+                  <div className="text-center">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 mb-3">
+                      <CheckCircle className="h-6 w-6 text-green-600" />
+                    </div>
+                    <h4 className="text-lg font-semibold text-green-700">Payment Received</h4>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-slate-500">Receipt Number</p>
+                    <p className="font-semibold">{selectedPayment?.id || 'PAY-001'}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">Date</p>
+                    <p className="font-semibold">{selectedPayment?.date || '2026-01-10'}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">Invoice</p>
+                    <p className="font-semibold text-blue-600">{selectedPayment?.invoice || 'INV-001'}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">Transaction ID</p>
+                    <p className="font-mono text-xs">{selectedPayment?.transactionId || 'TXN-2026-001'}</p>
+                  </div>
+                </div>
+                
+                <div className="border-t pt-4">
+                  <p className="text-slate-500 text-sm">Received From</p>
+                  <p className="font-semibold">{selectedPayment?.customer || 'Acme Corporation'}</p>
+                </div>
+                
+                <div className="border-t pt-4">
+                  <p className="text-slate-500 text-sm">Payment Method</p>
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-slate-400" />
+                    <span className="font-semibold">{selectedPayment?.mode || 'Bank Transfer'}</span>
+                  </div>
+                </div>
+                
+                <div className="bg-slate-50 rounded-lg p-4 mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Amount Paid</span>
+                    <span className="text-2xl font-bold text-green-700">{selectedPayment?.amount || '₹45,000.00'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowReceiptView(false)}>
+              Close
+            </Button>
+            <Button variant="outline">
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+            <Button>
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+

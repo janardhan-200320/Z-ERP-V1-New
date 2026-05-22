@@ -85,6 +85,51 @@ export type CustomerRecord = {
   shipping_country?: string | null;
 };
 
+export type CustomerGroupRecord = {
+  id: number;
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CustomerGroupMemberRecord = {
+  id: number;
+  group_id: number;
+  customer_id: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CustomerCommunicationRecord = {
+  id: number;
+  customer_id: number;
+  contact_person?: string | null;
+  type: string;
+  subject: string;
+  date: string;
+  time?: string | null;
+  priority?: string | null;
+  follow_up_date?: string | null;
+  status?: string | null;
+  notes?: string | null;
+  outcome?: string | null;
+  attachments?: number | null;
+  attachment_files?: Array<{
+    name: string;
+    size: number;
+    type?: string | null;
+    bucket: string;
+    storage_path: string;
+    file_url?: string | null;
+    uploaded_at?: string;
+  }> | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type TeamSpaceMemberRecord = {
   id: number;
   name: string;
@@ -260,6 +305,113 @@ export async function createCustomer(payload: Partial<CustomerRecord>) {
     body: JSON.stringify(payload),
   });
   return data;
+}
+
+export async function updateCustomer(id: number, payload: Partial<CustomerRecord>) {
+  const { data } = await requestJson<{ data: CustomerRecord }>(`/customers/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+export async function deleteCustomer(id: number) {
+  await requestJson<void>(`/customers/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchCustomerGroups() {
+  const { data } = await requestJson<{ data: CustomerGroupRecord[] }>('/customer-groups?orderBy=created_at&ascending=false');
+  return data ?? [];
+}
+
+export async function createCustomerGroup(payload: Partial<CustomerGroupRecord>) {
+  const { data } = await requestJson<{ data: CustomerGroupRecord }>('/customer-groups', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+export async function updateCustomerGroup(id: number, payload: Partial<CustomerGroupRecord>) {
+  const { data } = await requestJson<{ data: CustomerGroupRecord }>(`/customer-groups/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+export async function deleteCustomerGroup(id: number) {
+  await requestJson<void>(`/customer-groups/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchCustomerGroupMembers(params?: { groupId?: number; customerId?: number }) {
+  const search = new URLSearchParams({ orderBy: 'created_at', ascending: 'true' });
+  if (params?.groupId) search.set('group_id', String(params.groupId));
+  if (params?.customerId) search.set('customer_id', String(params.customerId));
+  const { data } = await requestJson<{ data: CustomerGroupMemberRecord[] }>(`/customer-group-members?${search.toString()}`);
+  return data ?? [];
+}
+
+export async function createCustomerGroupMembers(payload: Array<Partial<CustomerGroupMemberRecord>>) {
+  if (payload.length === 0) return [] as CustomerGroupMemberRecord[];
+  const { data } = await requestJson<{ data: CustomerGroupMemberRecord[] }>('/customer-group-members', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return data ?? [];
+}
+
+export async function deleteCustomerGroupMember(id: number) {
+  await requestJson<void>(`/customer-group-members/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchCustomerCommunications(params?: { customerId?: number }) {
+  const search = new URLSearchParams({ orderBy: 'date', ascending: 'false' });
+  if (params?.customerId) search.set('customer_id', String(params.customerId));
+  const { data } = await requestJson<{ data: CustomerCommunicationRecord[] }>(`/customer-communications?${search.toString()}`);
+  return data ?? [];
+}
+
+export async function createCustomerCommunication(payload: Partial<CustomerCommunicationRecord>) {
+  const { data } = await requestJson<{ data: CustomerCommunicationRecord }>('/customer-communications', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+export async function uploadCustomerCommunicationAttachments(communicationId: number, files: File[]) {
+  const formData = new FormData();
+  formData.append('communicationId', String(communicationId));
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
+
+  const response = await fetch(`${API_BASE}/storage/customer-communications`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || response.statusText);
+  }
+
+  const payload = await response.json();
+  return payload?.data ?? [];
+}
+
+export async function updateCustomerCommunication(id: number, payload: Partial<CustomerCommunicationRecord>) {
+  const { data } = await requestJson<{ data: CustomerCommunicationRecord }>(`/customer-communications/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+export async function deleteCustomerCommunication(id: number) {
+  await requestJson<void>(`/customer-communications/${id}`, { method: 'DELETE' });
 }
 
 export async function fetchTeamSpaceMembers() {

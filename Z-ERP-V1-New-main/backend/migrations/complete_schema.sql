@@ -68,6 +68,47 @@ CREATE TABLE IF NOT EXISTS public.customers (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Customer Groups table
+CREATE TABLE IF NOT EXISTS public.customer_groups (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  color TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Customer Group Members table
+CREATE TABLE IF NOT EXISTS public.customer_group_members (
+  id BIGSERIAL PRIMARY KEY,
+  group_id BIGINT NOT NULL REFERENCES public.customer_groups(id) ON DELETE CASCADE,
+  customer_id BIGINT NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (group_id, customer_id)
+);
+
+-- Customer Communications table
+CREATE TABLE IF NOT EXISTS public.customer_communications (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id BIGINT NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  contact_person TEXT,
+  type TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  date DATE NOT NULL,
+  time TIME,
+  priority TEXT,
+  follow_up_date DATE,
+  status TEXT,
+  notes TEXT,
+  outcome TEXT,
+  attachments INTEGER DEFAULT 0,
+  attachment_files JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Team Space Members table
 CREATE TABLE IF NOT EXISTS public.team_space_members (
   id BIGSERIAL PRIMARY KEY,
@@ -105,6 +146,11 @@ CREATE TABLE IF NOT EXISTS public.project_files (
 -- Ensure Supabase Storage bucket exists for project documents
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('project-documents', 'project-documents', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- Ensure Supabase Storage bucket exists for customer communication attachments
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('customer-communications', 'customer-communications', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- Project Milestones table
@@ -183,6 +229,11 @@ CREATE TABLE IF NOT EXISTS public.project_task_time_entries (
 CREATE INDEX IF NOT EXISTS idx_projects_status ON public.projects(status);
 CREATE INDEX IF NOT EXISTS idx_projects_created_at ON public.projects(created_at);
 CREATE INDEX IF NOT EXISTS idx_customers_active ON public.customers(active);
+CREATE INDEX IF NOT EXISTS idx_customer_groups_active ON public.customer_groups(is_active);
+CREATE INDEX IF NOT EXISTS idx_customer_group_members_group_id ON public.customer_group_members(group_id);
+CREATE INDEX IF NOT EXISTS idx_customer_group_members_customer_id ON public.customer_group_members(customer_id);
+CREATE INDEX IF NOT EXISTS idx_customer_communications_customer_id ON public.customer_communications(customer_id);
+CREATE INDEX IF NOT EXISTS idx_customer_communications_date ON public.customer_communications(date);
 CREATE INDEX IF NOT EXISTS idx_project_files_project_id ON public.project_files(project_id);
 CREATE INDEX IF NOT EXISTS idx_project_milestones_project_id ON public.project_milestones(project_id);
 CREATE INDEX IF NOT EXISTS idx_project_tasks_project_id ON public.project_tasks(project_id);
@@ -194,6 +245,9 @@ CREATE INDEX IF NOT EXISTS idx_project_task_time_entries_task_id ON public.proje
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_group_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_communications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_space_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_milestones ENABLE ROW LEVEL SECURITY;
@@ -212,6 +266,21 @@ DROP POLICY IF EXISTS "Allow public read on customers" ON public.customers;
 DROP POLICY IF EXISTS "Allow authenticated write on customers" ON public.customers;
 DROP POLICY IF EXISTS "Allow authenticated update on customers" ON public.customers;
 DROP POLICY IF EXISTS "Allow authenticated delete on customers" ON public.customers;
+
+DROP POLICY IF EXISTS "Allow public read on customer_groups" ON public.customer_groups;
+DROP POLICY IF EXISTS "Allow authenticated write on customer_groups" ON public.customer_groups;
+DROP POLICY IF EXISTS "Allow authenticated update on customer_groups" ON public.customer_groups;
+DROP POLICY IF EXISTS "Allow authenticated delete on customer_groups" ON public.customer_groups;
+
+DROP POLICY IF EXISTS "Allow public read on customer_group_members" ON public.customer_group_members;
+DROP POLICY IF EXISTS "Allow authenticated write on customer_group_members" ON public.customer_group_members;
+DROP POLICY IF EXISTS "Allow authenticated update on customer_group_members" ON public.customer_group_members;
+DROP POLICY IF EXISTS "Allow authenticated delete on customer_group_members" ON public.customer_group_members;
+
+DROP POLICY IF EXISTS "Allow public read on customer_communications" ON public.customer_communications;
+DROP POLICY IF EXISTS "Allow authenticated write on customer_communications" ON public.customer_communications;
+DROP POLICY IF EXISTS "Allow authenticated update on customer_communications" ON public.customer_communications;
+DROP POLICY IF EXISTS "Allow authenticated delete on customer_communications" ON public.customer_communications;
 
 DROP POLICY IF EXISTS "Allow public read on team_space_members" ON public.team_space_members;
 DROP POLICY IF EXISTS "Allow authenticated write on team_space_members" ON public.team_space_members;
@@ -272,6 +341,42 @@ CREATE POLICY "Allow authenticated update on customers" ON public.customers
   FOR UPDATE USING (TRUE);
 
 CREATE POLICY "Allow authenticated delete on customers" ON public.customers
+  FOR DELETE USING (TRUE);
+
+CREATE POLICY "Allow public read on customer_groups" ON public.customer_groups
+  FOR SELECT USING (TRUE);
+
+CREATE POLICY "Allow authenticated write on customer_groups" ON public.customer_groups
+  FOR INSERT WITH CHECK (TRUE);
+
+CREATE POLICY "Allow authenticated update on customer_groups" ON public.customer_groups
+  FOR UPDATE USING (TRUE);
+
+CREATE POLICY "Allow authenticated delete on customer_groups" ON public.customer_groups
+  FOR DELETE USING (TRUE);
+
+CREATE POLICY "Allow public read on customer_group_members" ON public.customer_group_members
+  FOR SELECT USING (TRUE);
+
+CREATE POLICY "Allow authenticated write on customer_group_members" ON public.customer_group_members
+  FOR INSERT WITH CHECK (TRUE);
+
+CREATE POLICY "Allow authenticated update on customer_group_members" ON public.customer_group_members
+  FOR UPDATE USING (TRUE);
+
+CREATE POLICY "Allow authenticated delete on customer_group_members" ON public.customer_group_members
+  FOR DELETE USING (TRUE);
+
+CREATE POLICY "Allow public read on customer_communications" ON public.customer_communications
+  FOR SELECT USING (TRUE);
+
+CREATE POLICY "Allow authenticated write on customer_communications" ON public.customer_communications
+  FOR INSERT WITH CHECK (TRUE);
+
+CREATE POLICY "Allow authenticated update on customer_communications" ON public.customer_communications
+  FOR UPDATE USING (TRUE);
+
+CREATE POLICY "Allow authenticated delete on customer_communications" ON public.customer_communications
   FOR DELETE USING (TRUE);
 
 CREATE POLICY "Allow public read on team_space_members" ON public.team_space_members

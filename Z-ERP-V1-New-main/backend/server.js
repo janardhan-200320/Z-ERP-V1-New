@@ -14,6 +14,7 @@ const port = Number(process.env.PORT || 4000);
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const storageBucket = process.env.SUPABASE_STORAGE_BUCKET || 'project-documents';
+const communicationStorageBucket = process.env.SUPABASE_COMMUNICATION_BUCKET || 'customer-communications';
 
 const supabase =
   supabaseUrl && supabaseServiceRoleKey
@@ -28,6 +29,9 @@ const supabase =
 const managedTables = {
   projects: 'projects',
   customers: 'customers',
+  'customer-groups': 'customer_groups',
+  'customer-group-members': 'customer_group_members',
+  'customer-communications': 'customer_communications',
   'team-space-members': 'team_space_members',
   'project-files': 'project_files',
   'project-milestones': 'project_milestones',
@@ -226,7 +230,7 @@ function sanitizeFilename(filename) {
     .replace(/^_+|_+$/g, '');
 }
 
-async function ensureStorageBucketExists() {
+async function ensureStorageBucketExists(bucketName) {
   if (!supabase) {
     return { ok: false, error: 'Supabase is not configured on the backend' };
   }
@@ -236,12 +240,12 @@ async function ensureStorageBucketExists() {
     return { ok: false, error: extractError(listError) };
   }
 
-  const exists = Array.isArray(buckets) && buckets.some((bucket) => bucket.name === storageBucket || bucket.id === storageBucket);
+  const exists = Array.isArray(buckets) && buckets.some((bucket) => bucket.name === bucketName || bucket.id === bucketName);
   if (exists) {
     return { ok: true };
   }
 
-  const { error: createError } = await supabase.storage.createBucket(storageBucket, {
+  const { error: createError } = await supabase.storage.createBucket(bucketName, {
     public: false,
     fileSizeLimit: 25 * 1024 * 1024,
   });
@@ -504,7 +508,7 @@ app.post('/api/storage/project-documents', upload.array('files'), async (req, re
     return res.status(400).json({ error: 'projectId must be a positive number when provided' });
   }
 
-  const bucketCheck = await ensureStorageBucketExists();
+  const bucketCheck = await ensureStorageBucketExists(storageBucket);
   if (!bucketCheck.ok) {
     return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
   }
@@ -576,7 +580,7 @@ app.get('/api/storage/project-documents/signed-url', async (req, res) => {
     return res.status(400).json({ error: 'storagePath query parameter is required' });
   }
 
-  const bucketCheck = await ensureStorageBucketExists();
+  const bucketCheck = await ensureStorageBucketExists(storageBucket);
   if (!bucketCheck.ok) {
     return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
   }
@@ -601,8 +605,100 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.post('/api/storage/customer-communications', upload.array('files'), async (req, res) => {
+  if (!ensureSupabaseConfigured(res)) return;
+
+  const files = req.files || [];
+  if (!Array.isArray(files) || files.length === 0) {
+    return res.status(400).json({ error: 'No files uploaded' });
+  }
+
+  const communicationId = Number(req.body.communicationId);
+  if (!Number.isNaN(communicationId) && communicationId <= 0) {
+    return res.status(400).json({ error: 'communicationId must be a positive number when provided' });
+  }
+
+  const bucketCheck = await ensureStorageBucketExists(communicationStorageBucket);
+  if (!bucketCheck.ok) {
+    return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
+  }
+
+  const uploadedDocuments = [];
+
+  for (const file of files) {
+    const folder = Number.isNaN(communicationId) ? 'unassigned' : communicationId;
+    const storagePath = `${folder}/${Date.now()}-${uuidv4()}-${sanitizeFilename(file.originalname)}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(communicationStorageBucket)
+      .upload(storagePath, file.buffer, {
+        contentType: file.mimetype || 'application/octet-stream',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return res.status(400).json({ error: `Upload failed for ${file.originalname}: ${extractError(uploadError)}` });
+    }
+
+    uploadedDocuments.push({
+      name: file.originalname,
+      size: file.size,
+      type: file.mimetype || null,
+      bucket: communicationStorageBucket,
+      storage_path: storagePath,
+      file_url: null,
+      uploaded_at: new Date().toISOString(),
+    });
+  }
+
+  res.status(201).json({
+    data: uploadedDocuments,
+    bucket: communicationStorageBucket,
+  });
+});
+
+app.get('/api/storage/customer-communications/signed-url', async (req, res) => {
+  if (!ensureSupabaseConfigured(res)) return;
+
+  const storagePath = String(req.query.storagePath || '').trim();
+  const expiresIn = Number(req.query.expiresIn || 600);
+
+  if (!storagePath) {
+    return res.status(400).json({ error: 'storagePath query parameter is required' });
+  }
+
+  const bucketCheck = await ensureStorageBucketExists(communicationStorageBucket);
+  if (!bucketCheck.ok) {
+    return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
+  }
+
+  const { data, error } = await supabase.storage
+    .from(communicationStorageBucket)
+    .createSignedUrl(storagePath, Number.isNaN(expiresIn) ? 600 : expiresIn);
+
+  if (error) {
+    return res.status(400).json({ error: extractError(error) });
+  }
+
+  res.json({ data });
+});
+
+app.get('/api/storage/customer-communications/ensure', async (req, res) => {
+  if (!ensureSupabaseConfigured(res)) return;
+
+  const bucketCheck = await ensureStorageBucketExists(communicationStorageBucket);
+  if (!bucketCheck.ok) {
+    return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
+  }
+
+  res.json({ ok: true, bucket: communicationStorageBucket });
+});
+
 registerCrudRoutes('projects', managedTables.projects);
 registerCrudRoutes('customers', managedTables.customers);
+registerCrudRoutes('customer-groups', managedTables['customer-groups']);
+registerCrudRoutes('customer-group-members', managedTables['customer-group-members']);
+registerCrudRoutes('customer-communications', managedTables['customer-communications']);
 registerCrudRoutes('team-space-members', managedTables['team-space-members']);
 registerCrudRoutes('project-files', managedTables['project-files']);
 registerCrudRoutes('project-milestones', managedTables['project-milestones']);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,9 +9,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Filter, Plus, Mail, Phone, Video, Calendar, MessageSquare, Eye, Edit, Trash2, Building, User, Paperclip, AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  createCustomerCommunication,
+  deleteCustomerCommunication,
+  fetchCustomerCommunications,
+  fetchCustomers,
+  updateCustomerCommunication,
+  uploadCustomerCommunicationAttachments,
+  type CustomerCommunicationRecord,
+  type CustomerRecord,
+} from "@/lib/supabase-data";
 
-type Communication = {
-  id: string;
+type CommunicationView = {
+  id: number;
+  customerId: number;
   customer: string;
   contactPerson: string;
   type: "email" | "phone" | "meeting" | "whatsapp" | "video";
@@ -28,85 +40,172 @@ type Communication = {
 
 export default function CommunicationLogModule() {
   const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+  const [communications, setCommunications] = useState<CustomerCommunicationRecord[]>([]);
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date-desc");
+  const [logDialogOpen, setLogDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    customerId: "",
+    contactPerson: "",
+    type: "email",
+    priority: "medium",
+    subject: "",
+    date: "",
+    time: "",
+    notes: "",
+    outcome: "",
+    followUpDate: "",
+    status: "completed",
+  });
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
-  const communications: Communication[] = [
-    {
-      id: "COM001",
-      customer: "Tech Innovations Ltd",
-      contactPerson: "John Anderson",
-      type: "email",
-      subject: "Q1 Project Requirements Discussion",
-      date: "2026-01-15",
-      time: "10:00 AM",
-      priority: "high",
-      followUpDate: "2026-01-20",
-      status: "completed",
-      attachments: 3
-    },
-    {
-      id: "COM002",
-      customer: "Global Retail Corp",
-      contactPerson: "Sarah Mitchell",
-      type: "phone",
-      subject: "Budget Approval Call",
-      date: "2026-01-15",
-      time: "02:30 PM",
-      priority: "high",
-      followUpDate: "2026-01-18",
-      status: "completed",
-      attachments: 0
-    },
-    {
-      id: "COM003",
-      customer: "Healthcare Systems Inc",
-      contactPerson: "Michael Roberts",
-      type: "meeting",
-      subject: "Contract Renewal Discussion",
-      date: "2026-01-16",
-      time: "11:00 AM",
-      priority: "medium",
-      status: "scheduled",
-      attachments: 2
-    },
-    {
-      id: "COM004",
-      customer: "Financial Services Group",
-      contactPerson: "Emily Thompson",
-      type: "video",
-      subject: "Product Demo Session",
-      date: "2026-01-14",
-      time: "03:00 PM",
-      priority: "medium",
-      followUpDate: "2026-01-22",
-      status: "completed",
-      attachments: 1
-    },
-    {
-      id: "COM005",
-      customer: "Education Platform Co",
-      contactPerson: "Jessica Lee",
-      type: "whatsapp",
-      subject: "Quick Update on Feature Request",
-      date: "2026-01-15",
-      time: "09:15 AM",
-      priority: "low",
-      status: "pending",
-      attachments: 0
-    },
-    {
-      id: "COM006",
-      customer: "Manufacturing Solutions",
-      contactPerson: "David Martinez",
-      type: "email",
-      subject: "Invoice Payment Reminder",
-      date: "2026-01-13",
-      time: "04:00 PM",
-      priority: "high",
-      followUpDate: "2026-01-17",
-      status: "pending",
-      attachments: 1
+  useEffect(() => {
+    let active = true;
+
+    Promise.all([fetchCustomerCommunications(), fetchCustomers()])
+      .then(([communicationRows, customerRows]) => {
+        if (!active) return;
+        setCommunications(communicationRows);
+        setCustomers(customerRows);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCommunications([]);
+        setCustomers([]);
+      })
+      .finally(() => {
+        if (!active) return;
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const customersById = useMemo(() => {
+    return new Map(customers.map((customer) => [customer.id, customer]));
+  }, [customers]);
+
+  const communicationViews: CommunicationView[] = useMemo(() => {
+    return communications.map((comm) => {
+      const customer = customersById.get(comm.customer_id);
+      return {
+        id: comm.id,
+        customerId: comm.customer_id,
+        customer: customer?.company_name ?? "Unknown Customer",
+        contactPerson: comm.contact_person ?? customer?.primary_contact ?? "",
+        type: (comm.type || "email") as CommunicationView["type"],
+        subject: comm.subject,
+        date: comm.date,
+        time: comm.time ?? "",
+        priority: (comm.priority || "medium") as CommunicationView["priority"],
+        followUpDate: comm.follow_up_date ?? undefined,
+        status: (comm.status || "completed") as CommunicationView["status"],
+        notes: comm.notes ?? undefined,
+        outcome: comm.outcome ?? undefined,
+        attachments: comm.attachments ?? undefined,
+      };
+    });
+  }, [communications, customersById]);
+
+  const filteredCommunications = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return communicationViews
+      .filter((comm) => {
+        if (typeFilter !== "all" && comm.type !== typeFilter) return false;
+        if (!query) return true;
+        return (
+          comm.customer.toLowerCase().includes(query) ||
+          comm.contactPerson.toLowerCase().includes(query) ||
+          comm.subject.toLowerCase().includes(query) ||
+          (comm.notes ?? "").toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => {
+        if (sortBy === "priority") {
+          const order = { high: 3, medium: 2, low: 1 };
+          return order[b.priority] - order[a.priority];
+        }
+        const aDate = new Date(`${a.date}T${a.time || "00:00"}`).getTime();
+        const bDate = new Date(`${b.date}T${b.time || "00:00"}`).getTime();
+        if (sortBy === "date-asc") return aDate - bDate;
+        return bDate - aDate;
+      });
+  }, [communicationViews, searchQuery, sortBy, typeFilter]);
+
+  const handleSaveCommunication = async () => {
+    if (!formData.customerId || !formData.subject.trim() || !formData.date) return;
+    try {
+      const created = await createCustomerCommunication({
+        customer_id: Number(formData.customerId),
+        contact_person: formData.contactPerson.trim() || null,
+        type: formData.type,
+        subject: formData.subject.trim(),
+        date: formData.date,
+        time: formData.time || null,
+        priority: formData.priority,
+        follow_up_date: formData.followUpDate || null,
+        status: formData.status,
+        notes: formData.notes.trim() || null,
+        outcome: formData.outcome.trim() || null,
+      });
+      let updatedRecord = created;
+
+      if (selectedFiles.length > 0) {
+        const attachments = await uploadCustomerCommunicationAttachments(created.id, selectedFiles);
+        updatedRecord = await updateCustomerCommunication(created.id, {
+          attachments: attachments.length,
+          attachment_files: attachments,
+        });
+      }
+
+      setCommunications((prev) => [updatedRecord, ...prev]);
+      toast({
+        title: "Communication logged",
+        description: "Your communication has been saved.",
+      });
+      setLogDialogOpen(false);
+      setSelectedFiles([]);
+      setFormData({
+        customerId: "",
+        contactPerson: "",
+        type: "email",
+        priority: "medium",
+        subject: "",
+        date: "",
+        time: "",
+        notes: "",
+        outcome: "",
+        followUpDate: "",
+        status: "completed",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to save communication",
+        description: error instanceof Error ? error.message : "Unable to save communication.",
+        variant: "destructive",
+      });
     }
-  ];
+  };
+
+  const handleDeleteCommunication = async (id: number) => {
+    try {
+      await deleteCustomerCommunication(id);
+      setCommunications((prev) => prev.filter((comm) => comm.id !== id));
+      toast({
+        title: "Communication deleted",
+        description: "The entry has been removed.",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to delete communication",
+        description: error instanceof Error ? error.message : "Unable to delete communication.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const typeConfig = {
     email: { icon: Mail, label: "Email", color: "bg-blue-100 text-blue-700" },
@@ -144,7 +243,7 @@ export default function CommunicationLogModule() {
                   className="pl-9"
                 />
               </div>
-              <Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
@@ -157,7 +256,7 @@ export default function CommunicationLogModule() {
                   <SelectItem value="video">Video Call</SelectItem>
                 </SelectContent>
               </Select>
-              <Select>
+              <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -172,7 +271,7 @@ export default function CommunicationLogModule() {
                 Filter
               </Button>
             </div>
-            <Dialog>
+            <Dialog open={logDialogOpen} onOpenChange={setLogDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">
                   <Plus className="h-4 w-4 mr-2" />
@@ -187,25 +286,31 @@ export default function CommunicationLogModule() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="customer">Customer *</Label>
-                      <Select>
+                      <Select value={formData.customerId} onValueChange={(value) => setFormData((prev) => ({ ...prev, customerId: value }))}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select customer" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="tech">Tech Innovations Ltd</SelectItem>
-                          <SelectItem value="retail">Global Retail Corp</SelectItem>
-                          <SelectItem value="health">Healthcare Systems Inc</SelectItem>
-                          <SelectItem value="finance">Financial Services Group</SelectItem>
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={String(customer.id)}>
+                              {customer.company_name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="contactPerson">Contact Person *</Label>
-                      <Input id="contactPerson" placeholder="Enter contact name" />
+                      <Input
+                        id="contactPerson"
+                        value={formData.contactPerson}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, contactPerson: e.target.value }))}
+                        placeholder="Enter contact name"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="type">Type *</Label>
-                      <Select>
+                      <Select value={formData.type} onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
@@ -220,7 +325,7 @@ export default function CommunicationLogModule() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="priority">Priority *</Label>
-                      <Select>
+                      <Select value={formData.priority} onValueChange={(value) => setFormData((prev) => ({ ...prev, priority: value }))}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select priority" />
                         </SelectTrigger>
@@ -233,28 +338,60 @@ export default function CommunicationLogModule() {
                     </div>
                     <div className="space-y-2 col-span-2">
                       <Label htmlFor="subject">Subject *</Label>
-                      <Input id="subject" placeholder="Enter communication subject" />
+                      <Input
+                        id="subject"
+                        value={formData.subject}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, subject: e.target.value }))}
+                        placeholder="Enter communication subject"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="date">Date *</Label>
-                      <Input id="date" type="date" />
+                      <Input
+                        id="date"
+                        type="date"
+                        value={formData.date}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="time">Time *</Label>
-                      <Input id="time" type="time" />
+                      <Input
+                        id="time"
+                        type="time"
+                        value={formData.time}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, time: e.target.value }))}
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="notes">Notes *</Label>
-                    <Textarea id="notes" placeholder="Add communication notes..." rows={3} />
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                      placeholder="Add communication notes..."
+                      rows={3}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="outcome">Outcome</Label>
-                    <Textarea id="outcome" placeholder="What was the result of this communication?" rows={2} />
+                    <Textarea
+                      id="outcome"
+                      value={formData.outcome}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, outcome: e.target.value }))}
+                      placeholder="What was the result of this communication?"
+                      rows={2}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="followUpDate">Follow-up Date</Label>
-                    <Input id="followUpDate" type="date" />
+                    <Input
+                      id="followUpDate"
+                      type="date"
+                      value={formData.followUpDate}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, followUpDate: e.target.value }))}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Attachments</Label>
@@ -263,12 +400,26 @@ export default function CommunicationLogModule() {
                       <p className="text-sm text-slate-600">
                         Drag and drop files here or click to browse
                       </p>
+                      <input
+                        type="file"
+                        multiple
+                        className="mt-4 text-sm"
+                        onChange={(event) => {
+                          const files = Array.from(event.target.files || []);
+                          setSelectedFiles(files);
+                        }}
+                      />
+                      {selectedFiles.length > 0 && (
+                        <div className="mt-3 text-xs text-slate-500">
+                          {selectedFiles.length} file(s) selected
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline">Cancel</Button>
-                  <Button>Save Communication</Button>
+                  <Button variant="outline" onClick={() => setLogDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={handleSaveCommunication}>Save Communication</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -297,8 +448,11 @@ export default function CommunicationLogModule() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {communications.map((comm) => {
+              {filteredCommunications.map((comm) => {
                 const TypeIcon = typeConfig[comm.type].icon;
+                const timeDisplay = comm.time
+                  ? new Date(`1970-01-01T${comm.time}`).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : "—";
                 return (
                   <TableRow key={comm.id} className="hover:bg-slate-50">
                     <TableCell>
@@ -306,7 +460,7 @@ export default function CommunicationLogModule() {
                         <Building className="h-4 w-4 text-teal-600" />
                         <div>
                           <div className="font-medium">{comm.customer}</div>
-                          <div className="text-xs text-slate-500">{comm.id}</div>
+                          <div className="text-xs text-slate-500">COM-{comm.id}</div>
                         </div>
                       </div>
                     </TableCell>
@@ -336,7 +490,7 @@ export default function CommunicationLogModule() {
                     <TableCell>
                       <div className="text-sm">
                         <div>{new Date(comm.date).toLocaleDateString()}</div>
-                        <div className="text-xs text-slate-500">{comm.time}</div>
+                        <div className="text-xs text-slate-500">{timeDisplay}</div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -367,7 +521,12 @@ export default function CommunicationLogModule() {
                         <Button variant="ghost" size="sm">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDeleteCommunication(comm.id)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

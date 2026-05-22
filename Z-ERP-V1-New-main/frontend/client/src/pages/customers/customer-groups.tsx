@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, Plus, Edit, Trash2, UserPlus, Search, Filter, 
@@ -43,17 +43,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
+import {
+  createCustomerGroup,
+  createCustomerGroupMembers,
+  deleteCustomerGroup,
+  deleteCustomerGroupMember,
+  fetchCustomerGroupMembers,
+  fetchCustomerGroups,
+  fetchCustomers,
+  updateCustomer,
+  updateCustomerGroup,
+  type CustomerGroupMemberRecord,
+  type CustomerGroupRecord,
+  type CustomerRecord,
+} from "@/lib/supabase-data";
 
-interface CustomerGroup {
-  id: string;
+interface CustomerGroupView {
+  id: number;
   name: string;
   description?: string;
   customerCount: number;
   color: string;
   colorName: string;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface AvailableCustomer {
@@ -78,21 +92,6 @@ const colorOptions = [
   { name: "Cyan", value: "bg-cyan-500", text: "text-cyan-500", light: "bg-cyan-50" },
 ];
 
-// Available customers for adding to groups
-const availableCustomers: AvailableCustomer[] = [
-  { id: 1, companyName: "Sarmad", primaryContact: "Sarmad Staff", primaryEmail: "admin@erpdemo.zedunix.com", phone: "+923318144482", isInGroup: false },
-  { id: 2, companyName: "Jack", primaryContact: "", primaryEmail: "", phone: "+917550379111", isInGroup: false },
-  { id: 3, companyName: "Tech Innovations Ltd", primaryContact: "John Anderson", primaryEmail: "john.anderson@techinnovations.com", phone: "+1 234 567 8901", isInGroup: true },
-  { id: 4, companyName: "Greeen Dot", primaryContact: "Sajeer Moidu", primaryEmail: "info@greendotdesigns.com", phone: "+971 58 667 7503", isInGroup: false },
-  { id: 5, companyName: "Hello hello", primaryContact: "", primaryEmail: "", phone: "121221212", isInGroup: false },
-  { id: 6, companyName: "jack", primaryContact: "", primaryEmail: "", phone: "7550379111", isInGroup: true },
-  { id: 7, companyName: "Arun Pixels Studio", primaryContact: "", primaryEmail: "", phone: "8971766616", isInGroup: false },
-  { id: 8, companyName: "C Janardhan", primaryContact: "", primaryEmail: "", phone: "8088983604", isInGroup: false },
-  { id: 9, companyName: "Zollid", primaryContact: "Ragni ca", primaryEmail: "raginichavan1703@gmail.com", phone: "12", isInGroup: false },
-  { id: 10, companyName: "Zapier Technologies", primaryContact: "", primaryEmail: "", phone: "8317450103", isInGroup: true },
-  { id: 11, companyName: "Global Retail Corp", primaryContact: "Sarah Mitchell", primaryEmail: "sarah.mitchell@globalretail.com", phone: "+1 234 567 8902", isInGroup: false },
-  { id: 12, companyName: "Healthcare Systems Inc", primaryContact: "Michael Roberts", primaryEmail: "michael.roberts@healthsystems.com", phone: "+1 234 567 8903", isInGroup: false },
-];
 
 export default function CustomerGroups() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -102,9 +101,13 @@ export default function CustomerGroups() {
   const [editCustomerDialogOpen, setEditCustomerDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<CustomerGroup | null>(null);
+  const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<CustomerGroupView | null>(null);
   const { toast } = useToast();
+  const [groups, setGroups] = useState<CustomerGroupRecord[]>([]);
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+  const [groupMembers, setGroupMembers] = useState<CustomerGroupMemberRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Add Customers dialog state
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
@@ -131,76 +134,61 @@ export default function CustomerGroups() {
     colorName: "Blue"
   });
 
-  const groups: CustomerGroup[] = [
-    {
-      id: "1",
-      name: "VIP Customers",
-      description: "High-value customers with priority support and exclusive discounts",
-      customerCount: 24,
-      color: "bg-purple-500",
-      colorName: "Purple",
-      isActive: true,
-      createdAt: "2025-08-15",
-      updatedAt: "2025-12-20"
-    },
-    {
-      id: "2",
-      name: "Enterprise",
-      description: "Enterprise-level customers with dedicated account managers",
-      customerCount: 12,
-      color: "bg-blue-500",
-      colorName: "Blue",
-      isActive: true,
-      createdAt: "2025-07-10",
-      updatedAt: "2025-11-15"
-    },
-    {
-      id: "3",
-      name: "SMB",
-      description: "Small and medium business customers",
-      customerCount: 58,
-      color: "bg-green-500",
-      colorName: "Green",
-      isActive: true,
-      createdAt: "2025-06-20",
-      updatedAt: "2025-10-01"
-    },
-    {
-      id: "4",
-      name: "Trial Users",
-      description: "Customers on trial period - follow up required",
-      customerCount: 35,
-      color: "bg-orange-500",
-      colorName: "Orange",
-      isActive: true,
-      createdAt: "2025-09-01",
-      updatedAt: "2026-01-10"
-    },
-    {
-      id: "5",
-      name: "Inactive",
-      description: "Customers who haven't engaged in 90+ days",
-      customerCount: 18,
-      color: "bg-red-500",
-      colorName: "Red",
-      isActive: false,
-      createdAt: "2025-05-15",
-      updatedAt: "2025-12-01"
-    },
-    {
-      id: "6",
-      name: "Partners",
-      description: "Strategic business partners and resellers",
-      customerCount: 8,
-      color: "bg-indigo-500",
-      colorName: "Indigo",
-      isActive: true,
-      createdAt: "2025-04-01",
-      updatedAt: "2025-11-20"
-    },
-  ];
+  useEffect(() => {
+    let active = true;
 
-  const filteredGroups = groups.filter(group => 
+    Promise.all([fetchCustomerGroups(), fetchCustomers(), fetchCustomerGroupMembers()])
+      .then(([groupRows, customerRows, memberRows]) => {
+        if (!active) return;
+        setGroups(groupRows);
+        setCustomers(customerRows);
+        setGroupMembers(memberRows);
+      })
+      .catch(() => {
+        if (!active) return;
+        setGroups([]);
+        setCustomers([]);
+        setGroupMembers([]);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const groupMembersByGroup = useMemo(() => {
+    const map = new Map<number, Set<number>>();
+    groupMembers.forEach((member) => {
+      const existing = map.get(member.group_id) ?? new Set<number>();
+      existing.add(member.customer_id);
+      map.set(member.group_id, existing);
+    });
+    return map;
+  }, [groupMembers]);
+
+  const groupViews: CustomerGroupView[] = useMemo(() => {
+    return groups.map((group) => {
+      const color = group.color || "bg-blue-500";
+      const colorName = colorOptions.find((option) => option.value === color)?.name || "Blue";
+      const memberCount = groupMembersByGroup.get(group.id)?.size ?? 0;
+      return {
+        id: group.id,
+        name: group.name,
+        description: group.description ?? undefined,
+        customerCount: memberCount,
+        color,
+        colorName,
+        isActive: group.is_active ?? true,
+        createdAt: group.created_at,
+        updatedAt: group.updated_at,
+      };
+    });
+  }, [groups, groupMembersByGroup]);
+
+  const filteredGroups = groupViews.filter(group => 
     group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     group.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -213,7 +201,7 @@ export default function CustomerGroups() {
     }
   };
 
-  const handleSelectGroup = (id: string) => {
+  const handleSelectGroup = (id: number) => {
     if (selectedGroups.includes(id)) {
       setSelectedGroups(selectedGroups.filter(gid => gid !== id));
     } else {
@@ -221,16 +209,32 @@ export default function CustomerGroups() {
     }
   };
 
-  const handleCreateGroup = () => {
-    toast({
-      title: "Group Created",
-      description: `${newGroup.name} has been created successfully`,
-    });
-    setDialogOpen(false);
-    setNewGroup({ name: "", description: "", color: "bg-blue-500", colorName: "Blue" });
+  const handleCreateGroup = async () => {
+    if (!newGroup.name.trim()) return;
+    try {
+      const created = await createCustomerGroup({
+        name: newGroup.name.trim(),
+        description: newGroup.description.trim() || null,
+        color: newGroup.color,
+        is_active: true,
+      });
+      setGroups((prev) => [created, ...prev]);
+      toast({
+        title: "Group Created",
+        description: `${created.name} has been created successfully`,
+      });
+      setDialogOpen(false);
+      setNewGroup({ name: "", description: "", color: "bg-blue-500", colorName: "Blue" });
+    } catch (error) {
+      toast({
+        title: "Failed to create group",
+        description: error instanceof Error ? error.message : "Unable to create group.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleEditGroup = (group: CustomerGroup) => {
+  const handleEditGroup = (group: CustomerGroupView) => {
     setSelectedGroup(group);
     setNewGroup({
       name: group.name,
@@ -241,29 +245,63 @@ export default function CustomerGroups() {
     setEditDialogOpen(true);
   };
 
-  const handleDeleteGroup = (group: CustomerGroup) => {
+  const handleDeleteGroup = (group: CustomerGroupView) => {
     setSelectedGroup(group);
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
-    toast({
-      title: "Group Deleted",
-      description: `${selectedGroup?.name} has been deleted`,
-      variant: "destructive"
-    });
-    setDeleteDialogOpen(false);
-    setSelectedGroup(null);
+  const confirmDelete = async () => {
+    if (!selectedGroup) return;
+    try {
+      await deleteCustomerGroup(selectedGroup.id);
+      setGroups((prev) => prev.filter((group) => group.id !== selectedGroup.id));
+      setGroupMembers((prev) => prev.filter((member) => member.group_id !== selectedGroup.id));
+      toast({
+        title: "Group Deleted",
+        description: `${selectedGroup.name} has been deleted`,
+        variant: "destructive"
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to delete group",
+        description: error instanceof Error ? error.message : "Unable to delete group.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setSelectedGroup(null);
+    }
   };
 
   // Add Customers handlers
-  const handleOpenAddCustomers = (group: CustomerGroup) => {
+  const handleOpenAddCustomers = (group: CustomerGroupView) => {
     setSelectedGroup(group);
     setSelectedCustomersToAdd([]);
     setCustomerSearchQuery("");
     setAddCustomersFilter("all");
     setAddCustomersDialogOpen(true);
   };
+
+  const memberIdByGroupCustomer = useMemo(() => {
+    const map = new Map<string, number>();
+    groupMembers.forEach((member) => {
+      map.set(`${member.group_id}:${member.customer_id}`, member.id);
+    });
+    return map;
+  }, [groupMembers]);
+
+  const availableCustomers: AvailableCustomer[] = useMemo(() => {
+    const selectedGroupId = selectedGroup?.id;
+    const inGroup = selectedGroupId ? groupMembersByGroup.get(selectedGroupId) ?? new Set<number>() : new Set<number>();
+    return customers.map((customer) => ({
+      id: customer.id,
+      companyName: customer.company_name,
+      primaryContact: customer.primary_contact ?? "",
+      primaryEmail: customer.primary_email ?? "",
+      phone: customer.phone ?? "",
+      isInGroup: selectedGroupId ? inGroup.has(customer.id) : false,
+    }));
+  }, [customers, selectedGroup, groupMembersByGroup]);
 
   const filteredCustomersToAdd = availableCustomers.filter(customer => {
     const matchesSearch = 
@@ -294,23 +332,52 @@ export default function CustomerGroups() {
     }
   };
 
-  const handleAddCustomersToGroup = () => {
-    toast({
-      title: "Customers Added",
-      description: `${selectedCustomersToAdd.length} customer(s) have been added to "${selectedGroup?.name}"`,
-    });
-    setAddCustomersDialogOpen(false);
-    setSelectedCustomersToAdd([]);
-    setSelectedGroup(null);
+  const handleAddCustomersToGroup = async () => {
+    if (!selectedGroup) return;
+    try {
+      const payload = selectedCustomersToAdd.map((customerId) => ({
+        group_id: selectedGroup.id,
+        customer_id: customerId,
+      }));
+
+      const createdMembers = await createCustomerGroupMembers(payload);
+      setGroupMembers((prev) => [...prev, ...createdMembers]);
+      toast({
+        title: "Customers Added",
+        description: `${selectedCustomersToAdd.length} customer(s) have been added to "${selectedGroup.name}"`,
+      });
+      setAddCustomersDialogOpen(false);
+      setSelectedCustomersToAdd([]);
+      setSelectedGroup(null);
+    } catch (error) {
+      toast({
+        title: "Failed to add customers",
+        description: error instanceof Error ? error.message : "Unable to add customers to group.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleRemoveCustomerFromGroup = (customerId: number) => {
+  const handleRemoveCustomerFromGroup = async (customerId: number) => {
+    if (!selectedGroup) return;
+    const memberId = memberIdByGroupCustomer.get(`${selectedGroup.id}:${customerId}`);
+    if (!memberId) return;
     const customer = availableCustomers.find(c => c.id === customerId);
-    toast({
-      title: "Customer Removed",
-      description: `${customer?.companyName} has been removed from "${selectedGroup?.name}"`,
-      variant: "destructive"
-    });
+    try {
+      await deleteCustomerGroupMember(memberId);
+      setGroupMembers((prev) => prev.filter((member) => member.id !== memberId));
+      toast({
+        title: "Customer Removed",
+        description: `${customer?.companyName} has been removed from "${selectedGroup.name}"`,
+        variant: "destructive"
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to remove customer",
+        description: error instanceof Error ? error.message : "Unable to remove customer from group.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Edit Customer handlers
@@ -328,13 +395,31 @@ export default function CustomerGroups() {
     setEditCustomerDialogOpen(true);
   };
 
-  const handleSaveCustomer = () => {
-    toast({
-      title: "Customer Updated",
-      description: `${editCustomerForm.companyName} has been updated successfully`,
-    });
-    setEditCustomerDialogOpen(false);
-    setEditingCustomer(null);
+  const handleSaveCustomer = async () => {
+    if (!editingCustomer) return;
+    try {
+      const updated = await updateCustomer(editingCustomer.id, {
+        company_name: editCustomerForm.companyName.trim(),
+        primary_contact: editCustomerForm.primaryContact.trim() || null,
+        primary_email: editCustomerForm.primaryEmail.trim() || null,
+        phone: editCustomerForm.phone.trim() || null,
+        address: editCustomerForm.address.trim() || null,
+        website: editCustomerForm.website.trim() || null,
+      });
+      setCustomers((prev) => prev.map((customer) => (customer.id === updated.id ? updated : customer)));
+      toast({
+        title: "Customer Updated",
+        description: `${updated.company_name} has been updated successfully`,
+      });
+      setEditCustomerDialogOpen(false);
+      setEditingCustomer(null);
+    } catch (error) {
+      toast({
+        title: "Failed to update customer",
+        description: error instanceof Error ? error.message : "Unable to update customer.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -438,7 +523,7 @@ export default function CustomerGroups() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Total Groups</p>
-                  <p className="text-2xl font-bold text-gray-900">{groups.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">{groupViews.length}</p>
                 </div>
                 <div className="p-2 bg-blue-50 rounded-lg">
                   <FolderTree className="h-5 w-5 text-blue-600" />
@@ -452,7 +537,7 @@ export default function CustomerGroups() {
                 <div>
                   <p className="text-sm text-gray-500">Total Customers</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {groups.reduce((sum, g) => sum + g.customerCount, 0)}
+                    {groupViews.reduce((sum, g) => sum + g.customerCount, 0)}
                   </p>
                 </div>
                 <div className="p-2 bg-green-50 rounded-lg">
@@ -467,7 +552,7 @@ export default function CustomerGroups() {
                 <div>
                   <p className="text-sm text-gray-500">Active Groups</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {groups.filter(g => g.isActive).length}
+                    {groupViews.filter(g => g.isActive).length}
                   </p>
                 </div>
                 <div className="p-2 bg-purple-50 rounded-lg">
@@ -482,7 +567,9 @@ export default function CustomerGroups() {
                 <div>
                   <p className="text-sm text-gray-500">Avg per Group</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {Math.round(groups.reduce((sum, g) => sum + g.customerCount, 0) / groups.length)}
+                    {groupViews.length > 0
+                      ? Math.round(groupViews.reduce((sum, g) => sum + g.customerCount, 0) / groupViews.length)
+                      : 0}
                   </p>
                 </div>
                 <div className="p-2 bg-orange-50 rounded-lg">
@@ -724,6 +811,19 @@ export default function CustomerGroups() {
                         <TableCell className="text-center">
                           <Switch 
                             checked={group.isActive}
+                            onCheckedChange={(checked) => {
+                              updateCustomerGroup(group.id, { is_active: checked })
+                                .then((updated) => {
+                                  setGroups((prev) => prev.map((item) => (item.id === updated.id ? { ...item, is_active: updated.is_active } : item)));
+                                })
+                                .catch((error) => {
+                                  toast({
+                                    title: "Failed to update group",
+                                    description: error instanceof Error ? error.message : "Unable to update group status.",
+                                    variant: "destructive",
+                                  });
+                                });
+                            }}
                             className="data-[state=checked]:bg-blue-600"
                           />
                         </TableCell>
@@ -815,11 +915,27 @@ export default function CustomerGroups() {
               </Button>
               <Button 
                 onClick={() => {
-                  toast({
-                    title: "Group Updated",
-                    description: `${newGroup.name} has been updated successfully`,
-                  });
-                  setEditDialogOpen(false);
+                  if (!selectedGroup) return;
+                  updateCustomerGroup(selectedGroup.id, {
+                    name: newGroup.name.trim(),
+                    description: newGroup.description.trim() || null,
+                    color: newGroup.color,
+                  })
+                    .then((updated) => {
+                      setGroups((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+                      toast({
+                        title: "Group Updated",
+                        description: `${updated.name} has been updated successfully`,
+                      });
+                      setEditDialogOpen(false);
+                    })
+                    .catch((error) => {
+                      toast({
+                        title: "Failed to update group",
+                        description: error instanceof Error ? error.message : "Unable to update group.",
+                        variant: "destructive",
+                      });
+                    });
                 }}
                 className="bg-blue-600 hover:bg-blue-700"
               >

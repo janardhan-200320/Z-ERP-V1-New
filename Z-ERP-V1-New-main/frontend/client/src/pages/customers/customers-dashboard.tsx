@@ -1,52 +1,92 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Users, IndianRupee, MessageSquare, UserPlus, UserCheck, UserCircle, MessagesSquare, FolderTree, TrendingUp } from "lucide-react";
+import { Users, MessageSquare, UserCheck, UserCircle, MessagesSquare, FolderTree, TrendingUp, UserMinus } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import CustomersListModule from "./customers-list";
 import CommunicationLogModule from "./communication-log";
 import ProjectClientPortalTab from "@/pages/projects/tabs/project-client-portal-tab";
+import { fetchCustomerCommunications, fetchCustomers, type CustomerCommunicationRecord, type CustomerRecord } from "@/lib/supabase-data";
 
 export default function CustomersDashboard() {
   const [activeTab, setActiveTab] = useState("customers");
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+  const [communications, setCommunications] = useState<CustomerCommunicationRecord[]>([]);
 
-  // KPI Data
-  const kpiData = [
-    {
-      title: "Total Leads",
-      value: "342",
-      description: "in sales pipeline",
-      icon: UserPlus,
-      color: "text-teal-600",
-      bgColor: "bg-teal-50"
-    },
-    {
-      title: "Active Customers",
-      value: "156",
-      description: "current accounts",
-      icon: UserCheck,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50"
-    },
-    {
-      title: "Pipeline Value",
-      value: "₹2.4M",
-      description: "estimated revenue",
-      icon: IndianRupee,
-      color: "text-green-600",
-      bgColor: "bg-green-50"
-    },
-    {
-      title: "Conversations Logged",
-      value: "1,248",
-      description: "this month",
-      icon: MessageSquare,
-      color: "text-purple-600",
-      bgColor: "bg-purple-50"
-    }
-  ];
+  useEffect(() => {
+    let active = true;
+
+    Promise.all([fetchCustomers(), fetchCustomerCommunications()])
+      .then(([customerRows, communicationRows]) => {
+        if (!active) return;
+        setCustomers(customerRows);
+        setCommunications(communicationRows);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCustomers([]);
+        setCommunications([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const kpiData = useMemo(() => {
+    const totalCustomers = customers.length;
+    const activeCustomers = customers.filter((c) => c.active).length;
+    const inactiveCustomers = totalCustomers - activeCustomers;
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const newThisMonth = customers.filter((customer) => {
+      const createdAt = customer.date_created ? new Date(customer.date_created) : null;
+      return createdAt ? createdAt >= startOfMonth : false;
+    }).length;
+
+    const communicationsThisMonth = communications.filter((comm) => {
+      const date = comm.date ? new Date(comm.date) : null;
+      return date ? date >= startOfMonth : false;
+    }).length;
+
+    return [
+      {
+        title: "Total Customers",
+        value: String(totalCustomers),
+        description: "all accounts",
+        icon: Users,
+        color: "text-teal-600",
+        bgColor: "bg-teal-50"
+      },
+      {
+        title: "Active Customers",
+        value: String(activeCustomers),
+        description: "currently active",
+        icon: UserCheck,
+        color: "text-blue-600",
+        bgColor: "bg-blue-50"
+      },
+      {
+        title: "Inactive Customers",
+        value: String(inactiveCustomers),
+        description: "inactive accounts",
+        icon: UserMinus,
+        color: "text-green-600",
+        bgColor: "bg-green-50"
+      },
+      {
+        title: "Communications Logged",
+        value: String(communicationsThisMonth),
+        description: "this month",
+        icon: MessageSquare,
+        color: "text-purple-600",
+        bgColor: "bg-purple-50"
+      }
+    ];
+  }, [customers, communications]);
 
   return (
     <DashboardLayout>

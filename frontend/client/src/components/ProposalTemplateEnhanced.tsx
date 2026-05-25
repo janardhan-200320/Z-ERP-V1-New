@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CheckCircle2, Download, Mail, Phone, MapPin } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 
@@ -111,7 +111,7 @@ export default function ProposalTemplateEnhanced({
     'All deliverables are subject to client approval',
     'Revisions beyond the agreed scope will be billed separately'
   ],
-  currency = '₹',
+  currency = 'INR',
   saleAgent = 'Sales Representative',
   onAccept,
   canAccept = false,
@@ -122,7 +122,7 @@ export default function ProposalTemplateEnhanced({
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
 
   useEffect(() => {
-    const qrData = `Proposal: ${proposalId} - ${company.name} - Amount: ${currency}${total}`;
+    const qrData = `Proposal: ${proposalId} - ${company.name} - Amount: ${formatCurrency(total, currency)}`;
     QRCode.toDataURL(qrData, {
       width: 100,
       margin: 1,
@@ -312,8 +312,8 @@ export default function ProposalTemplateEnhanced({
                         )}
                       </TableCell>
                       <TableCell className="text-center">{item.qty || 1}</TableCell>
-                      <TableCell className="text-right">{currency}{(item.rate || 0).toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-semibold">{currency}{(item.amount || 0).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(item.rate || 0, currency)}</TableCell>
+                      <TableCell className="text-right font-semibold">{formatCurrency(item.amount || 0, currency)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -370,31 +370,31 @@ export default function ProposalTemplateEnhanced({
             <div className="space-y-3">
               <div className="flex justify-between items-center pb-2 border-b border-slate-200">
                 <span className="text-sm font-semibold text-slate-700">Sub Total</span>
-                <span className="text-sm font-bold">{currency}{subTotal.toFixed(2)}</span>
+                <span className="text-sm font-bold">{formatCurrency(subTotal, currency)}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-slate-200">
                 <span className="text-sm font-semibold text-slate-700">CGST</span>
-                <span className="text-sm font-bold">{currency}{cgstAmount.toFixed(2)}</span>
+                <span className="text-sm font-bold">{formatCurrency(cgstAmount, currency)}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-slate-200">
                 <span className="text-sm font-semibold text-slate-700">SGST</span>
-                <span className="text-sm font-bold">{currency}{sgstAmount.toFixed(2)}</span>
+                <span className="text-sm font-bold">{formatCurrency(sgstAmount, currency)}</span>
               </div>
               {otherTaxAmount > 0 && (
                 <div className="flex justify-between items-center pb-2 border-b border-slate-200">
                   <span className="text-sm font-semibold text-slate-700">Other Tax</span>
-                  <span className="text-sm font-bold">{currency}{otherTaxAmount.toFixed(2)}</span>
+                  <span className="text-sm font-bold">{formatCurrency(otherTaxAmount, currency)}</span>
                 </div>
               )}
               {discount > 0 && (
                 <div className="flex justify-between items-center pb-2 border-b border-slate-200">
                   <span className="text-sm font-semibold text-slate-700">Discount</span>
-                  <span className="text-sm font-bold text-red-600">-{currency}{discount.toFixed(2)}</span>
+                  <span className="text-sm font-bold text-red-600">-{formatCurrency(discount, currency)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center pt-2 pb-2 border-b-2 border-indigo-600">
                 <span className="text-base font-bold text-slate-900">Total Amount</span>
-                <span className="text-lg font-black text-indigo-600">{currency}{total.toFixed(2)}</span>
+                <span className="text-lg font-black text-indigo-600">{formatCurrency(total, currency)}</span>
               </div>
             </div>
           </div>

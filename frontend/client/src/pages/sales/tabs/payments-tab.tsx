@@ -41,7 +41,8 @@ import { useToast } from "@/hooks/use-toast";
 import { exportToExcel } from '@/lib/exportUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
+import { getCurrencyOptions, getFinanceSettings } from '@/lib/finance-settings';
 import { BANK_ACCOUNTS_UPDATED_EVENT, getActiveBankAccountOptions } from '@/lib/bank-accounts';
 import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
 
@@ -60,6 +61,8 @@ export default function PaymentsTab() {
   const [eSignatures, setESignatures] = useState(() => getESignatureProfiles());
   const [recordESignatureId, setRecordESignatureId] = useState('');
   const [recordSignatureDesignation, setRecordSignatureDesignation] = useState('');
+  const [recordCurrency, setRecordCurrency] = useState(() => getFinanceSettings().defaultCurrency);
+  const currencyOptions = useMemo(() => getCurrencyOptions(), []);
   const { toast } = useToast();
 
   const recordInvoiceOptions = [
@@ -315,7 +318,7 @@ export default function PaymentsTab() {
                         <SelectContent>
                           {recordInvoiceOptions.map((invoiceOption) => (
                             <SelectItem key={invoiceOption.value} value={invoiceOption.value}>
-                              {invoiceOption.invoice} - ₹{invoiceOption.amount.toLocaleString('en-IN')}
+                              {invoiceOption.invoice} - {formatCurrency(invoiceOption.amount, recordCurrency)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -359,6 +362,22 @@ export default function PaymentsTab() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="pay-currency">Currency</Label>
+                    <Select value={recordCurrency} onValueChange={setRecordCurrency}>
+                      <SelectTrigger id="pay-currency">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currencyOptions.map((currency) => (
+                          <SelectItem key={currency.code} value={currency.code}>
+                            {currency.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {recordPaymentMode === 'bank' && (
@@ -435,15 +454,15 @@ export default function PaymentsTab() {
                     )}
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-600">Invoice Amount:</span>
-                      <span className="font-semibold">₹{selectedRecordInvoice.amount.toLocaleString('en-IN')}.00</span>
+                      <span className="font-semibold">{formatCurrency(selectedRecordInvoice.amount, recordCurrency)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-600">Amount Paid:</span>
-                      <span className="font-semibold text-green-700">₹{recordAmountPaid.toLocaleString('en-IN')}.00</span>
+                      <span className="font-semibold text-green-700">{formatCurrency(recordAmountPaid, recordCurrency)}</span>
                     </div>
                     <div className="flex justify-between text-sm font-bold pt-2 border-t">
                       <span>Amount Due:</span>
-                      <span className="text-red-700">₹{Math.max(selectedRecordInvoice.amount - recordAmountPaid, 0).toLocaleString('en-IN')}.00</span>
+                      <span className="text-red-700">{formatCurrency(Math.max(selectedRecordInvoice.amount - recordAmountPaid, 0), recordCurrency)}</span>
                     </div>
                   </div>
                 </div>

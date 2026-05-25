@@ -1,6 +1,7 @@
 import { safeGetItem, safeSetItem } from '@/lib/storage';
 
 export const FINANCE_SETTINGS_STORAGE_KEY = 'zervos_finance_settings';
+const FINANCE_CURRENCY_MIGRATION_KEY = 'zervos_finance_currency_migrated_v1';
 export const FINANCE_DEFAULT_TAX_VALUE = 'Finance Default Tax';
 
 export type FinanceSettingsData = {
@@ -24,7 +25,7 @@ export type FinanceSettingsData = {
 };
 
 export const DEFAULT_FINANCE_SETTINGS: FinanceSettingsData = {
-  defaultCurrency: 'USD',
+  defaultCurrency: 'INR',
   currencyFormat: 'symbol',
   defaultTaxRate: 10,
   gstRateMode: 'auto',
@@ -41,6 +42,11 @@ export const DEFAULT_FINANCE_SETTINGS: FinanceSettingsData = {
   lateFeePercent: 5,
   autoGenerateInvoiceNumbers: true,
   sendPaymentReminders: true,
+};
+
+export type CurrencyOption = {
+  code: string;
+  label: string;
 };
 
 const clampRate = (value: number): number => {
@@ -71,7 +77,24 @@ const normalizeFinanceSettings = (settings: Partial<FinanceSettingsData> | null 
 
 export const getFinanceSettings = (): FinanceSettingsData => {
   const saved = safeGetItem<Partial<FinanceSettingsData>>(FINANCE_SETTINGS_STORAGE_KEY, DEFAULT_FINANCE_SETTINGS);
-  return normalizeFinanceSettings(saved);
+  const normalized = normalizeFinanceSettings(saved);
+  const migrated = safeGetItem<boolean>(FINANCE_CURRENCY_MIGRATION_KEY, false);
+
+  if (!migrated && normalized.defaultCurrency === 'USD') {
+    const updated = {
+      ...normalized,
+      defaultCurrency: 'INR',
+    };
+    safeSetItem(FINANCE_SETTINGS_STORAGE_KEY, updated);
+    safeSetItem(FINANCE_CURRENCY_MIGRATION_KEY, true);
+    return updated;
+  }
+
+  if (!migrated) {
+    safeSetItem(FINANCE_CURRENCY_MIGRATION_KEY, true);
+  }
+
+  return normalized;
 };
 
 export const saveFinanceSettings = (settings: Partial<FinanceSettingsData>): FinanceSettingsData => {
@@ -83,6 +106,41 @@ export const saveFinanceSettings = (settings: Partial<FinanceSettingsData>): Fin
   }
 
   return normalized;
+};
+
+export const getCurrencyOptions = (): CurrencyOption[] => {
+  const fallback: CurrencyOption[] = [
+    { code: 'INR', label: 'INR - Indian Rupee' },
+    { code: 'USD', label: 'USD - US Dollar' },
+    { code: 'EUR', label: 'EUR - Euro' },
+    { code: 'GBP', label: 'GBP - British Pound' },
+    { code: 'JPY', label: 'JPY - Japanese Yen' },
+  ];
+
+  try {
+    const intlAny = Intl as any;
+    const supported: string[] | undefined = intlAny.supportedValuesOf?.('currency');
+    if (!supported || supported.length === 0) {
+      return fallback;
+    }
+
+    const displayNames = intlAny.DisplayNames
+      ? new intlAny.DisplayNames(['en'], { type: 'currency' })
+      : null;
+
+    return supported
+      .map((code) => {
+        const upperCode = String(code).toUpperCase();
+        const currencyName = displayNames?.of?.(upperCode) || upperCode;
+        return {
+          code: upperCode,
+          label: `${upperCode} - ${currencyName}`,
+        };
+      })
+      .sort((a, b) => a.code.localeCompare(b.code));
+  } catch {
+    return fallback;
+  }
 };
 
 export const getFinanceTaxLabel = (rate: number): string => `${FINANCE_DEFAULT_TAX_VALUE} (${clampRate(rate)}%)`;

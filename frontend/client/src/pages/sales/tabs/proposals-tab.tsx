@@ -50,7 +50,7 @@ import ProposalTemplateEnhanced from '@/components/ProposalTemplateEnhanced';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { exportProposalToPDF } from '@/lib/proposal-pdf-generator';
 import { FINANCE_DEFAULT_TAX_VALUE, getFinanceSettings, getFinanceTaxLabel } from '@/lib/finance-settings';
-import { saveProposalForStandaloneView } from '@/lib/proposal-view-storage';
+import { getAllProposalsForStandaloneView, PROPOSAL_VIEW_UPDATED_EVENT, saveProposalForStandaloneView } from '@/lib/proposal-view-storage';
 import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
 
 type ProposalLineItem = {
@@ -343,6 +343,44 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
       setProposals(proposalsData);
     }
   }, [proposalsData]);
+
+  useEffect(() => {
+    const normalizeStandaloneStatus = (status: unknown, fallback?: string) => {
+      if (typeof status !== 'string') return fallback;
+      const normalized = status.toLowerCase();
+      if (normalized === 'signed' || normalized === 'accepted') return 'accepted';
+      if (normalized === 'declined') return 'declined';
+      if (normalized === 'sent') return 'sent';
+      if (normalized === 'draft') return 'draft';
+      return fallback ?? normalized;
+    };
+
+    const applyStandaloneUpdates = () => {
+      const storedProposals = getAllProposalsForStandaloneView();
+      if (!storedProposals || Object.keys(storedProposals).length === 0) return;
+
+      setProposals((prev) => prev.map((proposal) => {
+        const updated = storedProposals[proposal.id];
+        if (!updated) return proposal;
+
+        const nextStatus = normalizeStandaloneStatus(updated.status, proposal.status);
+        return {
+          ...proposal,
+          ...updated,
+          status: nextStatus,
+        };
+      }));
+    };
+
+    applyStandaloneUpdates();
+    window.addEventListener(PROPOSAL_VIEW_UPDATED_EVENT, applyStandaloneUpdates);
+    window.addEventListener('storage', applyStandaloneUpdates);
+
+    return () => {
+      window.removeEventListener(PROPOSAL_VIEW_UPDATED_EVENT, applyStandaloneUpdates);
+      window.removeEventListener('storage', applyStandaloneUpdates);
+    };
+  }, []);
 
   useEffect(() => {
     const reloadFinanceSettings = () => {
@@ -1164,7 +1202,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   const statusConfig: Record<string, { label: string; class: string }> = {
     draft: { label: 'Draft', class: 'bg-slate-100 text-slate-700 border-slate-200' },
     sent: { label: 'Sent', class: 'bg-blue-100 text-blue-700 border-blue-200' },
-    accepted: { label: 'Accepted', class: 'bg-green-100 text-green-700 border-green-200' },
+    accepted: { label: 'Sent accepted', class: 'bg-green-100 text-green-700 border-green-200' },
     declined: { label: 'Declined', class: 'bg-red-100 text-red-700 border-red-200' }
   };
 

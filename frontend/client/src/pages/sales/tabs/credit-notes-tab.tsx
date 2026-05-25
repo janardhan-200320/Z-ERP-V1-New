@@ -42,6 +42,7 @@ import { exportToCSV } from '@/lib/csv-export';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from "@/lib/utils";
+import { getCurrencyOptions, getFinanceSettings } from '@/lib/finance-settings';
 
 export default function CreditNotesTab() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,6 +50,8 @@ export default function CreditNotesTab() {
   const [isExporting, setIsExporting] = useState(false);
   const [showNoteView, setShowNoteView] = useState(false);
   const [selectedNote, setSelectedNote] = useState<any>(null);
+  const [creditCurrency, setCreditCurrency] = useState(() => getFinanceSettings().defaultCurrency);
+  const currencyOptions = useMemo(() => getCurrencyOptions(), []);
   const { toast } = useToast();
 
   // Mock data
@@ -263,15 +266,16 @@ export default function CreditNotesTab() {
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="cn-currency">Currency</Label>
-                    <Select>
+                    <Select value={creditCurrency} onValueChange={setCreditCurrency}>
                       <SelectTrigger id="cn-currency">
                         <SelectValue placeholder="USD - US Dollar" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="usd">USD - US Dollar</SelectItem>
-                        <SelectItem value="eur">EUR - Euro</SelectItem>
-                        <SelectItem value="gbp">GBP - British Pound</SelectItem>
-                        <SelectItem value="inr">INR - Indian Rupee</SelectItem>
+                        {currencyOptions.map((currency) => (
+                          <SelectItem key={currency.code} value={currency.code}>
+                            {currency.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

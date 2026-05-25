@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Building2, Calendar, CheckCircle2, Download } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import type { Ref } from 'react';
 
 interface ProposalItem {
@@ -37,6 +37,7 @@ interface ProposalTemplateProps {
   sgstAmount?: number;
   otherTaxAmount?: number;
   validUntil?: string;
+  currency?: string;
   onAccept?: () => void;
   onDecline?: () => void;
   canAccept?: boolean;
@@ -66,6 +67,7 @@ export default function ProposalTemplate({
   sgstAmount = 0,
   otherTaxAmount = 0,
   validUntil,
+  currency = 'INR',
   onAccept,
   onDecline,
   canAccept = false,
@@ -212,8 +214,8 @@ export default function ProposalTemplate({
                         {item.longDescription && <p className="text-sm text-slate-600 mt-1">{item.longDescription}</p>}
                       </td>
                       <td className="py-4 px-6 text-right">{item.qty || 1}</td>
-                      <td className="py-4 px-6 text-right">Rs {(item.rate || 0).toFixed(2)}</td>
-                      <td className="py-4 px-6 text-right font-semibold">Rs {(item.amount ?? ((item.qty || 1) * (item.rate || 0))).toFixed(2)}</td>
+                      <td className="py-4 px-6 text-right">{formatCurrency(item.rate || 0, currency)}</td>
+                      <td className="py-4 px-6 text-right font-semibold">{formatCurrency(item.amount ?? ((item.qty || 1) * (item.rate || 0)), currency)}</td>
                     </tr>
                   ))}
                 </tbody>

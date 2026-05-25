@@ -39,9 +39,9 @@ export default function Currency() {
       id: "1",
       code: "USD",
       name: "US Dollar",
-      symbol: "₹",
-      exchangeRate: 1.0,
-      isDefault: true,
+      symbol: "$",
+      exchangeRate: 0.012,
+      isDefault: false,
       active: true,
     },
     {
@@ -67,8 +67,8 @@ export default function Currency() {
       code: "INR",
       name: "Indian Rupee",
       symbol: "₹",
-      exchangeRate: 83.12,
-      isDefault: false,
+      exchangeRate: 1.0,
+      isDefault: true,
       active: true,
     },
     {

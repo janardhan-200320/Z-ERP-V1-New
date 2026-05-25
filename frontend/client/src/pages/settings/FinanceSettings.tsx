@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
-import { getFinanceSettings, saveFinanceSettings } from "@/lib/finance-settings";
+import { getCurrencyOptions, getFinanceSettings, saveFinanceSettings } from "@/lib/finance-settings";
 
 export default function FinanceSettings() {
   const { toast } = useToast();
@@ -50,40 +50,7 @@ export default function FinanceSettings() {
     });
   }, [effectiveGstRate]);
 
-  const currencyOptions = useMemo(() => {
-    const fallback = [
-      { code: "USD", label: "USD - US Dollar" },
-      { code: "EUR", label: "EUR - Euro" },
-      { code: "GBP", label: "GBP - British Pound" },
-      { code: "INR", label: "INR - Indian Rupee" },
-      { code: "JPY", label: "JPY - Japanese Yen" },
-    ];
-
-    try {
-      const intlAny = Intl as any;
-      const supported: string[] | undefined = intlAny.supportedValuesOf?.("currency");
-      if (!supported || supported.length === 0) {
-        return fallback;
-      }
-
-      const displayNames = intlAny.DisplayNames
-        ? new intlAny.DisplayNames(["en"], { type: "currency" })
-        : null;
-
-      return supported
-        .map((code) => {
-          const upperCode = String(code).toUpperCase();
-          const currencyName = displayNames?.of?.(upperCode) || upperCode;
-          return {
-            code: upperCode,
-            label: `${upperCode} - ${currencyName}`,
-          };
-        })
-        .sort((a, b) => a.code.localeCompare(b.code));
-    } catch {
-      return fallback;
-    }
-  }, []);
+  const currencyOptions = useMemo(() => getCurrencyOptions(), []);
 
   const taxRateOptions = ["0", "2.5", "5", "6", "9", "12", "14", "18", "28", "custom"];
 

@@ -51,11 +51,12 @@ import { useToast } from "@/hooks/use-toast";
 import { exportToCSV } from '@/lib/csv-export';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { downloadSalesInvoicePDF, printSalesInvoicePDF, InvoiceData } from "@/lib/sales-invoice-pdf";
 import QRCode from 'qrcode';
 import {
   FINANCE_DEFAULT_TAX_VALUE,
+  getCurrencyOptions,
   getFinanceSettings,
   getFinanceTaxLabel,
   parseTaxPercentage,
@@ -117,6 +118,9 @@ export default function InvoicesTab() {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [financeDefaultTaxRate, setFinanceDefaultTaxRate] = useState(() => getFinanceSettings().defaultTaxRate);
   const financeDefaultTaxLabel = useMemo(() => getFinanceTaxLabel(financeDefaultTaxRate), [financeDefaultTaxRate]);
+  const currencyOptions = useMemo(() => getCurrencyOptions(), []);
+  const [invoiceCurrency, setInvoiceCurrency] = useState(() => getFinanceSettings().defaultCurrency);
+  const [editInvoiceCurrency, setEditInvoiceCurrency] = useState(() => getFinanceSettings().defaultCurrency);
   const { toast } = useToast();
 
   // Generate QR code when invoice is selected
@@ -596,14 +600,16 @@ export default function InvoicesTab() {
 
                   <div className="space-y-2">
                     <Label htmlFor="currency" className="text-sm">* Currency</Label>
-                    <Select defaultValue="usd">
+                    <Select value={invoiceCurrency} onValueChange={setInvoiceCurrency}>
                       <SelectTrigger id="currency" className="h-10">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="usd">INR ₹</SelectItem>
-                        <SelectItem value="eur">EUR €</SelectItem>
-                        <SelectItem value="gbp">GBP £</SelectItem>
+                        {currencyOptions.map((currency) => (
+                          <SelectItem key={currency.code} value={currency.code}>
+                            {currency.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -814,7 +820,8 @@ export default function InvoicesTab() {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell className="align-top pt-3 text-right font-medium text-sm">₹{item.amount.toFixed(2)}
+                          <TableCell className="align-top pt-3 text-right font-medium text-sm">
+                            {formatCurrency(item.amount, invoiceCurrency)}
                           </TableCell>
                           <TableCell className="align-top pt-2">
                             <div className="flex items-center gap-1">
@@ -849,20 +856,20 @@ export default function InvoicesTab() {
                 <div className="w-96 space-y-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">Sub Total :</span>
-                    <span className="font-semibold">₹{calculateTotals().subTotal.toFixed(2)}</span>
+                    <span className="font-semibold">{formatCurrency(calculateTotals().subTotal, invoiceCurrency)}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">CGST :</span>
-                    <span className="font-semibold">₹{calculateTotals().cgstAmount.toFixed(2)}</span>
+                    <span className="font-semibold">{formatCurrency(calculateTotals().cgstAmount, invoiceCurrency)}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">SGST :</span>
-                    <span className="font-semibold">₹{calculateTotals().sgstAmount.toFixed(2)}</span>
+                    <span className="font-semibold">{formatCurrency(calculateTotals().sgstAmount, invoiceCurrency)}</span>
                   </div>
                   {calculateTotals().otherTaxAmount > 0 && (
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600">Other Tax :</span>
-                      <span className="font-semibold">₹{calculateTotals().otherTaxAmount.toFixed(2)}</span>
+                      <span className="font-semibold">{formatCurrency(calculateTotals().otherTaxAmount, invoiceCurrency)}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center gap-3">
@@ -876,7 +883,7 @@ export default function InvoicesTab() {
                         min="0"
                         placeholder="0.00"
                       />
-                      <span className="font-semibold w-24 text-right text-sm">₹{calculateTotals().discountAmount.toFixed(2)}</span>
+                      <span className="font-semibold w-24 text-right text-sm">{formatCurrency(calculateTotals().discountAmount, invoiceCurrency)}</span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center gap-3">
@@ -889,12 +896,12 @@ export default function InvoicesTab() {
                         className="w-24 h-9 text-sm"
                         placeholder="0.00"
                       />
-                      <span className="font-semibold w-24 text-right text-sm">₹{adjustment.toFixed(2)}</span>
+                      <span className="font-semibold w-24 text-right text-sm">{formatCurrency(adjustment, invoiceCurrency)}</span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center text-base font-bold pt-2 border-t">
                     <span>Total :</span>
-                    <span>₹{calculateTotals().total.toFixed(2)}</span>
+                    <span>{formatCurrency(calculateTotals().total, invoiceCurrency)}</span>
                   </div>
                 </div>
               </div>
@@ -1581,7 +1588,16 @@ export default function InvoicesTab() {
                           <span className="text-slate-300">|</span>
                           <Dialog open={isEditMode} onOpenChange={setIsEditMode}>
                             <DialogTrigger asChild>
-                              <button className="hover:underline" onClick={() => { setSelectedInvoice(invoice); setIsEditMode(true); }}>Edit</button>
+                              <button
+                                className="hover:underline"
+                                onClick={() => {
+                                  setSelectedInvoice(invoice);
+                                  setEditInvoiceCurrency(getFinanceSettings().defaultCurrency);
+                                  setIsEditMode(true);
+                                }}
+                              >
+                                Edit
+                              </button>
                             </DialogTrigger>
                             <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0 bg-gradient-to-br from-slate-50 to-white">
                               <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-5 shadow-lg">
@@ -1709,14 +1725,16 @@ export default function InvoicesTab() {
                                       <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                           <Label htmlFor="edit-currency" className="text-sm font-semibold text-slate-700">Currency</Label>
-                                          <Select defaultValue="usd">
+                                          <Select value={editInvoiceCurrency} onValueChange={setEditInvoiceCurrency}>
                                             <SelectTrigger id="edit-currency" className="h-11 border-slate-300">
                                               <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                              <SelectItem value="usd">INR (₹)</SelectItem>
-                                              <SelectItem value="eur">EUR (€)</SelectItem>
-                                              <SelectItem value="inr">INR (₹)</SelectItem>
+                                              {currencyOptions.map((currency) => (
+                                                <SelectItem key={currency.code} value={currency.code}>
+                                                  {currency.label}
+                                                </SelectItem>
+                                              ))}
                                             </SelectContent>
                                           </Select>
                                         </div>
@@ -1825,7 +1843,8 @@ export default function InvoicesTab() {
                                                 </SelectContent>
                                               </Select>
                                             </TableCell>
-                                            <TableCell className="align-top pt-3 text-right font-semibold text-slate-900 font-mono">₹{item.amount.toFixed(2)}
+                                            <TableCell className="align-top pt-3 text-right font-semibold text-slate-900 font-mono">
+                                              {formatCurrency(item.amount, editInvoiceCurrency)}
                                             </TableCell>
                                             <TableCell className="align-top pt-2">
                                               {invoiceItems.length > 1 && (
@@ -1878,33 +1897,33 @@ export default function InvoicesTab() {
                                       <div className="space-y-3">
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">Sub Total:</span>
-                                          <span className="font-bold text-slate-900 font-mono">₹{calculateTotals().subTotal.toFixed(2)}</span>
+                                          <span className="font-bold text-slate-900 font-mono">{formatCurrency(calculateTotals().subTotal, editInvoiceCurrency)}</span>
                                         </div>
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">CGST:</span>
-                                          <span className="font-bold text-slate-900 font-mono">₹{calculateTotals().cgstAmount.toFixed(2)}</span>
+                                          <span className="font-bold text-slate-900 font-mono">{formatCurrency(calculateTotals().cgstAmount, editInvoiceCurrency)}</span>
                                         </div>
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">SGST:</span>
-                                          <span className="font-bold text-slate-900 font-mono">₹{calculateTotals().sgstAmount.toFixed(2)}</span>
+                                          <span className="font-bold text-slate-900 font-mono">{formatCurrency(calculateTotals().sgstAmount, editInvoiceCurrency)}</span>
                                         </div>
                                         {calculateTotals().otherTaxAmount > 0 && (
                                           <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                             <span className="text-sm font-semibold text-slate-700">Other Tax:</span>
-                                            <span className="font-bold text-slate-900 font-mono">₹{calculateTotals().otherTaxAmount.toFixed(2)}</span>
+                                            <span className="font-bold text-slate-900 font-mono">{formatCurrency(calculateTotals().otherTaxAmount, editInvoiceCurrency)}</span>
                                           </div>
                                         )}
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">Discount:</span>
-                                          <span className="font-bold text-red-600 font-mono">-₹{calculateTotals().discountAmount.toFixed(2)}</span>
+                                          <span className="font-bold text-red-600 font-mono">-{formatCurrency(calculateTotals().discountAmount, editInvoiceCurrency)}</span>
                                         </div>
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-300">
                                           <span className="text-sm font-semibold text-slate-700">Adjustment:</span>
-                                          <span className="font-bold text-slate-900 font-mono">₹{adjustment.toFixed(2)}</span>
+                                          <span className="font-bold text-slate-900 font-mono">{formatCurrency(adjustment, editInvoiceCurrency)}</span>
                                         </div>
                                         <div className="flex justify-between items-center pt-3 border-t-2 border-blue-600">
                                           <span className="text-lg font-bold text-slate-900">Total Amount:</span>
-                                          <span className="text-2xl font-black text-blue-600 font-mono">₹{calculateTotals().total.toFixed(2)}</span>
+                                          <span className="text-2xl font-black text-blue-600 font-mono">{formatCurrency(calculateTotals().total, editInvoiceCurrency)}</span>
                                         </div>
                                       </div>
                                     </div>

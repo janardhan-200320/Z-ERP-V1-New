@@ -46,7 +46,8 @@ import { useToast } from '@/hooks/use-toast';
 import { exportToCSV } from '@/lib/csv-export';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
+import { getCurrencyOptions, getFinanceSettings } from '@/lib/finance-settings';
 import { BANK_ACCOUNTS_UPDATED_EVENT, getActiveBankAccountOptions } from '@/lib/bank-accounts';
 import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
 
@@ -98,7 +99,7 @@ export default function EstimatesTab() {
   const [editBillTo, setEditBillTo] = useState({ address: '', city: '' });
   const [editShipTo, setEditShipTo] = useState({ address: '', city: '' });
   const [editTags, setEditTags] = useState('');
-  const [editCurrency, setEditCurrency] = useState('INR');
+  const [editCurrency, setEditCurrency] = useState(() => getFinanceSettings().defaultCurrency);
   const [editStatus, setEditStatus] = useState('draft');
   const [editReference, setEditReference] = useState('');
   const [editSaleAgent, setEditSaleAgent] = useState('zervos-erp-admin');
@@ -136,6 +137,8 @@ export default function EstimatesTab() {
   ]);
   const [createCustomFields, setCreateCustomFields] = useState<Array<{ id: number; label: string; value: string }>>([]);
   const [createCustomSections, setCreateCustomSections] = useState<Array<{ id: number; title: string; content: string }>>([]);
+  const [createCurrency, setCreateCurrency] = useState(() => getFinanceSettings().defaultCurrency);
+  const currencyOptions = useMemo(() => getCurrencyOptions(), []);
 
   useEffect(() => {
     const reloadBankAccounts = () => {
@@ -338,7 +341,7 @@ export default function EstimatesTab() {
     setEditBillTo({ address: '', city: '' });
     setEditShipTo({ address: '', city: '' });
     setEditTags('');
-    setEditCurrency('INR');
+    setEditCurrency(getFinanceSettings().defaultCurrency);
     setEditStatus(estimate.status || 'draft');
     setEditReference(estimate.reference || '');
     setEditSaleAgent('zervos-erp-admin');
@@ -350,7 +353,7 @@ export default function EstimatesTab() {
     setEditExpiryDate(estimate.expiryDate || '');
     setEditClientNote('');
     setEditTerms('');
-    const amountNum = parseFloat(estimate.amount?.replace(/[₹$,]/g, '') || '0');
+    const amountNum = parseFloat(estimate.amount?.replace(/[^0-9.-]/g, '') || '0');
     setEditItems([
       { id: 1, item: 'Item 1', description: estimate.project || '', qty: 1, rate: amountNum, tax: 'No Tax', amount: amountNum }
     ]);
@@ -501,8 +504,8 @@ export default function EstimatesTab() {
       id: `${editEstimatePrefix}${editEstimateNumber}`,
       customer: editCustomer,
       project: editProject,
-      amount: `₹${total.toLocaleString()}`,
-      tax: `₹${taxAmount.toLocaleString()}`,
+      amount: formatCurrency(total, editCurrency),
+      tax: formatCurrency(taxAmount, editCurrency),
       date: editEstimateDate,
       expiryDate: editExpiryDate,
       reference: editReference,
@@ -597,7 +600,12 @@ export default function EstimatesTab() {
                   </div>
                   <div className="flex justify-between items-center pt-3 border-t border-slate-200">
                     <span className="text-lg font-bold text-slate-900">Total Amount:</span>
-                    <span className="text-2xl font-bold text-green-700">₹{(parseFloat(viewEstimate.amount.replace(/[₹$,]/g, '')) + parseFloat(viewEstimate.tax.replace(/[₹$,]/g, ''))).toLocaleString()}
+                    <span className="text-2xl font-bold text-green-700">
+                      {formatCurrency(
+                        parseFloat(viewEstimate.amount.replace(/[^0-9.-]/g, '')) +
+                          parseFloat(viewEstimate.tax.replace(/[^0-9.-]/g, '')),
+                        editCurrency,
+                      )}
                     </span>
                   </div>
                 </div>
@@ -772,10 +780,11 @@ export default function EstimatesTab() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="INR">INR (₹)</SelectItem>
-                            <SelectItem value="USD">INR (₹)</SelectItem>
-                            <SelectItem value="EUR">EUR (€)</SelectItem>
-                            <SelectItem value="GBP">GBP (£)</SelectItem>
+                            {currencyOptions.map((currency) => (
+                              <SelectItem key={currency.code} value={currency.code}>
+                                {currency.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -961,7 +970,8 @@ export default function EstimatesTab() {
                                 </SelectContent>
                               </Select>
                             </TableCell>
-                            <TableCell className="text-right font-semibold">₹{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            <TableCell className="text-right font-semibold">
+                              {formatCurrency(item.amount, editCurrency)}
                             </TableCell>
                             <TableCell>
                               {index === 0 ? (
@@ -1001,13 +1011,13 @@ export default function EstimatesTab() {
                         </div>
                         <div className="text-right">
                           <Label className="text-xs text-slate-500">Sub Total</Label>
-                          <p className="font-semibold">₹{calculateEditTotals().subTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                          <p className="font-semibold">{formatCurrency(calculateEditTotals().subTotal, editCurrency)}</p>
                         </div>
                       </div>
                       <div className="flex justify-between items-center">
                         <div></div>
                         <div className="text-right">
-                          <p className="text-sm text-slate-600">₹{calculateEditTotals().discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                          <p className="text-sm text-slate-600">{formatCurrency(calculateEditTotals().discountAmount, editCurrency)}</p>
                         </div>
                       </div>
                       <div className="flex justify-between items-center">
@@ -1020,11 +1030,11 @@ export default function EstimatesTab() {
                             className="w-24 h-8 text-sm"
                           />
                         </div>
-                        <p className="text-sm text-slate-600">₹{editAdjustment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        <p className="text-sm text-slate-600">{formatCurrency(editAdjustment, editCurrency)}</p>
                       </div>
                       <div className="flex justify-between items-center pt-3 border-t">
                         <Label className="text-lg font-bold">Total</Label>
-                        <p className="text-2xl font-bold text-green-700">₹{calculateEditTotals().total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        <p className="text-2xl font-bold text-green-700">{formatCurrency(calculateEditTotals().total, editCurrency)}</p>
                       </div>
                     </div>
                   </div>
@@ -1210,15 +1220,16 @@ export default function EstimatesTab() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label className="text-xs text-blue-600">* Currency</Label>
-                            <Select defaultValue="usd">
+                            <Select value={createCurrency} onValueChange={setCreateCurrency}>
                               <SelectTrigger className="h-10">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="usd">INR ₹</SelectItem>
-                                <SelectItem value="eur">EUR €</SelectItem>
-                                <SelectItem value="gbp">GBP £</SelectItem>
-                                <SelectItem value="inr">INR ₹</SelectItem>
+                                {currencyOptions.map((currency) => (
+                                  <SelectItem key={currency.code} value={currency.code}>
+                                    {currency.label}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
@@ -1494,7 +1505,7 @@ export default function EstimatesTab() {
                                   </Select>
                                 </TableCell>
                                 <TableCell className="align-top pt-3 text-right font-semibold">
-                                  ₹{line.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  {formatCurrency(line.amount, createCurrency)}
                                 </TableCell>
                                 <TableCell className="align-top pt-2">
                                   {index === 0 ? (
@@ -1523,20 +1534,20 @@ export default function EstimatesTab() {
                         <div className="w-96 space-y-3">
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-600">Sub Total:</span>
-                            <span className="font-semibold">₹{calculateCreateTotals().subTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="font-semibold">{formatCurrency(calculateCreateTotals().subTotal, createCurrency)}</span>
                           </div>
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-600">CGST:</span>
-                            <span className="font-semibold">₹{calculateCreateTotals().cgstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="font-semibold">{formatCurrency(calculateCreateTotals().cgstAmount, createCurrency)}</span>
                           </div>
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-600">SGST:</span>
-                            <span className="font-semibold">₹{calculateCreateTotals().sgstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="font-semibold">{formatCurrency(calculateCreateTotals().sgstAmount, createCurrency)}</span>
                           </div>
                           {calculateCreateTotals().otherTaxAmount > 0 && (
                             <div className="flex justify-between items-center text-sm">
                               <span className="text-slate-600">Other Tax:</span>
-                              <span className="font-semibold">₹{calculateCreateTotals().otherTaxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              <span className="font-semibold">{formatCurrency(calculateCreateTotals().otherTaxAmount, createCurrency)}</span>
                             </div>
                           )}
                           <div className="flex justify-between items-center">
@@ -1558,7 +1569,7 @@ export default function EstimatesTab() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <p className="text-sm text-slate-600">₹{calculateCreateTotals().discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                            <p className="text-sm text-slate-600">{formatCurrency(calculateCreateTotals().discountAmount, createCurrency)}</p>
                           </div>
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
@@ -1570,11 +1581,11 @@ export default function EstimatesTab() {
                                 className="w-24 h-8 text-sm"
                               />
                             </div>
-                            <p className="text-sm text-slate-600">₹{createAdjustment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                            <p className="text-sm text-slate-600">{formatCurrency(createAdjustment, createCurrency)}</p>
                           </div>
                           <div className="flex justify-between items-center pt-3 border-t">
                             <Label className="text-lg font-bold text-blue-600">Total:</Label>
-                            <p className="text-xl font-bold text-green-700">₹{calculateCreateTotals().total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                            <p className="text-xl font-bold text-green-700">{formatCurrency(calculateCreateTotals().total, createCurrency)}</p>
                           </div>
                         </div>
                       </div>

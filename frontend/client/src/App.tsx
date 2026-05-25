@@ -37,6 +37,7 @@ import RecruitmentDashboard from "@/pages/recruitment/recruitment-dashboard";
 
 // Customers Module Pages
 import CustomersDashboard from "@/pages/customers/customers-dashboard";
+import CustomerViewPage from "@/pages/customers/customer-view-page";
 
 // Contracts Module Pages
 import ContractsDashboard from "@/pages/contracts/contracts-dashboard";
@@ -114,6 +115,7 @@ function AppRouter() {
 
       {/* Standalone Proposal View */}
       <Route path="/proposal-view/:id" component={ProposalViewPage} />
+      <Route path="/customer-view/:id" component={CustomerViewPage} />
       
       {/* Accounts Module Routes - Delegate all /accounts paths */}
       <Route path="/accounts/*" component={AccountsModule} />

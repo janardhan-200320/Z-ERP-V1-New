@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,11 +13,16 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { customerDirectory } from "@/lib/customer-directory";
+import { useToast } from "@/hooks/use-toast";
+import { saveCustomerForStandaloneView } from "@/lib/customer-view-storage";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { 
   Search, Filter, Plus, Users, FileText, 
   ChevronLeft, ChevronRight, RefreshCw, Download,
   ArrowUpDown, UserCheck, UserX, UserCircle, Clock,
-  Globe, FileBarChart, FolderKanban, FileSpreadsheet, ScrollText, Building
+  Globe, FileBarChart, FolderKanban, FileSpreadsheet, ScrollText, Building,
+  Eye, Edit, Trash2
 } from "lucide-react";
 
 type Customer = {
@@ -53,6 +59,119 @@ type Customer = {
   };
 };
 
+type CustomerProject = {
+  id: string;
+  name: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  budget: string;
+};
+
+type CustomerTransaction = {
+  id: string;
+  type: string;
+  amount: string;
+  date: string;
+  status: string;
+  reference: string;
+};
+
+type CustomerCreditNote = {
+  id: string;
+  date: string;
+  amount: string;
+  reason: string;
+};
+
+type CustomerSubscription = {
+  id: string;
+  plan: string;
+  status: string;
+  renewalDate: string;
+  amount: string;
+};
+
+type CustomerExpense = {
+  id: string;
+  title: string;
+  date: string;
+  amount: string;
+  category: string;
+};
+
+type CustomerTask = {
+  id: string;
+  title: string;
+  project: string;
+  status: string;
+  dueDate: string;
+};
+
+type CustomerStatement = {
+  id: string;
+  period: string;
+  openingBalance: string;
+  closingBalance: string;
+  status: string;
+};
+
+type CustomerNote = {
+  id: string;
+  title: string;
+  note: string;
+  updatedAt: string;
+};
+
+type CustomerFile = {
+  id: string;
+  name: string;
+  type: string;
+  size: string;
+};
+
+type CustomerContact = {
+  id: string;
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  company: string;
+};
+
+type CustomerStandaloneRecord = Customer & {
+  invoices: Array<{ id: string; date: string; amount: string; status: string; reference: string }>;
+  proposals: Array<{ id: string; title: string; amount: string; status: string; date: string }>;
+  creditNotes: CustomerCreditNote[];
+  subscriptions: CustomerSubscription[];
+  expenses: CustomerExpense[];
+  projects: CustomerProject[];
+  tasks: CustomerTask[];
+  statements: CustomerStatement[];
+  notes: CustomerNote[];
+  payments: CustomerTransaction[];
+  files: CustomerFile[];
+  contacts: CustomerContact[];
+};
+
+type ContactOutreachRow = {
+  id: number;
+  companyName: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  preferredChannel: string;
+  note: string;
+};
+
+type CompanySuggestion = {
+  id: number;
+  companyName: string;
+  primaryContact: string;
+  primaryEmail: string;
+  phone: string;
+};
+
 // Country list for dropdowns
 const countries = [
   "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria", "Bangladesh", 
@@ -69,7 +188,15 @@ const customerGroups = [
   "VIP", "Regular", "Enterprise", "Startup", "Government", "Education", "Healthcare", "Retail"
 ];
 
+const parseMoneyValue = (value: string) => {
+  const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatMoney = (value: number) => `₹${value.toLocaleString("en-IN")}`;
+
 export default function CustomersListModule() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [excludeInactive, setExcludeInactive] = useState(true);
   const [pageSize, setPageSize] = useState("25");
@@ -81,6 +208,35 @@ export default function CustomersListModule() {
   const [activeTab, setActiveTab] = useState("details");
   const [sortColumn, setSortColumn] = useState<string>("companyName");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>(customerDirectory);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isContactsOpen, setIsContactsOpen] = useState(false);
+  const [contactRows, setContactRows] = useState<ContactOutreachRow[]>([
+    {
+      id: 1,
+      companyName: "",
+      contactPerson: "",
+      email: "",
+      phone: "",
+      preferredChannel: "email",
+      note: "",
+    },
+  ]);
+  const [editForm, setEditForm] = useState({
+    companyName: "",
+    primaryContact: "",
+    primaryEmail: "",
+    phone: "",
+    vatNumber: "",
+    website: "",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    country: "",
+    groups: [] as string[],
+  });
   
   // Manipulation dialog state
   const [massDelete, setMassDelete] = useState(false);
@@ -117,7 +273,170 @@ export default function CustomersListModule() {
     shippingCountry: ""
   });
 
-  const customers: Customer[] = customerDirectory;
+  const companySuggestions = useMemo<CompanySuggestion[]>(() => {
+    return customers
+      .map((customer) => ({
+        id: customer.id,
+        companyName: customer.companyName.trim(),
+        primaryContact: customer.primaryContact || "",
+        primaryEmail: customer.primaryEmail || "",
+        phone: customer.phone || "",
+      }))
+      .filter((entry) => entry.companyName.length > 0)
+      .sort((a, b) => a.companyName.localeCompare(b.companyName));
+  }, [customers]);
+
+  const getCustomerProjects = (customer: Customer): CustomerProject[] => {
+    const base = customer.id * 3;
+    return [
+      {
+        id: `PRJ-${base + 1}`,
+        name: `${customer.companyName} Website Revamp`,
+        status: 'Active',
+        startDate: '2026-01-10',
+        endDate: '2026-03-15',
+        budget: '₹120,000',
+      },
+      {
+        id: `PRJ-${base + 2}`,
+        name: `${customer.companyName} Mobile App`,
+        status: 'In Review',
+        startDate: '2026-02-05',
+        endDate: '2026-04-20',
+        budget: '₹210,000',
+      },
+      {
+        id: `PRJ-${base + 3}`,
+        name: `${customer.companyName} CRM Rollout`,
+        status: 'Completed',
+        startDate: '2025-10-01',
+        endDate: '2025-12-12',
+        budget: '₹75,000',
+      },
+    ];
+  };
+
+  const getCustomerTransactions = (customer: Customer): CustomerTransaction[] => {
+    const base = customer.id * 5;
+    return [
+      {
+        id: `TXN-${base + 1}`,
+        type: 'Invoice',
+        amount: '₹45,000',
+        date: '2026-02-02',
+        status: 'Paid',
+        reference: 'INV-2026-102',
+      },
+      {
+        id: `TXN-${base + 2}`,
+        type: 'Payment',
+        amount: '₹30,000',
+        date: '2026-02-15',
+        status: 'Received',
+        reference: 'PAY-2026-44',
+      },
+      {
+        id: `TXN-${base + 3}`,
+        type: 'Invoice',
+        amount: '₹65,000',
+        date: '2026-03-04',
+        status: 'Pending',
+        reference: 'INV-2026-118',
+      },
+    ];
+  };
+
+  const getCustomerSummary = (customer: Customer) => {
+    const projects = getCustomerProjects(customer);
+    const transactions = getCustomerTransactions(customer);
+    const totalProjectValue = projects.reduce((sum, project) => sum + parseMoneyValue(project.budget), 0);
+    const invoicedValue = transactions
+      .filter((transaction) => transaction.type === "Invoice")
+      .reduce((sum, transaction) => sum + parseMoneyValue(transaction.amount), 0);
+    const receivedValue = transactions
+      .filter((transaction) => transaction.type === "Payment" || transaction.status === "Received")
+      .reduce((sum, transaction) => sum + parseMoneyValue(transaction.amount), 0);
+
+    return {
+      projectCount: projects.length,
+      activeProjects: projects.filter((project) => project.status !== "Completed").length,
+      transactionCount: transactions.length,
+      totalProjectValue,
+      invoicedValue,
+      receivedValue,
+    };
+  };
+
+  const buildCustomerStandaloneRecord = (customer: Customer): CustomerStandaloneRecord => {
+    const projects = getCustomerProjects(customer);
+    const transactions = getCustomerTransactions(customer);
+
+    return {
+      ...customer,
+      invoices: transactions.map((transaction, index) => ({
+        id: `INV-${customer.id}-${index + 1}`,
+        date: transaction.date,
+        amount: transaction.amount,
+        status: transaction.status === 'Paid' ? 'Paid' : 'Open',
+        reference: transaction.reference,
+      })),
+      proposals: projects.map((project, index) => ({
+        id: `PRO-${customer.id}-${index + 1}`,
+        title: project.name,
+        amount: project.budget,
+        status: project.status,
+        date: project.startDate,
+      })),
+      creditNotes: [
+        { id: `CN-${customer.id}-1`, date: '2026-02-18', amount: '₹5,000', reason: 'Service credit adjustment' },
+      ],
+      subscriptions: [
+        { id: `SUB-${customer.id}-1`, plan: 'Business Support', status: 'Active', renewalDate: '2026-04-01', amount: '₹12,000' },
+        { id: `SUB-${customer.id}-2`, plan: 'Cloud Hosting', status: 'Trial', renewalDate: '2026-03-15', amount: '₹8,500' },
+      ],
+      expenses: [
+        { id: `EXP-${customer.id}-1`, title: 'Travel and onboarding', date: '2026-02-10', amount: '₹2,400', category: 'Operations' },
+        { id: `EXP-${customer.id}-2`, title: 'Client meeting refreshments', date: '2026-02-19', amount: '₹850', category: 'Sales' },
+      ],
+      tasks: projects.map((project, index) => ({
+        id: `TASK-${customer.id}-${index + 1}`,
+        title: `${project.name} follow-up task`,
+        project: project.name,
+        status: index % 2 === 0 ? 'Open' : 'In Review',
+        dueDate: project.endDate,
+      })),
+      statements: [
+        { id: `ST-${customer.id}-1`, period: 'Jan 2026', openingBalance: '₹50,000', closingBalance: '₹95,000', status: 'Draft' },
+        { id: `ST-${customer.id}-2`, period: 'Feb 2026', openingBalance: '₹95,000', closingBalance: '₹1,20,000', status: 'Issued' },
+      ],
+      notes: [
+        { id: `NOTE-${customer.id}-1`, title: 'Key Account', note: `Customer requires weekly updates and clear project milestone reporting for ${customer.companyName}.`, updatedAt: '2026-02-20' },
+      ],
+      payments: transactions,
+      files: [
+        { id: `FILE-${customer.id}-1`, name: `${customer.companyName}_agreement.pdf`, type: 'application/pdf', size: '184 KB' },
+        { id: `FILE-${customer.id}-2`, name: `${customer.companyName}_brief.docx`, type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: '96 KB' },
+      ],
+      contacts: [
+        {
+          id: `CONTACT-${customer.id}-1`,
+          name: customer.primaryContact || 'Primary Contact',
+          title: 'Decision Maker',
+          email: customer.primaryEmail || '',
+          phone: customer.phone || '',
+          company: customer.companyName,
+        },
+        {
+          id: `CONTACT-${customer.id}-2`,
+          name: 'Accounts Team',
+          title: 'Billing Contact',
+          email: customer.primaryEmail ? `billing+${customer.primaryEmail}` : '',
+          phone: customer.phone || '',
+          company: customer.companyName,
+        },
+      ],
+    };
+  };
 
   // Summary stats
   const stats = {
@@ -179,8 +498,327 @@ export default function CustomersListModule() {
     }
   };
 
+  const openCustomerView = (customer: Customer) => {
+    const standaloneRecord = buildCustomerStandaloneRecord(customer);
+    saveCustomerForStandaloneView(standaloneRecord);
+
+    const targetUrl = `${window.location.origin}/customer-view/${encodeURIComponent(String(customer.id))}`;
+    const openedTab = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+
+    if (!openedTab) {
+      toast({
+        title: "Popup blocked",
+        description: "Allow popups for this site to open the standalone customer view.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openContactsForm = () => {
+    setContactRows((prev) => prev.length > 0 ? prev : [{
+      id: 1,
+      companyName: "",
+      contactPerson: "",
+      email: "",
+      phone: "",
+      preferredChannel: "email",
+      note: "",
+    }]);
+    setIsContactsOpen(true);
+  };
+
+  const addContactRow = () => {
+    setContactRows((prev) => ([
+      ...prev,
+      {
+        id: Date.now(),
+        companyName: "",
+        contactPerson: "",
+        email: "",
+        phone: "",
+        preferredChannel: "email",
+        note: "",
+      },
+    ]));
+  };
+
+  const updateContactRow = (id: number, field: keyof ContactOutreachRow, value: string) => {
+    setContactRows((prev) => prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
+  };
+
+  const removeContactRow = (id: number) => {
+    setContactRows((prev) => (prev.length === 1 ? prev : prev.filter((row) => row.id !== id)));
+  };
+
+  const handleSubmitContacts = () => {
+    const filledRows = contactRows.filter((row) => row.companyName.trim() || row.contactPerson.trim() || row.email.trim() || row.phone.trim());
+
+    if (filledRows.length === 0) {
+      toast({
+        title: "Add contacts first",
+        description: "Please fill at least one contact row before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Contacts captured",
+      description: `${filledRows.length} contact${filledRows.length === 1 ? "" : "s"} ready for outreach.`,
+    });
+
+    setIsContactsOpen(false);
+    setContactRows([
+      {
+        id: 1,
+        companyName: "",
+        contactPerson: "",
+        email: "",
+        phone: "",
+        preferredChannel: "email",
+        note: "",
+      },
+    ]);
+  };
+
+  const openCustomerEdit = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setEditForm({
+      companyName: customer.companyName || "",
+      primaryContact: customer.primaryContact || "",
+      primaryEmail: customer.primaryEmail || "",
+      phone: customer.phone || "",
+      vatNumber: customer.vatNumber || "",
+      website: customer.website || "",
+      address: customer.address || "",
+      city: customer.city || "",
+      state: customer.state || "",
+      zipCode: customer.zipCode || "",
+      country: customer.country || "",
+      groups: customer.groups || [],
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleDeleteCustomer = (customer: Customer) => {
+    if (!window.confirm(`Delete ${customer.companyName}? This cannot be undone.`)) return;
+    setCustomers((prev) => prev.filter((entry) => entry.id !== customer.id));
+    setSelectedCustomers((prev) => prev.filter((id) => id !== customer.id));
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedCustomer) return;
+    setCustomers((prev) =>
+      prev.map((entry) =>
+        entry.id === selectedCustomer.id
+          ? {
+              ...entry,
+              companyName: editForm.companyName,
+              primaryContact: editForm.primaryContact,
+              primaryEmail: editForm.primaryEmail,
+              phone: editForm.phone,
+              vatNumber: editForm.vatNumber,
+              website: editForm.website,
+              address: editForm.address,
+              city: editForm.city,
+              state: editForm.state,
+              zipCode: editForm.zipCode,
+              country: editForm.country,
+              groups: editForm.groups,
+            }
+          : entry
+      )
+    );
+    setIsEditOpen(false);
+  };
+
+  const handleDownloadCustomerReport = (customer: Customer) => {
+    const projects = getCustomerProjects(customer);
+    const transactions = getCustomerTransactions(customer);
+    const summary = getCustomerSummary(customer);
+
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 16;
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("Customer Report", 14, y);
+    y += 8;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(customer.companyName, 14, y);
+    y += 6;
+    doc.setFontSize(9);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, y);
+    y += 10;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Field", "Value"]],
+      body: [
+        ["Company", customer.companyName],
+        ["Primary Contact", customer.primaryContact || "-"],
+        ["Primary Email", customer.primaryEmail || "-"],
+        ["Phone", customer.phone || "-"],
+        ["VAT Number", customer.vatNumber || "-"],
+        ["Website", customer.website || "-"],
+        ["Location", [customer.city, customer.state, customer.country].filter(Boolean).join(", ") || "-"],
+        ["Status", customer.active ? "Active" : "Inactive"],
+        ["Groups", customer.groups.length > 0 ? customer.groups.join(", ") : "-"],
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [30, 64, 175] },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable?.finalY + 8,
+      head: [["Projects", "Count", "Active", "Total Value"]],
+      body: [[
+        "Customer Projects",
+        String(summary.projectCount),
+        String(summary.activeProjects),
+        formatMoney(summary.totalProjectValue),
+      ]],
+      theme: "grid",
+      headStyles: { fillColor: [15, 118, 110] },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable?.finalY + 8,
+      head: [['Project ID', 'Project', 'Status', 'Start', 'End', 'Budget']],
+      body: projects.map((project) => [
+        project.id,
+        project.name,
+        project.status,
+        project.startDate,
+        project.endDate,
+        project.budget,
+      ]),
+      theme: "striped",
+      headStyles: { fillColor: [55, 65, 81] },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable?.finalY + 8,
+      head: [['Transaction', 'Type', 'Amount', 'Date', 'Status', 'Reference']],
+      body: transactions.map((transaction) => [
+        transaction.id,
+        transaction.type,
+        transaction.amount,
+        transaction.date,
+        transaction.status,
+        transaction.reference,
+      ]),
+      theme: "striped",
+      headStyles: { fillColor: [124, 58, 237] },
+    });
+
+    const afterTransactionsY = (doc as any).lastAutoTable?.finalY || 0;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Invoiced Value: ${formatMoney(summary.invoicedValue)}`, 14, afterTransactionsY + 10);
+    doc.text(`Received Value: ${formatMoney(summary.receivedValue)}`, pageWidth / 2, afterTransactionsY + 10, { align: "center" });
+    doc.text(`Outstanding: ${formatMoney(Math.max(summary.invoicedValue - summary.receivedValue, 0))}`, pageWidth - 14, afterTransactionsY + 10, { align: "right" });
+
+    const safeName = customer.companyName.replace(/[^a-z0-9]+/gi, '_');
+    doc.save(`Customer_${safeName}_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="space-y-4">
+      {/* Edit Customer Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">Edit Customer</DialogTitle>
+            <DialogDescription>Update customer details and save changes.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Company</Label>
+              <Input
+                value={editForm.companyName}
+                onChange={(e) => setEditForm({ ...editForm, companyName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Primary Contact</Label>
+              <Input
+                value={editForm.primaryContact}
+                onChange={(e) => setEditForm({ ...editForm, primaryContact: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Primary Email</Label>
+              <Input
+                value={editForm.primaryEmail}
+                onChange={(e) => setEditForm({ ...editForm, primaryEmail: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>VAT Number</Label>
+              <Input
+                value={editForm.vatNumber}
+                onChange={(e) => setEditForm({ ...editForm, vatNumber: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Website</Label>
+              <Input
+                value={editForm.website}
+                onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input
+                value={editForm.address}
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>City</Label>
+              <Input
+                value={editForm.city}
+                onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>State</Label>
+              <Input
+                value={editForm.state}
+                onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Zip Code</Label>
+              <Input
+                value={editForm.zipCode}
+                onChange={(e) => setEditForm({ ...editForm, zipCode: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <Input
+                value={editForm.country}
+                onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveEdit}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Action Buttons */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -394,11 +1032,174 @@ export default function CustomersListModule() {
             </DialogContent>
           </Dialog>
 
-          <Button variant="outline" className="border-gray-300 hover:bg-gray-50 transition-all duration-200">
+          <Button variant="outline" className="border-gray-300 hover:bg-gray-50 transition-all duration-200" onClick={openContactsForm}>
             <Users className="h-4 w-4 mr-2" />
             Contacts
           </Button>
         </div>
+
+        <Dialog open={isContactsOpen} onOpenChange={setIsContactsOpen}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="border-b pb-4">
+              <DialogTitle className="text-xl font-semibold">Contact Outreach</DialogTitle>
+              <DialogDescription>
+                Add multiple people from different companies so the team can contact them in one place.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-2">
+              <Card className="border border-slate-200 bg-slate-50/70">
+                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="outreachSubject">Subject</Label>
+                    <Input id="outreachSubject" placeholder="e.g. Follow-up for project discussion" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="outreachPurpose">Purpose</Label>
+                    <Input id="outreachPurpose" placeholder="Sales, support, partnership, etc." />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="outreachDate">Follow-up Date</Label>
+                    <Input id="outreachDate" type="date" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700">Contacts</h3>
+                  <p className="text-xs text-slate-500">Each row can belong to a different company.</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={addContactRow}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Person
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {contactRows.map((row, index) => (
+                  <Card key={row.id} className="border border-slate-200 shadow-sm">
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-medium text-slate-800">Contact {index + 1}</div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeContactRow(row.id)}
+                          disabled={contactRows.length === 1}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500 mr-2" />
+                          Remove
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                          <Label>Company Name</Label>
+                          <Input
+                            value={row.companyName}
+                            onChange={(e) => updateContactRow(row.id, "companyName", e.target.value)}
+                            placeholder="Company name"
+                            className="h-12 text-base"
+                          />
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-xs font-medium text-slate-500 mb-2">
+                              Suggested companies
+                            </p>
+                            <div className="max-h-40 overflow-y-auto space-y-1">
+                              {companySuggestions
+                                .filter((company) => {
+                                  const query = row.companyName.trim().toLowerCase();
+                                  if (!query) return true;
+                                  return company.companyName.toLowerCase().includes(query) || company.primaryContact.toLowerCase().includes(query);
+                                })
+                                .slice(0, 6)
+                                .map((company) => (
+                                  <button
+                                    key={company.id}
+                                    type="button"
+                                    onClick={() => {
+                                      updateContactRow(row.id, "companyName", company.companyName);
+                                      if (company.primaryContact) updateContactRow(row.id, "contactPerson", company.primaryContact);
+                                      if (company.primaryEmail) updateContactRow(row.id, "email", company.primaryEmail);
+                                      if (company.phone) updateContactRow(row.id, "phone", company.phone);
+                                    }}
+                                    className="w-full rounded-lg border border-transparent px-3 py-2 text-left hover:border-blue-200 hover:bg-white transition-colors"
+                                  >
+                                    <div className="text-sm font-semibold text-slate-900">{company.companyName}</div>
+                                    <div className="text-xs text-slate-500">
+                                      {company.primaryContact || "No contact"}{company.primaryEmail ? ` • ${company.primaryEmail}` : ""}{company.phone ? ` • ${company.phone}` : ""}
+                                    </div>
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2 md:col-span-1">
+                          <Label>Contact Person</Label>
+                          <Input
+                            value={row.contactPerson}
+                            onChange={(e) => updateContactRow(row.id, "contactPerson", e.target.value)}
+                            placeholder="Name of person"
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-1">
+                          <Label>Email</Label>
+                          <Input
+                            type="email"
+                            value={row.email}
+                            onChange={(e) => updateContactRow(row.id, "email", e.target.value)}
+                            placeholder="name@company.com"
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-1">
+                          <Label>Phone</Label>
+                          <Input
+                            value={row.phone}
+                            onChange={(e) => updateContactRow(row.id, "phone", e.target.value)}
+                            placeholder="Phone number"
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-1">
+                          <Label>Preferred Channel</Label>
+                          <Select value={row.preferredChannel} onValueChange={(value) => updateContactRow(row.id, "preferredChannel", value)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="email">Email</SelectItem>
+                              <SelectItem value="phone">Phone</SelectItem>
+                              <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                              <SelectItem value="meeting">Meeting</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2 md:col-span-1">
+                          <Label>Note</Label>
+                          <Input
+                            value={row.note}
+                            onChange={(e) => updateContactRow(row.id, "note", e.target.value)}
+                            placeholder="Reason to contact"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter className="border-t pt-4">
+              <Button variant="outline" onClick={() => setIsContactsOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmitContacts} className="bg-blue-600 hover:bg-blue-700">
+                <Users className="h-4 w-4 mr-2" />
+                Save Contacts
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Filter Dropdown */}
         <DropdownMenu>
@@ -830,6 +1631,7 @@ export default function CustomersListModule() {
                   <TableHead className="text-gray-600 font-semibold text-center">Active</TableHead>
                   <TableHead className="text-gray-600 font-semibold">Groups</TableHead>
                   <TableHead className="text-gray-600 font-semibold">Date Created</TableHead>
+                  <TableHead className="text-gray-600 font-semibold text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -847,9 +1649,13 @@ export default function CustomersListModule() {
                     </TableCell>
                     <TableCell className="text-gray-500 font-medium">{customer.id}</TableCell>
                     <TableCell>
-                      <span className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => openCustomerView(customer)}
+                        className="text-left text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
+                      >
                         {customer.companyName}
-                      </span>
+                      </button>
                     </TableCell>
                     <TableCell className="text-gray-700">{customer.primaryContact || "-"}</TableCell>
                     <TableCell>
@@ -876,6 +1682,44 @@ export default function CustomersListModule() {
                       {customer.groups.length > 0 ? customer.groups.join(", ") : "-"}
                     </TableCell>
                     <TableCell className="text-gray-500 text-sm">{customer.dateCreated}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-blue-50 text-blue-600 hover:text-blue-700"
+                          onClick={() => openCustomerView(customer)}
+                          title="View Customer"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100">
+                              <FileText className="h-4 w-4 text-slate-500" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => openCustomerView(customer)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => openCustomerEdit(customer)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="cursor-pointer text-red-600 focus:text-red-600"
+                              onClick={() => handleDeleteCustomer(customer)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

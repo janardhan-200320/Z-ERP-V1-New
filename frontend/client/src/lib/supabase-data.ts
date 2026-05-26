@@ -230,6 +230,17 @@ export type ProjectTaskTimeEntryRecord = {
   updated_at?: string;
 };
 
+export type ProjectAutomationRuleRecord = {
+  id: string | number;
+  project_id: number;
+  name: string;
+  trigger: string;
+  action: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export async function fetchProjects() {
   const { data } = await requestJson<{ data: ProjectRecord[] }>('/projects?orderBy=created_at&ascending=false');
   return data ?? [];
@@ -589,4 +600,30 @@ export async function updateTaskSubtask(id: string | number, payload: Partial<Pr
 
 export async function deleteTaskSubtask(id: string | number) {
   await requestJson<void>(`/project-task-subtasks/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchProjectAutomationRules(projectId?: number) {
+  const suffix = projectId ? `?orderBy=created_at&ascending=false&project_id=${projectId}` : '?orderBy=created_at&ascending=false';
+  const { data } = await requestJson<{ data: ProjectAutomationRuleRecord[] }>(`/project-automation-rules${suffix}`);
+  return data ?? [];
+}
+
+export async function createProjectAutomationRule(payload: Partial<ProjectAutomationRuleRecord>) {
+  const { data } = await requestJson<{ data: ProjectAutomationRuleRecord }>('/project-automation-rules', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+export async function updateProjectAutomationRule(id: string | number, payload: Partial<ProjectAutomationRuleRecord>) {
+  const { data } = await requestJson<{ data: ProjectAutomationRuleRecord }>(`/project-automation-rules/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  return data;
+}
+
+export async function deleteProjectAutomationRule(id: string | number) {
+  await requestJson<void>(`/project-automation-rules/${id}`, { method: 'DELETE' });
 }

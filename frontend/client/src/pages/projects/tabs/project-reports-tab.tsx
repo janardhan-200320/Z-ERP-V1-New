@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BarChart3, Download, FileText, TrendingUp, TrendingDown, IndianRupee, Clock } from 'lucide-react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
+import { fetchProjectMilestones, fetchProjectTasks, type ProjectMilestoneRecord, type ProjectTaskRecord } from '@/lib/supabase-data';
 
 interface ProjectReportsTabProps {
   projectId: string | undefined;
@@ -14,40 +15,217 @@ interface ProjectReportsTabProps {
 export default function ProjectReportsTab({ projectId }: ProjectReportsTabProps) {
   const [reportType, setReportType] = useState('summary');
   const [dateRange, setDateRange] = useState('month');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [milestones, setMilestones] = useState<ProjectMilestoneRecord[]>([]);
+  const [tasks, setTasks] = useState<ProjectTaskRecord[]>([]);
 
-  // Mock data
-  const kpiSummary = [
-    { title: 'Budget Utilization', value: '65%', trend: 'up', change: '+5%', icon: IndianRupee, color: 'text-green-600', bgColor: 'bg-green-100' },
-    { title: 'Time Progress', value: '58%', trend: 'up', change: '+12%', icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-100' },
-    { title: 'Task Completion', value: '72%', trend: 'up', change: '+8%', icon: BarChart3, color: 'text-purple-600', bgColor: 'bg-purple-100' },
-    { title: 'Team Efficiency', value: '88%', trend: 'down', change: '-3%', icon: TrendingUp, color: 'text-orange-600', bgColor: 'bg-orange-100' }
-  ];
+  useEffect(() => {
+    if (!projectId) return;
 
-  const taskCompletionData = [
-    { week: 'Week 1', planned: 15, completed: 12 },
-    { week: 'Week 2', planned: 18, completed: 16 },
-    { week: 'Week 3', planned: 20, completed: 18 },
-    { week: 'Week 4', planned: 16, completed: 15 }
-  ];
+    let active = true;
 
-  const budgetData = [
-    { category: 'Development', spent: 45000, budget: 60000 },
-    { category: 'Design', spent: 18000, budget: 20000 },
-    { category: 'Testing', spent: 12000, budget: 15000 },
-    { category: 'Management', spent: 22500, budget: 25000 }
-  ];
+    Promise.all([
+      fetchProjectMilestones(Number(projectId)),
+      fetchProjectTasks(Number(projectId)),
+    ])
+      .then(([milestoneRecords, taskRecords]) => {
+        if (!active) return;
+        setMilestones(milestoneRecords);
+        setTasks(taskRecords);
+      })
+      .catch(() => {
+        if (!active) return;
+        setMilestones([]);
+        setTasks([]);
+      });
 
-  const timeDistributionData = [
-    { name: 'Development', value: 45, color: 'hsl(217, 91%, 60%)' },
-    { name: 'Design', value: 20, color: 'hsl(142, 71%, 45%)' },
-    { name: 'Testing', value: 15, color: 'hsl(39, 96%, 60%)' },
-    { name: 'Meetings', value: 12, color: 'hsl(280, 65%, 60%)' },
-    { name: 'Documentation', value: 8, color: 'hsl(0, 84%, 60%)' }
-  ];
+    return () => {
+      active = false;
+    };
+  }, [projectId]);
+
+  const normalizeStatus = (status: string | undefined) =>
+    String(status || '')
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .trim();
+
+  const calculateTaskProgress = (task: ProjectTaskRecord) => {
+    const totalSubtasks = Number(task.subtasks_total ?? 0);
+    const completedSubtasks = Number(task.subtasks_completed ?? 0);
+
+    if (totalSubtasks > 0) {
+      return Math.max(0, Math.min(100, Math.round((completedSubtasks / totalSubtasks) * 100)));
+    }
+
+    switch (normalizeStatus(task.status)) {
+      case 'complete':
+        return 100;
+      case 'testing':
+        return 80;
+      case 'waiting-feedback':
+        return 90;
+      case 'in-progress':
+        return 50;
+      case 'urgent':
+        return 25;
+      case 'not-started':
+      default:
+        return 0;
+    }
+  };
+
+  const filteredTasks = useMemo(() => {
+    if (!dateRange || dateRange === 'all') return tasks;
+
+    const now = new Date();
+    let start: Date | null = null;
+    let end: Date | null = null;
+
+    if (dateRange === 'week') {
+      start = new Date(now);
+      start.setDate(now.getDate() - now.getDay());
+      start.setHours(0, 0, 0, 0);
+      end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    if (dateRange === 'month') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    if (dateRange === 'quarter') {
+      const quarter = Math.floor(now.getMonth() / 3);
+      start = new Date(now.getFullYear(), quarter * 3, 1);
+      end = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    if (dateRange === 'year') {
+      start = new Date(now.getFullYear(), 0, 1);
+      end = new Date(now.getFullYear(), 11, 31);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    if (dateRange === 'custom') {
+      if (customStart) {
+        start = new Date(customStart);
+        start.setHours(0, 0, 0, 0);
+      }
+      if (customEnd) {
+        end = new Date(customEnd);
+        end.setHours(23, 59, 59, 999);
+      }
+    }
+
+    return tasks.filter((task) => {
+      if (!task.due_date) return false;
+      const due = new Date(task.due_date);
+      if (start && due < start) return false;
+      if (end && due > end) return false;
+      return true;
+    });
+  }, [tasks, dateRange, customStart, customEnd]);
+
+  const totalComputedHours = useMemo(() => {
+    return filteredTasks.reduce((sum, task) => {
+      const estimated = Number(task.estimated_hours ?? 0);
+      const progress = calculateTaskProgress(task);
+      return sum + Math.round(estimated * (progress / 100) * 100) / 100;
+    }, 0);
+  }, [filteredTasks]);
+
+  const kpiSummary = useMemo(() => {
+    const completedMilestones = milestones.filter((milestone) => milestone.status === 'completed').length;
+    const completedTasks = filteredTasks.filter((task) => normalizeStatus(task.status) === 'complete').length;
+    const averageMilestoneProgress = milestones.length
+      ? Math.round(milestones.reduce((sum, milestone) => sum + Number(milestone.progress || 0), 0) / milestones.length)
+      : 0;
+
+    return [
+      {
+        title: 'Budget Utilization',
+        value: `${projectId ? 'Live' : '—'}`,
+        trend: 'up',
+        change: `${completedMilestones}/${milestones.length || 1} milestones`,
+        icon: IndianRupee,
+        color: 'text-green-600',
+        bgColor: 'bg-green-100',
+      },
+      {
+        title: 'Time Logged',
+        value: `${totalComputedHours.toFixed(1)}h`,
+        trend: 'up',
+        change: `${filteredTasks.length} tasks`,
+        icon: Clock,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-100',
+      },
+      {
+        title: 'Task Completion',
+        value: `${completedTasks}/${filteredTasks.length || 1}`,
+        trend: 'up',
+        change: `${Math.round((completedTasks / Math.max(filteredTasks.length, 1)) * 100)}% complete`,
+        icon: BarChart3,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-100',
+      },
+      {
+        title: 'Milestone Health',
+        value: `${averageMilestoneProgress}%`,
+        trend: averageMilestoneProgress >= 50 ? 'up' : 'down',
+        change: `${milestones.length} milestones`,
+        icon: TrendingUp,
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-100',
+      },
+    ];
+  }, [milestones, filteredTasks, totalComputedHours, projectId]);
+
+  const exportRows = filteredTasks.map((task) => {
+    const progress = calculateTaskProgress(task);
+    const estimated = Number(task.estimated_hours ?? 0);
+    const computedHours = Math.round(estimated * (progress / 100) * 100) / 100;
+
+    return [
+      task.title,
+      task.assignee || 'Unassigned',
+      task.due_date || '-',
+      String(task.status || '').replace('-', ' '),
+      `${progress}%`,
+      `${estimated}h`,
+      `${computedHours}h`,
+    ];
+  });
+
+  const handleExportPdf = () => {
+    exportToPDF(
+      'Project Report',
+      ['Task', 'Assignee', 'Due Date', 'Status', 'Progress', 'Estimated Hours', 'Computed Hours'],
+      exportRows,
+      `project-report-${projectId || 'all'}`
+    );
+  };
+
+  const handleExportCsv = () => {
+    const data = exportRows.map((row) => ({
+      task: row[0],
+      assignee: row[1],
+      due_date: row[2],
+      status: row[3],
+      progress: row[4],
+      estimated_hours: row[5],
+      computed_hours: row[6],
+    }));
+    exportToExcel(data, `project-report-${projectId || 'all'}`);
+  };
 
   return (
     <div className="space-y-6">
-      {/* Report Controls */}
       <Card>
         <CardContent className="p-4">
           <div className="grid gap-4 md:grid-cols-4">
@@ -72,28 +250,30 @@ export default function ProjectReportsTab({ projectId }: ProjectReportsTabProps)
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="week">This Week</SelectItem>
                   <SelectItem value="month">This Month</SelectItem>
                   <SelectItem value="quarter">This Quarter</SelectItem>
                   <SelectItem value="year">This Year</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label>Start Date</Label>
-              <Input type="date" />
+              <Input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} disabled={dateRange !== 'custom'} />
             </div>
             <div className="space-y-2">
               <Label>End Date</Label>
-              <Input type="date" />
+              <Input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} disabled={dateRange !== 'custom'} />
             </div>
           </div>
           <div className="flex gap-2 mt-4">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExportPdf}>
               <Download className="h-4 w-4 mr-2" />
               Export PDF
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExportCsv}>
               <FileText className="h-4 w-4 mr-2" />
               Export Excel
             </Button>
@@ -101,7 +281,6 @@ export default function ProjectReportsTab({ projectId }: ProjectReportsTabProps)
         </CardContent>
       </Card>
 
-      {/* KPI Summary */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpiSummary.map((kpi, index) => (
           <Card key={index} className="hover:shadow-md transition-shadow">
@@ -119,102 +298,35 @@ export default function ProjectReportsTab({ projectId }: ProjectReportsTabProps)
                 ) : (
                   <TrendingDown className="h-3 w-3 text-red-600" />
                 )}
-                <span className={kpi.trend === 'up' ? 'text-green-600' : 'text-red-600'}>
-                  {kpi.change}
-                </span>
-                <span className="text-slate-500">from last period</span>
+                <span className={kpi.trend === 'up' ? 'text-green-600' : 'text-red-600'}>{kpi.change}</span>
               </p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Charts Grid */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Task Completion Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Task Completion Trend</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={taskCompletionData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="week" stroke="#64748b" fontSize={12} />
-                  <YAxis stroke="#64748b" fontSize={12} />
-                  <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
-                  <Legend />
-                  <Line type="monotone" dataKey="planned" stroke="hsl(217, 91%, 60%)" strokeWidth={2} name="Planned" />
-                  <Line type="monotone" dataKey="completed" stroke="hsl(142, 76%, 36%)" strokeWidth={2} name="Completed" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Budget Analysis Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Budget Analysis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={budgetData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="category" stroke="#64748b" fontSize={12} />
-                  <YAxis stroke="#64748b" fontSize={12} />
-                  <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
-                  <Legend />
-                  <Bar dataKey="spent" fill="hsl(0, 84%, 60%)" name="Spent" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="budget" fill="hsl(217, 91%, 60%)" name="Budget" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Time Distribution */}
       <Card>
         <CardHeader>
-          <CardTitle>Time Distribution</CardTitle>
+          <CardTitle>Live Project Snapshot</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="h-64 flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={timeDistributionData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {timeDistributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
-                </PieChart>
-              </ResponsiveContainer>
+          <div className="grid gap-3 md:grid-cols-3 text-sm">
+            <div className="rounded-lg border p-4">
+              <p className="text-slate-500">Milestones</p>
+              <p className="text-2xl font-semibold">{milestones.length}</p>
             </div>
-            <div className="flex flex-col justify-center space-y-3">
-              {timeDistributionData.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="text-sm text-slate-600">{item.name}</span>
-                  </div>
-                  <span className="text-sm font-semibold text-slate-900">{item.value}%</span>
-                </div>
-              ))}
+            <div className="rounded-lg border p-4">
+              <p className="text-slate-500">Tasks</p>
+              <p className="text-2xl font-semibold">{tasks.length}</p>
+            </div>
+            <div className="rounded-lg border p-4">
+              <p className="text-slate-500">Timesheets</p>
+              <p className="text-2xl font-semibold">{filteredTasks.length}</p>
             </div>
           </div>
+          <p className="mt-4 text-sm text-slate-500">
+            This tab now reflects live Supabase-backed project data instead of fixed demo metrics.
+          </p>
         </CardContent>
       </Card>
     </div>

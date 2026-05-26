@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { customerDirectory } from "@/lib/customer-directory";
+import { createCustomer, createCustomerGroupMembers, fetchCustomerGroupMembers, fetchCustomerGroups, fetchCustomers, updateCustomer, type CustomerGroupMemberRecord, type CustomerGroupRecord } from "@/lib/supabase-data";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Search, Filter, Plus, Users, FileText, 
   ChevronLeft, ChevronRight, RefreshCw, Download,
@@ -64,18 +65,19 @@ const countries = [
   "Taiwan", "Thailand", "Turkey", "UAE", "UK", "Ukraine", "USA", "Vietnam"
 ];
 
-// Customer groups
-const customerGroups = [
-  "VIP", "Regular", "Enterprise", "Startup", "Government", "Education", "Healthcare", "Retail"
-];
-
 export default function CustomersListModule() {
+  const { toast } = useToast();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerGroups, setCustomerGroups] = useState<CustomerGroupRecord[]>([]);
+  const [groupMembers, setGroupMembers] = useState<CustomerGroupMemberRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [excludeInactive, setExcludeInactive] = useState(true);
   const [pageSize, setPageSize] = useState("25");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [isNewCustomerOpen, setIsNewCustomerOpen] = useState(false);
   const [isManipulationOpen, setIsManipulationOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
@@ -116,18 +118,89 @@ export default function CustomersListModule() {
     shippingZipCode: "",
     shippingCountry: ""
   });
+  const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
-  const customers: Customer[] = customerDirectory;
+  const loadCustomers = async () => {
+    setIsLoading(true);
+    try {
+      const [rows, groups, members] = await Promise.all([
+        fetchCustomers(),
+        fetchCustomerGroups(),
+        fetchCustomerGroupMembers(),
+      ]);
+
+      const groupNameById = new Map<number, string>();
+      groups.forEach((group) => groupNameById.set(group.id, group.name));
+
+      const groupsByCustomer = new Map<number, string[]>();
+      members.forEach((member) => {
+        const groupName = groupNameById.get(member.group_id);
+        if (!groupName) return;
+        const existing = groupsByCustomer.get(member.customer_id) ?? [];
+        groupsByCustomer.set(member.customer_id, [...existing, groupName]);
+      });
+
+      setCustomers(
+        rows.map((row) => ({
+          id: row.id,
+          companyName: row.company_name,
+          primaryContact: row.primary_contact ?? "",
+          primaryEmail: row.primary_email ?? "",
+          phone: row.phone ?? "",
+          active: row.active,
+          groups: groupsByCustomer.get(row.id) ?? row.groups ?? [],
+          dateCreated: row.date_created,
+          vatNumber: row.vat_number ?? undefined,
+          website: row.website ?? undefined,
+          currency: row.currency ?? undefined,
+          language: row.language ?? undefined,
+          address: row.address ?? undefined,
+          city: row.city ?? undefined,
+          state: row.state ?? undefined,
+          zipCode: row.zip_code ?? undefined,
+          country: row.country ?? undefined,
+        }))
+      );
+      setCustomerGroups(groups);
+      setGroupMembers(members);
+    } catch (error) {
+      toast({
+        title: "Failed to load customers",
+        description: error instanceof Error ? error.message : "Unable to load customer data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    if (active) loadCustomers();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Summary stats
-  const stats = {
-    totalCustomers: customers.length,
-    activeCustomers: customers.filter(c => c.active).length,
-    inactiveCustomers: customers.filter(c => !c.active).length,
-    activeContacts: customers.filter(c => c.primaryContact).length,
-    inactiveContacts: 0,
-    loggedInToday: 0
-  };
+  const stats = useMemo(() => {
+    const totalCustomers = customers.length;
+    const activeCustomers = customers.filter((c) => c.active).length;
+    const inactiveCustomers = totalCustomers - activeCustomers;
+    const activeContacts = customers.filter((c) => c.primaryContact || c.primaryEmail).length;
+    const inactiveContacts = totalCustomers - activeContacts;
+    const today = new Date().toISOString().slice(0, 10);
+    const loggedInToday = customers.filter((c) => c.dateCreated?.slice(0, 10) === today).length;
+
+    return {
+      totalCustomers,
+      activeCustomers,
+      inactiveCustomers,
+      activeContacts,
+      inactiveContacts,
+      loggedInToday,
+    };
+  }, [customers]);
 
   // Filter and sort customers
   const filteredCustomers = customers
@@ -177,6 +250,140 @@ export default function CustomersListModule() {
       setSortColumn(column);
       setSortDirection("asc");
     }
+  };
+
+  const handleBulkStatusChange = async (nextActive: boolean) => {
+    if (selectedCustomers.length === 0) return;
+    setIsBulkUpdating(true);
+    try {
+      await Promise.all(
+        selectedCustomers.map((customerId) => updateCustomer(customerId, { active: nextActive }))
+      );
+      setCustomers((prev) =>
+        prev.map((customer) =>
+          selectedCustomers.includes(customer.id) ? { ...customer, active: nextActive } : customer
+        )
+      );
+      toast({
+        title: nextActive ? "Customers activated" : "Customers deactivated",
+        description: `${selectedCustomers.length} customer(s) updated successfully.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Bulk update failed",
+        description: error instanceof Error ? error.message : "Unable to update selected customers.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleCreateCustomer = async () => {
+    if (!newCustomer.companyName.trim()) return;
+    try {
+      const created = await createCustomer({
+        company_name: newCustomer.companyName.trim(),
+        primary_contact: "",
+        primary_email: "",
+        phone: newCustomer.phone.trim() || null,
+        active: true,
+        groups: newCustomer.groups,
+        vat_number: newCustomer.vatNumber.trim() || null,
+        website: newCustomer.website.trim() || null,
+        currency: newCustomer.currency || null,
+        language: newCustomer.language || null,
+        address: newCustomer.address.trim() || null,
+        city: newCustomer.city.trim() || null,
+        state: newCustomer.state.trim() || null,
+        zip_code: newCustomer.zipCode.trim() || null,
+        country: newCustomer.country || null,
+        billing_street: newCustomer.billingStreet.trim() || null,
+        billing_city: newCustomer.billingCity.trim() || null,
+        billing_state: newCustomer.billingState.trim() || null,
+        billing_zip_code: newCustomer.billingZipCode.trim() || null,
+        billing_country: newCustomer.billingCountry.trim() || null,
+        shipping_street: newCustomer.shippingStreet.trim() || null,
+        shipping_city: newCustomer.shippingCity.trim() || null,
+        shipping_state: newCustomer.shippingState.trim() || null,
+        shipping_zip_code: newCustomer.shippingZipCode.trim() || null,
+        shipping_country: newCustomer.shippingCountry.trim() || null,
+      });
+
+      if (selectedGroupIds.length > 0) {
+        await createCustomerGroupMembers(
+          selectedGroupIds.map((groupId) => ({
+            group_id: groupId,
+            customer_id: created.id,
+          }))
+        );
+      }
+
+      setCustomers((prev) => [{
+        id: created.id,
+        companyName: created.company_name,
+        primaryContact: created.primary_contact ?? "",
+        primaryEmail: created.primary_email ?? "",
+        phone: created.phone ?? "",
+        active: created.active,
+        groups: newCustomer.groups,
+        dateCreated: created.date_created,
+        vatNumber: created.vat_number ?? undefined,
+        website: created.website ?? undefined,
+        currency: created.currency ?? undefined,
+        language: created.language ?? undefined,
+        address: created.address ?? undefined,
+        city: created.city ?? undefined,
+        state: created.state ?? undefined,
+        zipCode: created.zip_code ?? undefined,
+        country: created.country ?? undefined,
+      }, ...prev]);
+
+      setIsNewCustomerOpen(false);
+      setSelectedGroupIds([]);
+      setNewCustomer({
+        companyName: "",
+        vatNumber: "",
+        phone: "",
+        website: "",
+        groups: [],
+        currency: "System Default",
+        language: "System Default",
+        address: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        country: "India",
+        billingStreet: "",
+        billingCity: "",
+        billingState: "",
+        billingZipCode: "",
+        billingCountry: "",
+        shippingStreet: "",
+        shippingCity: "",
+        shippingState: "",
+        shippingZipCode: "",
+        shippingCountry: ""
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to create customer",
+        description: error instanceof Error ? error.message : "Unable to create customer.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleCustomerGroup = (group: CustomerGroupRecord) => {
+    const nextIds = selectedGroupIds.includes(group.id)
+      ? selectedGroupIds.filter((id) => id !== group.id)
+      : [...selectedGroupIds, group.id];
+
+    setSelectedGroupIds(nextIds);
+    const selectedNames = customerGroups
+      .filter((g) => nextIds.includes(g.id))
+      .map((g) => g.name);
+    setNewCustomer((prev) => ({ ...prev, groups: selectedNames }));
   };
 
   return (
@@ -256,20 +463,23 @@ export default function CustomersListModule() {
                   {/* Groups */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-gray-700">Groups</Label>
-                    <div className="flex gap-2">
-                      <Select>
-                        <SelectTrigger className="flex-1 border-gray-200">
-                          <SelectValue placeholder="Non selected" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customerGroups.map(group => (
-                            <SelectItem key={group} value={group.toLowerCase()}>{group}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button variant="outline" size="icon" className="border-gray-200 hover:bg-blue-50 hover:border-blue-300">
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+                      {customerGroups.length === 0 && (
+                        <div className="text-xs text-gray-500">No customer groups found.</div>
+                      )}
+                      {customerGroups.map((group) => (
+                        <div key={group.id} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`group-${group.id}`}
+                            checked={selectedGroupIds.includes(group.id)}
+                            onCheckedChange={() => toggleCustomerGroup(group)}
+                            className="border-gray-300"
+                          />
+                          <Label htmlFor={`group-${group.id}`} className="text-sm text-gray-600 cursor-pointer">
+                            {group.name}
+                          </Label>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -280,33 +490,38 @@ export default function CustomersListModule() {
                         <Globe className="h-3 w-3 text-gray-400" />
                         Currency
                       </Label>
-                      <Select defaultValue="system">
+                      <Select
+                        value={newCustomer.currency}
+                        onValueChange={(val) => setNewCustomer({ ...newCustomer, currency: val })}
+                      >
                         <SelectTrigger className="border-gray-200">
                           <SelectValue placeholder="System Default" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="system">System Default</SelectItem>
-                          <SelectItem value="usd">INR (₹)</SelectItem>
-                          <SelectItem value="eur">EUR (€)</SelectItem>
-                          <SelectItem value="gbp">GBP (£)</SelectItem>
-                          <SelectItem value="inr">INR (₹)</SelectItem>
-                          <SelectItem value="aed">AED (د.إ)</SelectItem>
+                          <SelectItem value="System Default">System Default</SelectItem>
+                          <SelectItem value="INR (₹)">INR (₹)</SelectItem>
+                          <SelectItem value="EUR (€)">EUR (€)</SelectItem>
+                          <SelectItem value="GBP (£)">GBP (£)</SelectItem>
+                          <SelectItem value="AED (د.إ)">AED (د.إ)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-gray-700">Default Language</Label>
-                      <Select defaultValue="system">
+                      <Select
+                        value={newCustomer.language}
+                        onValueChange={(val) => setNewCustomer({ ...newCustomer, language: val })}
+                      >
                         <SelectTrigger className="border-gray-200">
                           <SelectValue placeholder="System Default" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="system">System Default</SelectItem>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="es">Spanish</SelectItem>
-                          <SelectItem value="fr">French</SelectItem>
-                          <SelectItem value="de">German</SelectItem>
-                          <SelectItem value="ar">Arabic</SelectItem>
+                          <SelectItem value="System Default">System Default</SelectItem>
+                          <SelectItem value="English">English</SelectItem>
+                          <SelectItem value="Spanish">Spanish</SelectItem>
+                          <SelectItem value="French">French</SelectItem>
+                          <SelectItem value="German">German</SelectItem>
+                          <SelectItem value="Arabic">Arabic</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -383,11 +598,13 @@ export default function CustomersListModule() {
                 <Button 
                   variant="outline" 
                   className="border-blue-200 text-blue-700 hover:bg-blue-50"
-                  onClick={() => setIsNewCustomerOpen(false)}
+                  onClick={() => {
+                    handleCreateCustomer().catch((error) => console.error(error));
+                  }}
                 >
                   Save and create contact
                 </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => { handleCreateCustomer().catch((error) => console.error(error)); }}>
                   Save
                 </Button>
               </DialogFooter>
@@ -421,8 +638,8 @@ export default function CustomersListModule() {
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="bg-white shadow-lg border border-gray-200">
                 {customerGroups.map(group => (
-                  <DropdownMenuItem key={group} className="cursor-pointer hover:bg-blue-50 focus:bg-blue-50">
-                    {group}
+                  <DropdownMenuItem key={group.id} className="cursor-pointer hover:bg-blue-50 focus:bg-blue-50">
+                    {group.name}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuSubContent>
@@ -526,7 +743,7 @@ export default function CustomersListModule() {
             </div>
             <div className="text-center p-3 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors cursor-pointer">
               <div className="text-2xl font-bold text-gray-900">{stats.loggedInToday}</div>
-              <div className="text-sm text-gray-500">Contacts Logged In Today</div>
+              <div className="text-sm text-gray-500">New Customers Today</div>
             </div>
           </div>
         </CardContent>
@@ -780,8 +997,33 @@ export default function CustomersListModule() {
                 </DialogContent>
               </Dialog>
 
+              {selectedCustomers.length > 0 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-green-200 text-green-700 hover:bg-green-50"
+                    onClick={() => handleBulkStatusChange(true)}
+                    disabled={isBulkUpdating}
+                  >
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Activate
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-red-200 text-red-700 hover:bg-red-50"
+                    onClick={() => handleBulkStatusChange(false)}
+                    disabled={isBulkUpdating}
+                  >
+                    <UserX className="h-4 w-4 mr-2" />
+                    Deactivate
+                  </Button>
+                </>
+              )}
+
               {/* Refresh Button */}
-              <Button variant="outline" size="icon" className="border-gray-200 hover:bg-gray-50">
+              <Button variant="outline" size="icon" className="border-gray-200 hover:bg-gray-50" onClick={() => { loadCustomers().catch((error) => console.error(error)); }}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
 
@@ -845,7 +1087,9 @@ export default function CustomersListModule() {
                         className="border-gray-300"
                       />
                     </TableCell>
-                    <TableCell className="text-gray-500 font-medium">{customer.id}</TableCell>
+                    <TableCell className="text-gray-500 font-medium">
+                      {(currentPage - 1) * Number(pageSize) + index + 1}
+                    </TableCell>
                     <TableCell>
                       <span className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors">
                         {customer.companyName}
@@ -869,6 +1113,19 @@ export default function CustomersListModule() {
                     <TableCell className="text-center">
                       <Switch 
                         checked={customer.active}
+                        onCheckedChange={(checked) => {
+                          updateCustomer(customer.id, { active: checked })
+                            .then((updated) => {
+                              setCustomers((prev) => prev.map((item) => (item.id === updated.id ? { ...item, active: updated.active } : item)));
+                            })
+                            .catch((error) => {
+                              toast({
+                                title: "Failed to update status",
+                                description: error instanceof Error ? error.message : "Unable to update customer status.",
+                                variant: "destructive",
+                              });
+                            });
+                        }}
                         className="data-[state=checked]:bg-blue-600"
                       />
                     </TableCell>

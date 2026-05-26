@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import {
+  createProjectMilestone,
+  deleteProjectMilestone,
+  fetchProjectMilestones,
+  updateProjectMilestone,
+  type ProjectMilestoneRecord,
+} from '@/lib/supabase-data';
 import { Target, Plus, Calendar, Pencil, Trash2 } from 'lucide-react';
 
 interface ProjectMilestonesTabProps {
@@ -36,52 +43,23 @@ interface Milestone {
   progress: number;
 }
 
-const initialMilestones: Milestone[] = [
-  {
-    id: 'MS-001',
-    title: 'Project Kickoff',
-    description: 'Finalize kickoff checklist and align project stakeholders.',
-    targetDate: '2026-01-10',
-    status: 'completed',
-    progress: 100,
-  },
-  {
-    id: 'MS-002',
-    title: 'Design Phase Complete',
-    description: 'Approve UI/UX and hand over final designs to engineering.',
-    targetDate: '2026-01-25',
-    status: 'completed',
-    progress: 100,
-  },
-  {
-    id: 'MS-003',
-    title: 'Development Sprint 1',
-    description: 'Deliver core modules and pass internal QA for sprint scope.',
-    targetDate: '2026-02-10',
-    status: 'in-progress',
-    progress: 75,
-  },
-  {
-    id: 'MS-004',
-    title: 'QA Testing Phase',
-    description: 'Run full regression and close all critical defects.',
-    targetDate: '2026-02-28',
-    status: 'pending',
-    progress: 0,
-  },
-  {
-    id: 'MS-005',
-    title: 'Production Deployment',
-    description: 'Execute go-live plan and monitor production stability.',
-    targetDate: '2026-03-15',
-    status: 'pending',
-    progress: 0,
-  },
-];
+function mapRecordToMilestone(record: ProjectMilestoneRecord): Milestone {
+  const targetDate = record.targetDate ?? record.target_date ?? '';
+
+  return {
+    id: String(record.id),
+    title: record.title,
+    description: record.description ?? '',
+    targetDate,
+    status: (record.status as MilestoneStatus) ?? 'pending',
+    progress: Number(record.progress ?? 0),
+  };
+}
 
 export default function ProjectMilestonesTab({ projectId }: ProjectMilestonesTabProps) {
   const { toast } = useToast();
-  const [milestones, setMilestones] = useState<Milestone[]>(initialMilestones);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [showAddMilestoneDialog, setShowAddMilestoneDialog] = useState(false);
   const [showEditMilestoneDialog, setShowEditMilestoneDialog] = useState(false);
   const [showDeleteMilestoneDialog, setShowDeleteMilestoneDialog] = useState(false);
@@ -124,13 +102,33 @@ export default function ProjectMilestonesTab({ projectId }: ProjectMilestonesTab
     setSelectedMilestoneId(null);
   };
 
-  const getNextMilestoneId = () => {
-    const maxNumber = milestones.reduce((max, milestone) => {
-      const parsed = Number.parseInt(milestone.id.replace('MS-', ''), 10);
-      return Number.isNaN(parsed) ? max : Math.max(max, parsed);
-    }, 0);
-    return `MS-${String(maxNumber + 1).padStart(3, '0')}`;
-  };
+  useEffect(() => {
+    if (!projectId) return;
+
+    let active = true;
+    setIsLoading(true);
+
+    fetchProjectMilestones(Number(projectId))
+      .then((records) => {
+        if (!active) return;
+        setMilestones(records.map(mapRecordToMilestone));
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        toast({
+          title: 'Failed to load milestones',
+          description: error instanceof Error ? error.message : 'Unable to fetch milestones from Supabase.',
+          variant: 'destructive',
+        });
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [projectId, toast]);
 
   const getMilestoneDotClass = (status: MilestoneStatus) => {
     if (status === 'completed') return 'bg-green-500';
@@ -141,23 +139,41 @@ export default function ProjectMilestonesTab({ projectId }: ProjectMilestonesTab
   const handleAddMilestone = () => {
     if (!validateMilestoneForm()) return;
 
-    const newMilestone: Milestone = {
-      id: getNextMilestoneId(),
+    if (!projectId) {
+      toast({
+        title: 'Project not selected',
+        description: 'Cannot add milestone: project id is missing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const payload = {
+      project_id: Number(projectId),
       title: milestoneForm.title.trim(),
-      description: milestoneForm.description.trim(),
-      targetDate: milestoneForm.targetDate,
+      description: milestoneForm.description.trim() || null,
+      target_date: milestoneForm.targetDate || null,
       status: milestoneForm.status,
       progress: milestoneForm.progress,
-    };
+    } as const;
 
-    setMilestones((prev) => [...prev, newMilestone]);
-    
-    toast({
-      title: 'Milestone Added',
-      description: `Milestone "${milestoneForm.title}" has been added successfully.`,
-    });
-    setShowAddMilestoneDialog(false);
-    resetMilestoneForm();
+    createProjectMilestone(payload)
+      .then((record) => {
+        setMilestones((prev) => [...prev, mapRecordToMilestone(record)]);
+        toast({
+          title: 'Milestone Added',
+          description: `Milestone "${milestoneForm.title}" has been saved to Supabase.`,
+        });
+        setShowAddMilestoneDialog(false);
+        resetMilestoneForm();
+      })
+      .catch((error: unknown) => {
+        toast({
+          title: 'Failed to add milestone',
+          description: error instanceof Error ? error.message : 'Unable to save milestone.',
+          variant: 'destructive',
+        });
+      });
   };
 
   const openEditDialog = (milestone: Milestone) => {
@@ -176,27 +192,29 @@ export default function ProjectMilestonesTab({ projectId }: ProjectMilestonesTab
   const handleEditMilestone = () => {
     if (!validateMilestoneForm() || !selectedMilestoneId) return;
 
-    setMilestones((prev) =>
-      prev.map((milestone) =>
-        milestone.id === selectedMilestoneId
-          ? {
-              ...milestone,
-              title: milestoneForm.title.trim(),
-              description: milestoneForm.description.trim(),
-              targetDate: milestoneForm.targetDate,
-              status: milestoneForm.status,
-              progress: milestoneForm.progress,
-            }
-          : milestone,
-      ),
-    );
-
-    toast({
-      title: 'Milestone Updated',
-      description: `Milestone "${milestoneForm.title}" has been updated successfully.`,
-    });
-    setShowEditMilestoneDialog(false);
-    resetMilestoneForm();
+    updateProjectMilestone(selectedMilestoneId, {
+      title: milestoneForm.title.trim(),
+      description: milestoneForm.description.trim(),
+      target_date: milestoneForm.targetDate,
+      status: milestoneForm.status,
+      progress: milestoneForm.progress,
+    })
+      .then((record) => {
+        setMilestones((prev) => prev.map((milestone) => (milestone.id === selectedMilestoneId ? mapRecordToMilestone(record) : milestone)));
+        toast({
+          title: 'Milestone Updated',
+          description: `Milestone "${milestoneForm.title}" has been updated successfully.`,
+        });
+        setShowEditMilestoneDialog(false);
+        resetMilestoneForm();
+      })
+      .catch((error: unknown) => {
+        toast({
+          title: 'Failed to update milestone',
+          description: error instanceof Error ? error.message : 'Unable to update milestone.',
+          variant: 'destructive',
+        });
+      });
   };
 
   const openDeleteDialog = (milestoneId: string) => {
@@ -207,14 +225,24 @@ export default function ProjectMilestonesTab({ projectId }: ProjectMilestonesTab
   const handleDeleteMilestone = () => {
     if (!selectedMilestoneId) return;
 
-    setMilestones((prev) => prev.filter((milestone) => milestone.id !== selectedMilestoneId));
-    setShowDeleteMilestoneDialog(false);
-    const deletedMilestone = milestones.find((milestone) => milestone.id === selectedMilestoneId);
-    toast({
-      title: 'Milestone Deleted',
-      description: `Milestone "${deletedMilestone?.title ?? selectedMilestoneId}" has been removed.`,
-    });
-    resetMilestoneForm();
+    deleteProjectMilestone(selectedMilestoneId)
+      .then(() => {
+        setMilestones((prev) => prev.filter((milestone) => milestone.id !== selectedMilestoneId));
+        setShowDeleteMilestoneDialog(false);
+        const deletedMilestone = milestones.find((milestone) => milestone.id === selectedMilestoneId);
+        toast({
+          title: 'Milestone Deleted',
+          description: `Milestone "${deletedMilestone?.title ?? selectedMilestoneId}" has been removed.`,
+        });
+        resetMilestoneForm();
+      })
+      .catch((error: unknown) => {
+        toast({
+          title: 'Failed to delete milestone',
+          description: error instanceof Error ? error.message : 'Unable to delete milestone.',
+          variant: 'destructive',
+        });
+      });
   };
 
   return (
@@ -226,7 +254,8 @@ export default function ProjectMilestonesTab({ projectId }: ProjectMilestonesTab
         </Button>
       </div>
 
-      {/* Milestone Cards */}
+      {isLoading && <p className="text-sm text-slate-500">Loading milestones from Supabase...</p>}
+
       <div className="grid gap-4 md:grid-cols-2">
         {milestones.map((milestone) => (
           <Card key={milestone.id} className="hover:shadow-md transition-shadow">
@@ -272,21 +301,17 @@ export default function ProjectMilestonesTab({ projectId }: ProjectMilestonesTab
         ))}
       </div>
 
-      {/* Timeline View */}
       <Card>
         <CardHeader>
           <CardTitle>Timeline View</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="relative">
-            {/* Timeline Line */}
             <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-slate-200" />
             
-            {/* Timeline Items */}
             <div className="space-y-6">
-              {milestones.map((milestone, index) => (
+              {milestones.map((milestone) => (
                 <div key={milestone.id} className="relative pl-14">
-                  {/* Timeline Dot */}
                   <div className={`absolute left-4 top-1 w-5 h-5 rounded-full border-4 border-white ${getMilestoneDotClass(milestone.status)}`} />
                   
                   <div className="bg-slate-50 rounded-lg p-4">
@@ -310,7 +335,6 @@ export default function ProjectMilestonesTab({ projectId }: ProjectMilestonesTab
         </CardContent>
       </Card>
 
-      {/* Add Milestone Dialog */}
       <Dialog open={showAddMilestoneDialog} onOpenChange={setShowAddMilestoneDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -394,7 +418,6 @@ export default function ProjectMilestonesTab({ projectId }: ProjectMilestonesTab
         </DialogContent>
       </Dialog>
 
-      {/* Edit Milestone Dialog */}
       <Dialog open={showEditMilestoneDialog} onOpenChange={setShowEditMilestoneDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -484,7 +507,6 @@ export default function ProjectMilestonesTab({ projectId }: ProjectMilestonesTab
         </DialogContent>
       </Dialog>
 
-      {/* Delete Milestone Confirmation */}
       <AlertDialog open={showDeleteMilestoneDialog} onOpenChange={setShowDeleteMilestoneDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

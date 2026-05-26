@@ -1,25 +1,165 @@
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   TrendingUp,
-  Users
+  Users,
+  Clock
 } from 'lucide-react';
+import {
+  fetchProjectMilestones,
+  fetchProjectTasks,
+  fetchProjectTaskTimeEntries,
+  type ProjectMilestoneRecord,
+  type ProjectTaskRecord,
+  type ProjectTaskTimeEntryRecord,
+} from '@/lib/supabase-data';
 
 interface ProjectOverviewTabProps {
   project: any;
 }
 
 export default function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
-  // Mock data
+  const [milestones, setMilestones] = useState<ProjectMilestoneRecord[]>([]);
+  const [tasks, setTasks] = useState<ProjectTaskRecord[]>([]);
+  const [timeEntries, setTimeEntries] = useState<ProjectTaskTimeEntryRecord[]>([]);
+
+  useEffect(() => {
+    if (!project?.id) return;
+
+    let active = true;
+
+    Promise.all([
+      fetchProjectMilestones(Number(project.id)),
+      fetchProjectTasks(Number(project.id)),
+      fetchProjectTaskTimeEntries(Number(project.id)),
+    ])
+      .then(([milestoneRecords, taskRecords, entryRecords]) => {
+        if (!active) return;
+        setMilestones(milestoneRecords);
+        setTasks(taskRecords);
+        setTimeEntries(entryRecords);
+      })
+      .catch(() => {
+        if (!active) return;
+        setMilestones([]);
+        setTasks([]);
+        setTimeEntries([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [project?.id]);
+
+  const calculateTaskProgress = (task: ProjectTaskRecord) => {
+    const totalSubtasks = Number(task.subtasks_total ?? 0);
+    const completedSubtasks = Number(task.subtasks_completed ?? 0);
+
+    if (totalSubtasks > 0) {
+      return Math.max(0, Math.min(100, Math.round((completedSubtasks / totalSubtasks) * 100)));
+    }
+
+    switch (task.status) {
+      case 'complete':
+        return 100;
+      case 'testing':
+        return 80;
+      case 'waiting-feedback':
+        return 90;
+      case 'in-progress':
+        return 50;
+      case 'urgent':
+        return 25;
+      case 'not-started':
+      default:
+        return 0;
+    }
+  };
+
+  const calculateMilestoneProgress = (milestone: ProjectMilestoneRecord) => {
+    if (typeof milestone.progress === 'number') {
+      return Math.max(0, Math.min(100, milestone.progress));
+    }
+
+    switch (milestone.status) {
+      case 'completed':
+        return 100;
+      case 'in-progress':
+        return 50;
+      case 'pending':
+      default:
+        return 0;
+    }
+  };
+
+  const calculatedTaskProgress = tasks.length
+    ? Math.round(tasks.reduce((sum, task) => sum + calculateTaskProgress(task), 0) / tasks.length)
+    : 0;
+
+  const calculatedMilestoneProgress = milestones.length
+    ? Math.round(milestones.reduce((sum, milestone) => sum + calculateMilestoneProgress(milestone), 0) / milestones.length)
+    : 0;
+
+  const calculatedProgress = (() => {
+    const hasTasks = tasks.length > 0;
+    const hasMilestones = milestones.length > 0;
+
+    if (!hasTasks && !hasMilestones) {
+      return Number(project.progress ?? 0);
+    }
+
+    if (hasTasks && hasMilestones) {
+      return Math.round((calculatedTaskProgress + calculatedMilestoneProgress) / 2);
+    }
+
+    return hasTasks ? calculatedTaskProgress : calculatedMilestoneProgress;
+  })();
+
+  const displayedProgress = project?.calculate_progress === false
+    ? Number(project.progress ?? 0)
+    : calculatedProgress;
+
+  const formatHoursToDuration = (hours: number) => {
+    const safeHours = Number.isFinite(hours) ? hours : 0;
+    const totalSeconds = Math.max(0, Math.round(safeHours * 3600));
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  const totalTrackedHours = timeEntries.reduce((sum, entry) => {
+    const hours = Number(entry.duration_hours ?? 0);
+    return sum + (Number.isFinite(hours) ? hours : 0);
+  }, 0);
+
+  const totalComputedHours = tasks.reduce((sum, task) => {
+    const estimated = Number(task.estimated_hours ?? 0);
+    const progress = calculateTaskProgress(task);
+    const computedHours = Math.round(estimated * (progress / 100) * 100) / 100;
+    return sum + computedHours;
+  }, 0);
+
+  const overallProjectHours = totalTrackedHours;
+
   const stats = [
     {
       title: 'Progress',
-      value: `${project.progress}%`,
+      value: `${displayedProgress}%`,
       icon: TrendingUp,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100'
+    },
+    {
+      title: 'Project Time',
+      value: `${overallProjectHours.toFixed(2)}h (${formatHoursToDuration(overallProjectHours)})`,
+      icon: Clock,
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-100'
     },
     {
       title: 'Team Members',
@@ -28,14 +168,6 @@ export default function ProjectOverviewTab({ project }: ProjectOverviewTabProps)
       color: 'text-purple-600',
       bgColor: 'bg-purple-100'
     }
-  ];
-
-  const milestones = [
-    { id: 'MS-001', title: 'Project Kickoff', startDate: '2026-01-05', dueDate: '2026-01-10', status: 'completed', progress: 100 },
-    { id: 'MS-002', title: 'Design Phase Complete', startDate: '2026-01-11', dueDate: '2026-01-25', status: 'completed', progress: 100 },
-    { id: 'MS-003', title: 'Development Sprint 1', startDate: '2026-01-26', dueDate: '2026-02-10', status: 'in-progress', progress: 75 },
-    { id: 'MS-004', title: 'QA Testing Phase', startDate: '2026-02-11', dueDate: '2026-02-28', status: 'pending', progress: 0 },
-    { id: 'MS-005', title: 'Production Deployment', startDate: '2026-03-01', dueDate: '2026-03-15', status: 'pending', progress: 0 }
   ];
 
   const statusConfig: Record<string, { label: string; class: string }> = {
@@ -47,7 +179,7 @@ export default function ProjectOverviewTab({ project }: ProjectOverviewTabProps)
   return (
     <div className="space-y-6">
       {/* Stats Cards Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3">
         {stats.map((stat, index) => (
           <Card key={index} className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -58,6 +190,16 @@ export default function ProjectOverviewTab({ project }: ProjectOverviewTabProps)
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
+              {stat.title === 'Progress' && (
+                <div className="mt-3 space-y-2">
+                  <Progress value={displayedProgress} className="h-2" />
+                  <p className="text-xs text-slate-500">
+                    {project?.calculate_progress === false
+                      ? 'Manual progress stored in Supabase'
+                      : `Auto-calculated from ${tasks.length} tasks and ${milestones.length} milestones`}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -81,11 +223,11 @@ export default function ProjectOverviewTab({ project }: ProjectOverviewTabProps)
             </TableHeader>
             <TableBody>
               {milestones.map((milestone) => (
-                <TableRow key={milestone.id} className="hover:bg-slate-50">
+                <TableRow key={String(milestone.id)} className="hover:bg-slate-50">
                   <TableCell className="font-medium">{milestone.id}</TableCell>
                   <TableCell>{milestone.title}</TableCell>
-                  <TableCell className="text-slate-600">{milestone.startDate}</TableCell>
-                  <TableCell className="text-slate-600">{milestone.dueDate}</TableCell>
+                  <TableCell className="text-slate-600">{milestone.start_date ?? '—'}</TableCell>
+                  <TableCell className="text-slate-600">{milestone.targetDate ?? milestone.target_date ?? '—'}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={statusConfig[milestone.status].class}>
                       {statusConfig[milestone.status].label}

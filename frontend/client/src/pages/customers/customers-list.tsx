@@ -1032,10 +1032,6 @@ export default function CustomersListModule() {
             </DialogContent>
           </Dialog>
 
-          <Button variant="outline" className="border-gray-300 hover:bg-gray-50 transition-all duration-200" onClick={openContactsForm}>
-            <Users className="h-4 w-4 mr-2" />
-            Contacts
-          </Button>
         </div>
 
         <Dialog open={isContactsOpen} onOpenChange={setIsContactsOpen}>

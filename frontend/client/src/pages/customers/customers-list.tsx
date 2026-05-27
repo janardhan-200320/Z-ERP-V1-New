@@ -1,23 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { createCustomer, createCustomerGroupMembers, fetchCustomerGroupMembers, fetchCustomerGroups, fetchCustomers, updateCustomer, type CustomerGroupMemberRecord, type CustomerGroupRecord } from "@/lib/supabase-data";
+import { customerDirectory } from "@/lib/customer-directory";
 import { useToast } from "@/hooks/use-toast";
+import { saveCustomerForStandaloneView } from "@/lib/customer-view-storage";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { 
   Search, Filter, Plus, Users, FileText, 
   ChevronLeft, ChevronRight, RefreshCw, Download,
   ArrowUpDown, UserCheck, UserX, UserCircle, Clock,
-  Globe, FileBarChart, FolderKanban, FileSpreadsheet, ScrollText, Building
+  Globe, FileBarChart, FolderKanban, FileSpreadsheet, ScrollText, Building,
+  Eye, Edit, Trash2
 } from "lucide-react";
 
 type Customer = {
@@ -54,6 +59,119 @@ type Customer = {
   };
 };
 
+type CustomerProject = {
+  id: string;
+  name: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  budget: string;
+};
+
+type CustomerTransaction = {
+  id: string;
+  type: string;
+  amount: string;
+  date: string;
+  status: string;
+  reference: string;
+};
+
+type CustomerCreditNote = {
+  id: string;
+  date: string;
+  amount: string;
+  reason: string;
+};
+
+type CustomerSubscription = {
+  id: string;
+  plan: string;
+  status: string;
+  renewalDate: string;
+  amount: string;
+};
+
+type CustomerExpense = {
+  id: string;
+  title: string;
+  date: string;
+  amount: string;
+  category: string;
+};
+
+type CustomerTask = {
+  id: string;
+  title: string;
+  project: string;
+  status: string;
+  dueDate: string;
+};
+
+type CustomerStatement = {
+  id: string;
+  period: string;
+  openingBalance: string;
+  closingBalance: string;
+  status: string;
+};
+
+type CustomerNote = {
+  id: string;
+  title: string;
+  note: string;
+  updatedAt: string;
+};
+
+type CustomerFile = {
+  id: string;
+  name: string;
+  type: string;
+  size: string;
+};
+
+type CustomerContact = {
+  id: string;
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  company: string;
+};
+
+type CustomerStandaloneRecord = Customer & {
+  invoices: Array<{ id: string; date: string; amount: string; status: string; reference: string }>;
+  proposals: Array<{ id: string; title: string; amount: string; status: string; date: string }>;
+  creditNotes: CustomerCreditNote[];
+  subscriptions: CustomerSubscription[];
+  expenses: CustomerExpense[];
+  projects: CustomerProject[];
+  tasks: CustomerTask[];
+  statements: CustomerStatement[];
+  notes: CustomerNote[];
+  payments: CustomerTransaction[];
+  files: CustomerFile[];
+  contacts: CustomerContact[];
+};
+
+type ContactOutreachRow = {
+  id: number;
+  companyName: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  preferredChannel: string;
+  note: string;
+};
+
+type CompanySuggestion = {
+  id: number;
+  companyName: string;
+  primaryContact: string;
+  primaryEmail: string;
+  phone: string;
+};
+
 // Country list for dropdowns
 const countries = [
   "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria", "Bangladesh", 
@@ -65,24 +183,60 @@ const countries = [
   "Taiwan", "Thailand", "Turkey", "UAE", "UK", "Ukraine", "USA", "Vietnam"
 ];
 
+// Customer groups
+const customerGroups = [
+  "VIP", "Regular", "Enterprise", "Startup", "Government", "Education", "Healthcare", "Retail"
+];
+
+const parseMoneyValue = (value: string) => {
+  const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatMoney = (value: number) => `₹${value.toLocaleString("en-IN")}`;
+
 export default function CustomersListModule() {
   const { toast } = useToast();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customerGroups, setCustomerGroups] = useState<CustomerGroupRecord[]>([]);
-  const [groupMembers, setGroupMembers] = useState<CustomerGroupMemberRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [excludeInactive, setExcludeInactive] = useState(true);
   const [pageSize, setPageSize] = useState("25");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
-  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [isNewCustomerOpen, setIsNewCustomerOpen] = useState(false);
   const [isManipulationOpen, setIsManipulationOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
   const [sortColumn, setSortColumn] = useState<string>("companyName");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>(customerDirectory);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isContactsOpen, setIsContactsOpen] = useState(false);
+  const [contactRows, setContactRows] = useState<ContactOutreachRow[]>([
+    {
+      id: 1,
+      companyName: "",
+      contactPerson: "",
+      email: "",
+      phone: "",
+      preferredChannel: "email",
+      note: "",
+    },
+  ]);
+  const [editForm, setEditForm] = useState({
+    companyName: "",
+    primaryContact: "",
+    primaryEmail: "",
+    phone: "",
+    vatNumber: "",
+    website: "",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    country: "",
+    groups: [] as string[],
+  });
   
   // Manipulation dialog state
   const [massDelete, setMassDelete] = useState(false);
@@ -118,89 +272,181 @@ export default function CustomersListModule() {
     shippingZipCode: "",
     shippingCountry: ""
   });
-  const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
-  const loadCustomers = async () => {
-    setIsLoading(true);
-    try {
-      const [rows, groups, members] = await Promise.all([
-        fetchCustomers(),
-        fetchCustomerGroups(),
-        fetchCustomerGroupMembers(),
-      ]);
+  const companySuggestions = useMemo<CompanySuggestion[]>(() => {
+    return customers
+      .map((customer) => ({
+        id: customer.id,
+        companyName: customer.companyName.trim(),
+        primaryContact: customer.primaryContact || "",
+        primaryEmail: customer.primaryEmail || "",
+        phone: customer.phone || "",
+      }))
+      .filter((entry) => entry.companyName.length > 0)
+      .sort((a, b) => a.companyName.localeCompare(b.companyName));
+  }, [customers]);
 
-      const groupNameById = new Map<number, string>();
-      groups.forEach((group) => groupNameById.set(group.id, group.name));
-
-      const groupsByCustomer = new Map<number, string[]>();
-      members.forEach((member) => {
-        const groupName = groupNameById.get(member.group_id);
-        if (!groupName) return;
-        const existing = groupsByCustomer.get(member.customer_id) ?? [];
-        groupsByCustomer.set(member.customer_id, [...existing, groupName]);
-      });
-
-      setCustomers(
-        rows.map((row) => ({
-          id: row.id,
-          companyName: row.company_name,
-          primaryContact: row.primary_contact ?? "",
-          primaryEmail: row.primary_email ?? "",
-          phone: row.phone ?? "",
-          active: row.active,
-          groups: groupsByCustomer.get(row.id) ?? row.groups ?? [],
-          dateCreated: row.date_created,
-          vatNumber: row.vat_number ?? undefined,
-          website: row.website ?? undefined,
-          currency: row.currency ?? undefined,
-          language: row.language ?? undefined,
-          address: row.address ?? undefined,
-          city: row.city ?? undefined,
-          state: row.state ?? undefined,
-          zipCode: row.zip_code ?? undefined,
-          country: row.country ?? undefined,
-        }))
-      );
-      setCustomerGroups(groups);
-      setGroupMembers(members);
-    } catch (error) {
-      toast({
-        title: "Failed to load customers",
-        description: error instanceof Error ? error.message : "Unable to load customer data.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const getCustomerProjects = (customer: Customer): CustomerProject[] => {
+    const base = customer.id * 3;
+    return [
+      {
+        id: `PRJ-${base + 1}`,
+        name: `${customer.companyName} Website Revamp`,
+        status: 'Active',
+        startDate: '2026-01-10',
+        endDate: '2026-03-15',
+        budget: '₹120,000',
+      },
+      {
+        id: `PRJ-${base + 2}`,
+        name: `${customer.companyName} Mobile App`,
+        status: 'In Review',
+        startDate: '2026-02-05',
+        endDate: '2026-04-20',
+        budget: '₹210,000',
+      },
+      {
+        id: `PRJ-${base + 3}`,
+        name: `${customer.companyName} CRM Rollout`,
+        status: 'Completed',
+        startDate: '2025-10-01',
+        endDate: '2025-12-12',
+        budget: '₹75,000',
+      },
+    ];
   };
 
-  useEffect(() => {
-    let active = true;
-    if (active) loadCustomers();
-    return () => {
-      active = false;
-    };
-  }, []);
+  const getCustomerTransactions = (customer: Customer): CustomerTransaction[] => {
+    const base = customer.id * 5;
+    return [
+      {
+        id: `TXN-${base + 1}`,
+        type: 'Invoice',
+        amount: '₹45,000',
+        date: '2026-02-02',
+        status: 'Paid',
+        reference: 'INV-2026-102',
+      },
+      {
+        id: `TXN-${base + 2}`,
+        type: 'Payment',
+        amount: '₹30,000',
+        date: '2026-02-15',
+        status: 'Received',
+        reference: 'PAY-2026-44',
+      },
+      {
+        id: `TXN-${base + 3}`,
+        type: 'Invoice',
+        amount: '₹65,000',
+        date: '2026-03-04',
+        status: 'Pending',
+        reference: 'INV-2026-118',
+      },
+    ];
+  };
 
-  // Summary stats
-  const stats = useMemo(() => {
-    const totalCustomers = customers.length;
-    const activeCustomers = customers.filter((c) => c.active).length;
-    const inactiveCustomers = totalCustomers - activeCustomers;
-    const activeContacts = customers.filter((c) => c.primaryContact || c.primaryEmail).length;
-    const inactiveContacts = totalCustomers - activeContacts;
-    const today = new Date().toISOString().slice(0, 10);
-    const loggedInToday = customers.filter((c) => c.dateCreated?.slice(0, 10) === today).length;
+  const getCustomerSummary = (customer: Customer) => {
+    const projects = getCustomerProjects(customer);
+    const transactions = getCustomerTransactions(customer);
+    const totalProjectValue = projects.reduce((sum, project) => sum + parseMoneyValue(project.budget), 0);
+    const invoicedValue = transactions
+      .filter((transaction) => transaction.type === "Invoice")
+      .reduce((sum, transaction) => sum + parseMoneyValue(transaction.amount), 0);
+    const receivedValue = transactions
+      .filter((transaction) => transaction.type === "Payment" || transaction.status === "Received")
+      .reduce((sum, transaction) => sum + parseMoneyValue(transaction.amount), 0);
 
     return {
-      totalCustomers,
-      activeCustomers,
-      inactiveCustomers,
-      activeContacts,
-      inactiveContacts,
-      loggedInToday,
+      projectCount: projects.length,
+      activeProjects: projects.filter((project) => project.status !== "Completed").length,
+      transactionCount: transactions.length,
+      totalProjectValue,
+      invoicedValue,
+      receivedValue,
     };
-  }, [customers]);
+  };
+
+  const buildCustomerStandaloneRecord = (customer: Customer): CustomerStandaloneRecord => {
+    const projects = getCustomerProjects(customer);
+    const transactions = getCustomerTransactions(customer);
+
+    return {
+      ...customer,
+      invoices: transactions.map((transaction, index) => ({
+        id: `INV-${customer.id}-${index + 1}`,
+        date: transaction.date,
+        amount: transaction.amount,
+        status: transaction.status === 'Paid' ? 'Paid' : 'Open',
+        reference: transaction.reference,
+      })),
+      proposals: projects.map((project, index) => ({
+        id: `PRO-${customer.id}-${index + 1}`,
+        title: project.name,
+        amount: project.budget,
+        status: project.status,
+        date: project.startDate,
+      })),
+      creditNotes: [
+        { id: `CN-${customer.id}-1`, date: '2026-02-18', amount: '₹5,000', reason: 'Service credit adjustment' },
+      ],
+      subscriptions: [
+        { id: `SUB-${customer.id}-1`, plan: 'Business Support', status: 'Active', renewalDate: '2026-04-01', amount: '₹12,000' },
+        { id: `SUB-${customer.id}-2`, plan: 'Cloud Hosting', status: 'Trial', renewalDate: '2026-03-15', amount: '₹8,500' },
+      ],
+      expenses: [
+        { id: `EXP-${customer.id}-1`, title: 'Travel and onboarding', date: '2026-02-10', amount: '₹2,400', category: 'Operations' },
+        { id: `EXP-${customer.id}-2`, title: 'Client meeting refreshments', date: '2026-02-19', amount: '₹850', category: 'Sales' },
+      ],
+      tasks: projects.map((project, index) => ({
+        id: `TASK-${customer.id}-${index + 1}`,
+        title: `${project.name} follow-up task`,
+        project: project.name,
+        status: index % 2 === 0 ? 'Open' : 'In Review',
+        dueDate: project.endDate,
+      })),
+      statements: [
+        { id: `ST-${customer.id}-1`, period: 'Jan 2026', openingBalance: '₹50,000', closingBalance: '₹95,000', status: 'Draft' },
+        { id: `ST-${customer.id}-2`, period: 'Feb 2026', openingBalance: '₹95,000', closingBalance: '₹1,20,000', status: 'Issued' },
+      ],
+      notes: [
+        { id: `NOTE-${customer.id}-1`, title: 'Key Account', note: `Customer requires weekly updates and clear project milestone reporting for ${customer.companyName}.`, updatedAt: '2026-02-20' },
+      ],
+      payments: transactions,
+      files: [
+        { id: `FILE-${customer.id}-1`, name: `${customer.companyName}_agreement.pdf`, type: 'application/pdf', size: '184 KB' },
+        { id: `FILE-${customer.id}-2`, name: `${customer.companyName}_brief.docx`, type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: '96 KB' },
+      ],
+      contacts: [
+        {
+          id: `CONTACT-${customer.id}-1`,
+          name: customer.primaryContact || 'Primary Contact',
+          title: 'Decision Maker',
+          email: customer.primaryEmail || '',
+          phone: customer.phone || '',
+          company: customer.companyName,
+        },
+        {
+          id: `CONTACT-${customer.id}-2`,
+          name: 'Accounts Team',
+          title: 'Billing Contact',
+          email: customer.primaryEmail ? `billing+${customer.primaryEmail}` : '',
+          phone: customer.phone || '',
+          company: customer.companyName,
+        },
+      ],
+    };
+  };
+
+  // Summary stats
+  const stats = {
+    totalCustomers: customers.length,
+    activeCustomers: customers.filter(c => c.active).length,
+    inactiveCustomers: customers.filter(c => !c.active).length,
+    activeContacts: customers.filter(c => c.primaryContact).length,
+    inactiveContacts: 0,
+    loggedInToday: 0
+  };
 
   // Filter and sort customers
   const filteredCustomers = customers
@@ -252,142 +498,327 @@ export default function CustomersListModule() {
     }
   };
 
-  const handleBulkStatusChange = async (nextActive: boolean) => {
-    if (selectedCustomers.length === 0) return;
-    setIsBulkUpdating(true);
-    try {
-      await Promise.all(
-        selectedCustomers.map((customerId) => updateCustomer(customerId, { active: nextActive }))
-      );
-      setCustomers((prev) =>
-        prev.map((customer) =>
-          selectedCustomers.includes(customer.id) ? { ...customer, active: nextActive } : customer
-        )
-      );
+  const openCustomerView = (customer: Customer) => {
+    const standaloneRecord = buildCustomerStandaloneRecord(customer);
+    saveCustomerForStandaloneView(standaloneRecord);
+
+    const targetUrl = `${window.location.origin}/customer-view/${encodeURIComponent(String(customer.id))}`;
+    const openedTab = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+
+    if (!openedTab) {
       toast({
-        title: nextActive ? "Customers activated" : "Customers deactivated",
-        description: `${selectedCustomers.length} customer(s) updated successfully.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Bulk update failed",
-        description: error instanceof Error ? error.message : "Unable to update selected customers.",
+        title: "Popup blocked",
+        description: "Allow popups for this site to open the standalone customer view.",
         variant: "destructive",
       });
-    } finally {
-      setIsBulkUpdating(false);
     }
   };
 
-  const handleCreateCustomer = async () => {
-    if (!newCustomer.companyName.trim()) return;
-    try {
-      const created = await createCustomer({
-        company_name: newCustomer.companyName.trim(),
-        primary_contact: "",
-        primary_email: "",
-        phone: newCustomer.phone.trim() || null,
-        active: true,
-        groups: newCustomer.groups,
-        vat_number: newCustomer.vatNumber.trim() || null,
-        website: newCustomer.website.trim() || null,
-        currency: newCustomer.currency || null,
-        language: newCustomer.language || null,
-        address: newCustomer.address.trim() || null,
-        city: newCustomer.city.trim() || null,
-        state: newCustomer.state.trim() || null,
-        zip_code: newCustomer.zipCode.trim() || null,
-        country: newCustomer.country || null,
-        billing_street: newCustomer.billingStreet.trim() || null,
-        billing_city: newCustomer.billingCity.trim() || null,
-        billing_state: newCustomer.billingState.trim() || null,
-        billing_zip_code: newCustomer.billingZipCode.trim() || null,
-        billing_country: newCustomer.billingCountry.trim() || null,
-        shipping_street: newCustomer.shippingStreet.trim() || null,
-        shipping_city: newCustomer.shippingCity.trim() || null,
-        shipping_state: newCustomer.shippingState.trim() || null,
-        shipping_zip_code: newCustomer.shippingZipCode.trim() || null,
-        shipping_country: newCustomer.shippingCountry.trim() || null,
-      });
+  const openContactsForm = () => {
+    setContactRows((prev) => prev.length > 0 ? prev : [{
+      id: 1,
+      companyName: "",
+      contactPerson: "",
+      email: "",
+      phone: "",
+      preferredChannel: "email",
+      note: "",
+    }]);
+    setIsContactsOpen(true);
+  };
 
-      if (selectedGroupIds.length > 0) {
-        await createCustomerGroupMembers(
-          selectedGroupIds.map((groupId) => ({
-            group_id: groupId,
-            customer_id: created.id,
-          }))
-        );
-      }
-
-      setCustomers((prev) => [{
-        id: created.id,
-        companyName: created.company_name,
-        primaryContact: created.primary_contact ?? "",
-        primaryEmail: created.primary_email ?? "",
-        phone: created.phone ?? "",
-        active: created.active,
-        groups: newCustomer.groups,
-        dateCreated: created.date_created,
-        vatNumber: created.vat_number ?? undefined,
-        website: created.website ?? undefined,
-        currency: created.currency ?? undefined,
-        language: created.language ?? undefined,
-        address: created.address ?? undefined,
-        city: created.city ?? undefined,
-        state: created.state ?? undefined,
-        zipCode: created.zip_code ?? undefined,
-        country: created.country ?? undefined,
-      }, ...prev]);
-
-      setIsNewCustomerOpen(false);
-      setSelectedGroupIds([]);
-      setNewCustomer({
+  const addContactRow = () => {
+    setContactRows((prev) => ([
+      ...prev,
+      {
+        id: Date.now(),
         companyName: "",
-        vatNumber: "",
+        contactPerson: "",
+        email: "",
         phone: "",
-        website: "",
-        groups: [],
-        currency: "System Default",
-        language: "System Default",
-        address: "",
-        city: "",
-        state: "",
-        zipCode: "",
-        country: "India",
-        billingStreet: "",
-        billingCity: "",
-        billingState: "",
-        billingZipCode: "",
-        billingCountry: "",
-        shippingStreet: "",
-        shippingCity: "",
-        shippingState: "",
-        shippingZipCode: "",
-        shippingCountry: ""
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to create customer",
-        description: error instanceof Error ? error.message : "Unable to create customer.",
-        variant: "destructive",
-      });
-    }
+        preferredChannel: "email",
+        note: "",
+      },
+    ]));
   };
 
-  const toggleCustomerGroup = (group: CustomerGroupRecord) => {
-    const nextIds = selectedGroupIds.includes(group.id)
-      ? selectedGroupIds.filter((id) => id !== group.id)
-      : [...selectedGroupIds, group.id];
+  const updateContactRow = (id: number, field: keyof ContactOutreachRow, value: string) => {
+    setContactRows((prev) => prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
+  };
 
-    setSelectedGroupIds(nextIds);
-    const selectedNames = customerGroups
-      .filter((g) => nextIds.includes(g.id))
-      .map((g) => g.name);
-    setNewCustomer((prev) => ({ ...prev, groups: selectedNames }));
+  const removeContactRow = (id: number) => {
+    setContactRows((prev) => (prev.length === 1 ? prev : prev.filter((row) => row.id !== id)));
+  };
+
+  const handleSubmitContacts = () => {
+    const filledRows = contactRows.filter((row) => row.companyName.trim() || row.contactPerson.trim() || row.email.trim() || row.phone.trim());
+
+    if (filledRows.length === 0) {
+      toast({
+        title: "Add contacts first",
+        description: "Please fill at least one contact row before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Contacts captured",
+      description: `${filledRows.length} contact${filledRows.length === 1 ? "" : "s"} ready for outreach.`,
+    });
+
+    setIsContactsOpen(false);
+    setContactRows([
+      {
+        id: 1,
+        companyName: "",
+        contactPerson: "",
+        email: "",
+        phone: "",
+        preferredChannel: "email",
+        note: "",
+      },
+    ]);
+  };
+
+  const openCustomerEdit = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setEditForm({
+      companyName: customer.companyName || "",
+      primaryContact: customer.primaryContact || "",
+      primaryEmail: customer.primaryEmail || "",
+      phone: customer.phone || "",
+      vatNumber: customer.vatNumber || "",
+      website: customer.website || "",
+      address: customer.address || "",
+      city: customer.city || "",
+      state: customer.state || "",
+      zipCode: customer.zipCode || "",
+      country: customer.country || "",
+      groups: customer.groups || [],
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleDeleteCustomer = (customer: Customer) => {
+    if (!window.confirm(`Delete ${customer.companyName}? This cannot be undone.`)) return;
+    setCustomers((prev) => prev.filter((entry) => entry.id !== customer.id));
+    setSelectedCustomers((prev) => prev.filter((id) => id !== customer.id));
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedCustomer) return;
+    setCustomers((prev) =>
+      prev.map((entry) =>
+        entry.id === selectedCustomer.id
+          ? {
+              ...entry,
+              companyName: editForm.companyName,
+              primaryContact: editForm.primaryContact,
+              primaryEmail: editForm.primaryEmail,
+              phone: editForm.phone,
+              vatNumber: editForm.vatNumber,
+              website: editForm.website,
+              address: editForm.address,
+              city: editForm.city,
+              state: editForm.state,
+              zipCode: editForm.zipCode,
+              country: editForm.country,
+              groups: editForm.groups,
+            }
+          : entry
+      )
+    );
+    setIsEditOpen(false);
+  };
+
+  const handleDownloadCustomerReport = (customer: Customer) => {
+    const projects = getCustomerProjects(customer);
+    const transactions = getCustomerTransactions(customer);
+    const summary = getCustomerSummary(customer);
+
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 16;
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("Customer Report", 14, y);
+    y += 8;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(customer.companyName, 14, y);
+    y += 6;
+    doc.setFontSize(9);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, y);
+    y += 10;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Field", "Value"]],
+      body: [
+        ["Company", customer.companyName],
+        ["Primary Contact", customer.primaryContact || "-"],
+        ["Primary Email", customer.primaryEmail || "-"],
+        ["Phone", customer.phone || "-"],
+        ["VAT Number", customer.vatNumber || "-"],
+        ["Website", customer.website || "-"],
+        ["Location", [customer.city, customer.state, customer.country].filter(Boolean).join(", ") || "-"],
+        ["Status", customer.active ? "Active" : "Inactive"],
+        ["Groups", customer.groups.length > 0 ? customer.groups.join(", ") : "-"],
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [30, 64, 175] },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable?.finalY + 8,
+      head: [["Projects", "Count", "Active", "Total Value"]],
+      body: [[
+        "Customer Projects",
+        String(summary.projectCount),
+        String(summary.activeProjects),
+        formatMoney(summary.totalProjectValue),
+      ]],
+      theme: "grid",
+      headStyles: { fillColor: [15, 118, 110] },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable?.finalY + 8,
+      head: [['Project ID', 'Project', 'Status', 'Start', 'End', 'Budget']],
+      body: projects.map((project) => [
+        project.id,
+        project.name,
+        project.status,
+        project.startDate,
+        project.endDate,
+        project.budget,
+      ]),
+      theme: "striped",
+      headStyles: { fillColor: [55, 65, 81] },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable?.finalY + 8,
+      head: [['Transaction', 'Type', 'Amount', 'Date', 'Status', 'Reference']],
+      body: transactions.map((transaction) => [
+        transaction.id,
+        transaction.type,
+        transaction.amount,
+        transaction.date,
+        transaction.status,
+        transaction.reference,
+      ]),
+      theme: "striped",
+      headStyles: { fillColor: [124, 58, 237] },
+    });
+
+    const afterTransactionsY = (doc as any).lastAutoTable?.finalY || 0;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Invoiced Value: ${formatMoney(summary.invoicedValue)}`, 14, afterTransactionsY + 10);
+    doc.text(`Received Value: ${formatMoney(summary.receivedValue)}`, pageWidth / 2, afterTransactionsY + 10, { align: "center" });
+    doc.text(`Outstanding: ${formatMoney(Math.max(summary.invoicedValue - summary.receivedValue, 0))}`, pageWidth - 14, afterTransactionsY + 10, { align: "right" });
+
+    const safeName = customer.companyName.replace(/[^a-z0-9]+/gi, '_');
+    doc.save(`Customer_${safeName}_Report_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   return (
     <div className="space-y-4">
+      {/* Edit Customer Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">Edit Customer</DialogTitle>
+            <DialogDescription>Update customer details and save changes.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Company</Label>
+              <Input
+                value={editForm.companyName}
+                onChange={(e) => setEditForm({ ...editForm, companyName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Primary Contact</Label>
+              <Input
+                value={editForm.primaryContact}
+                onChange={(e) => setEditForm({ ...editForm, primaryContact: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Primary Email</Label>
+              <Input
+                value={editForm.primaryEmail}
+                onChange={(e) => setEditForm({ ...editForm, primaryEmail: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>VAT Number</Label>
+              <Input
+                value={editForm.vatNumber}
+                onChange={(e) => setEditForm({ ...editForm, vatNumber: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Website</Label>
+              <Input
+                value={editForm.website}
+                onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input
+                value={editForm.address}
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>City</Label>
+              <Input
+                value={editForm.city}
+                onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>State</Label>
+              <Input
+                value={editForm.state}
+                onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Zip Code</Label>
+              <Input
+                value={editForm.zipCode}
+                onChange={(e) => setEditForm({ ...editForm, zipCode: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <Input
+                value={editForm.country}
+                onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveEdit}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Action Buttons */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -463,23 +894,20 @@ export default function CustomersListModule() {
                   {/* Groups */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-gray-700">Groups</Label>
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
-                      {customerGroups.length === 0 && (
-                        <div className="text-xs text-gray-500">No customer groups found.</div>
-                      )}
-                      {customerGroups.map((group) => (
-                        <div key={group.id} className="flex items-center gap-2">
-                          <Checkbox
-                            id={`group-${group.id}`}
-                            checked={selectedGroupIds.includes(group.id)}
-                            onCheckedChange={() => toggleCustomerGroup(group)}
-                            className="border-gray-300"
-                          />
-                          <Label htmlFor={`group-${group.id}`} className="text-sm text-gray-600 cursor-pointer">
-                            {group.name}
-                          </Label>
-                        </div>
-                      ))}
+                    <div className="flex gap-2">
+                      <Select>
+                        <SelectTrigger className="flex-1 border-gray-200">
+                          <SelectValue placeholder="Non selected" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {customerGroups.map(group => (
+                            <SelectItem key={group} value={group.toLowerCase()}>{group}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline" size="icon" className="border-gray-200 hover:bg-blue-50 hover:border-blue-300">
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
 
@@ -490,38 +918,33 @@ export default function CustomersListModule() {
                         <Globe className="h-3 w-3 text-gray-400" />
                         Currency
                       </Label>
-                      <Select
-                        value={newCustomer.currency}
-                        onValueChange={(val) => setNewCustomer({ ...newCustomer, currency: val })}
-                      >
+                      <Select defaultValue="system">
                         <SelectTrigger className="border-gray-200">
                           <SelectValue placeholder="System Default" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="System Default">System Default</SelectItem>
-                          <SelectItem value="INR (₹)">INR (₹)</SelectItem>
-                          <SelectItem value="EUR (€)">EUR (€)</SelectItem>
-                          <SelectItem value="GBP (£)">GBP (£)</SelectItem>
-                          <SelectItem value="AED (د.إ)">AED (د.إ)</SelectItem>
+                          <SelectItem value="system">System Default</SelectItem>
+                          <SelectItem value="usd">INR (₹)</SelectItem>
+                          <SelectItem value="eur">EUR (€)</SelectItem>
+                          <SelectItem value="gbp">GBP (£)</SelectItem>
+                          <SelectItem value="inr">INR (₹)</SelectItem>
+                          <SelectItem value="aed">AED (د.إ)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-gray-700">Default Language</Label>
-                      <Select
-                        value={newCustomer.language}
-                        onValueChange={(val) => setNewCustomer({ ...newCustomer, language: val })}
-                      >
+                      <Select defaultValue="system">
                         <SelectTrigger className="border-gray-200">
                           <SelectValue placeholder="System Default" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="System Default">System Default</SelectItem>
-                          <SelectItem value="English">English</SelectItem>
-                          <SelectItem value="Spanish">Spanish</SelectItem>
-                          <SelectItem value="French">French</SelectItem>
-                          <SelectItem value="German">German</SelectItem>
-                          <SelectItem value="Arabic">Arabic</SelectItem>
+                          <SelectItem value="system">System Default</SelectItem>
+                          <SelectItem value="en">English</SelectItem>
+                          <SelectItem value="es">Spanish</SelectItem>
+                          <SelectItem value="fr">French</SelectItem>
+                          <SelectItem value="de">German</SelectItem>
+                          <SelectItem value="ar">Arabic</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -598,24 +1021,181 @@ export default function CustomersListModule() {
                 <Button 
                   variant="outline" 
                   className="border-blue-200 text-blue-700 hover:bg-blue-50"
-                  onClick={() => {
-                    handleCreateCustomer().catch((error) => console.error(error));
-                  }}
+                  onClick={() => setIsNewCustomerOpen(false)}
                 >
                   Save and create contact
                 </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => { handleCreateCustomer().catch((error) => console.error(error)); }}>
+                <Button className="bg-blue-600 hover:bg-blue-700">
                   Save
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          <Button variant="outline" className="border-gray-300 hover:bg-gray-50 transition-all duration-200">
-            <Users className="h-4 w-4 mr-2" />
-            Contacts
-          </Button>
         </div>
+
+        <Dialog open={isContactsOpen} onOpenChange={setIsContactsOpen}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="border-b pb-4">
+              <DialogTitle className="text-xl font-semibold">Contact Outreach</DialogTitle>
+              <DialogDescription>
+                Add multiple people from different companies so the team can contact them in one place.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-2">
+              <Card className="border border-slate-200 bg-slate-50/70">
+                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="outreachSubject">Subject</Label>
+                    <Input id="outreachSubject" placeholder="e.g. Follow-up for project discussion" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="outreachPurpose">Purpose</Label>
+                    <Input id="outreachPurpose" placeholder="Sales, support, partnership, etc." />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="outreachDate">Follow-up Date</Label>
+                    <Input id="outreachDate" type="date" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700">Contacts</h3>
+                  <p className="text-xs text-slate-500">Each row can belong to a different company.</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={addContactRow}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Person
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {contactRows.map((row, index) => (
+                  <Card key={row.id} className="border border-slate-200 shadow-sm">
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-medium text-slate-800">Contact {index + 1}</div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeContactRow(row.id)}
+                          disabled={contactRows.length === 1}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500 mr-2" />
+                          Remove
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                          <Label>Company Name</Label>
+                          <Input
+                            value={row.companyName}
+                            onChange={(e) => updateContactRow(row.id, "companyName", e.target.value)}
+                            placeholder="Company name"
+                            className="h-12 text-base"
+                          />
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-xs font-medium text-slate-500 mb-2">
+                              Suggested companies
+                            </p>
+                            <div className="max-h-40 overflow-y-auto space-y-1">
+                              {companySuggestions
+                                .filter((company) => {
+                                  const query = row.companyName.trim().toLowerCase();
+                                  if (!query) return true;
+                                  return company.companyName.toLowerCase().includes(query) || company.primaryContact.toLowerCase().includes(query);
+                                })
+                                .slice(0, 6)
+                                .map((company) => (
+                                  <button
+                                    key={company.id}
+                                    type="button"
+                                    onClick={() => {
+                                      updateContactRow(row.id, "companyName", company.companyName);
+                                      if (company.primaryContact) updateContactRow(row.id, "contactPerson", company.primaryContact);
+                                      if (company.primaryEmail) updateContactRow(row.id, "email", company.primaryEmail);
+                                      if (company.phone) updateContactRow(row.id, "phone", company.phone);
+                                    }}
+                                    className="w-full rounded-lg border border-transparent px-3 py-2 text-left hover:border-blue-200 hover:bg-white transition-colors"
+                                  >
+                                    <div className="text-sm font-semibold text-slate-900">{company.companyName}</div>
+                                    <div className="text-xs text-slate-500">
+                                      {company.primaryContact || "No contact"}{company.primaryEmail ? ` • ${company.primaryEmail}` : ""}{company.phone ? ` • ${company.phone}` : ""}
+                                    </div>
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2 md:col-span-1">
+                          <Label>Contact Person</Label>
+                          <Input
+                            value={row.contactPerson}
+                            onChange={(e) => updateContactRow(row.id, "contactPerson", e.target.value)}
+                            placeholder="Name of person"
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-1">
+                          <Label>Email</Label>
+                          <Input
+                            type="email"
+                            value={row.email}
+                            onChange={(e) => updateContactRow(row.id, "email", e.target.value)}
+                            placeholder="name@company.com"
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-1">
+                          <Label>Phone</Label>
+                          <Input
+                            value={row.phone}
+                            onChange={(e) => updateContactRow(row.id, "phone", e.target.value)}
+                            placeholder="Phone number"
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-1">
+                          <Label>Preferred Channel</Label>
+                          <Select value={row.preferredChannel} onValueChange={(value) => updateContactRow(row.id, "preferredChannel", value)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="email">Email</SelectItem>
+                              <SelectItem value="phone">Phone</SelectItem>
+                              <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                              <SelectItem value="meeting">Meeting</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2 md:col-span-1">
+                          <Label>Note</Label>
+                          <Input
+                            value={row.note}
+                            onChange={(e) => updateContactRow(row.id, "note", e.target.value)}
+                            placeholder="Reason to contact"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter className="border-t pt-4">
+              <Button variant="outline" onClick={() => setIsContactsOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmitContacts} className="bg-blue-600 hover:bg-blue-700">
+                <Users className="h-4 w-4 mr-2" />
+                Save Contacts
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Filter Dropdown */}
         <DropdownMenu>
@@ -638,8 +1218,8 @@ export default function CustomersListModule() {
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="bg-white shadow-lg border border-gray-200">
                 {customerGroups.map(group => (
-                  <DropdownMenuItem key={group.id} className="cursor-pointer hover:bg-blue-50 focus:bg-blue-50">
-                    {group.name}
+                  <DropdownMenuItem key={group} className="cursor-pointer hover:bg-blue-50 focus:bg-blue-50">
+                    {group}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuSubContent>
@@ -743,7 +1323,7 @@ export default function CustomersListModule() {
             </div>
             <div className="text-center p-3 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors cursor-pointer">
               <div className="text-2xl font-bold text-gray-900">{stats.loggedInToday}</div>
-              <div className="text-sm text-gray-500">New Customers Today</div>
+              <div className="text-sm text-gray-500">Contacts Logged In Today</div>
             </div>
           </div>
         </CardContent>
@@ -997,33 +1577,8 @@ export default function CustomersListModule() {
                 </DialogContent>
               </Dialog>
 
-              {selectedCustomers.length > 0 && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-green-200 text-green-700 hover:bg-green-50"
-                    onClick={() => handleBulkStatusChange(true)}
-                    disabled={isBulkUpdating}
-                  >
-                    <UserCheck className="h-4 w-4 mr-2" />
-                    Activate
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-red-200 text-red-700 hover:bg-red-50"
-                    onClick={() => handleBulkStatusChange(false)}
-                    disabled={isBulkUpdating}
-                  >
-                    <UserX className="h-4 w-4 mr-2" />
-                    Deactivate
-                  </Button>
-                </>
-              )}
-
               {/* Refresh Button */}
-              <Button variant="outline" size="icon" className="border-gray-200 hover:bg-gray-50" onClick={() => { loadCustomers().catch((error) => console.error(error)); }}>
+              <Button variant="outline" size="icon" className="border-gray-200 hover:bg-gray-50">
                 <RefreshCw className="h-4 w-4" />
               </Button>
 
@@ -1072,6 +1627,7 @@ export default function CustomersListModule() {
                   <TableHead className="text-gray-600 font-semibold text-center">Active</TableHead>
                   <TableHead className="text-gray-600 font-semibold">Groups</TableHead>
                   <TableHead className="text-gray-600 font-semibold">Date Created</TableHead>
+                  <TableHead className="text-gray-600 font-semibold text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1087,13 +1643,15 @@ export default function CustomersListModule() {
                         className="border-gray-300"
                       />
                     </TableCell>
-                    <TableCell className="text-gray-500 font-medium">
-                      {(currentPage - 1) * Number(pageSize) + index + 1}
-                    </TableCell>
+                    <TableCell className="text-gray-500 font-medium">{customer.id}</TableCell>
                     <TableCell>
-                      <span className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => openCustomerView(customer)}
+                        className="text-left text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
+                      >
                         {customer.companyName}
-                      </span>
+                      </button>
                     </TableCell>
                     <TableCell className="text-gray-700">{customer.primaryContact || "-"}</TableCell>
                     <TableCell>
@@ -1113,19 +1671,6 @@ export default function CustomersListModule() {
                     <TableCell className="text-center">
                       <Switch 
                         checked={customer.active}
-                        onCheckedChange={(checked) => {
-                          updateCustomer(customer.id, { active: checked })
-                            .then((updated) => {
-                              setCustomers((prev) => prev.map((item) => (item.id === updated.id ? { ...item, active: updated.active } : item)));
-                            })
-                            .catch((error) => {
-                              toast({
-                                title: "Failed to update status",
-                                description: error instanceof Error ? error.message : "Unable to update customer status.",
-                                variant: "destructive",
-                              });
-                            });
-                        }}
                         className="data-[state=checked]:bg-blue-600"
                       />
                     </TableCell>
@@ -1133,6 +1678,44 @@ export default function CustomersListModule() {
                       {customer.groups.length > 0 ? customer.groups.join(", ") : "-"}
                     </TableCell>
                     <TableCell className="text-gray-500 text-sm">{customer.dateCreated}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-blue-50 text-blue-600 hover:text-blue-700"
+                          onClick={() => openCustomerView(customer)}
+                          title="View Customer"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100">
+                              <FileText className="h-4 w-4 text-slate-500" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => openCustomerView(customer)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => openCustomerEdit(customer)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="cursor-pointer text-red-600 focus:text-red-600"
+                              onClick={() => handleDeleteCustomer(customer)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

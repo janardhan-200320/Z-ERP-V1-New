@@ -679,7 +679,8 @@ export default function HRMEmployees() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to update employee');
+        const message = errorData.message || errorData.error || errorData.details;
+        throw new Error(message || 'Failed to update employee');
       }
 
       const updatedEmployee = await response.json();
@@ -1531,6 +1532,7 @@ export default function HRMEmployees() {
     }
 
     const missingFields: string[] = [];
+    if (!newEmployee.email.trim()) missingFields.push('Official Email');
     if (!newEmployee.personalEmail.trim()) missingFields.push('Personal Email');
     if (!newEmployee.phone.trim()) missingFields.push('Primary Phone');
     if (!newEmployee.bankName.trim()) missingFields.push('Bank Name');
@@ -1573,7 +1575,8 @@ export default function HRMEmployees() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to create employee');
+        const message = errorData.message || errorData.error || errorData.details;
+        throw new Error(message || 'Failed to create employee');
       }
 
       const createdEmployee = await response.json();
@@ -1682,7 +1685,8 @@ export default function HRMEmployees() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || 'Failed to delete employee');
+        const message = errorData.message || errorData.error || errorData.details;
+        throw new Error(message || 'Failed to delete employee');
       }
 
       refetchEmployees();

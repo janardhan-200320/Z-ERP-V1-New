@@ -112,11 +112,15 @@ export const createEmployee = async (req: Request, res: Response) => {
     // Get or create department
     let departmentId = null;
     if (department) {
-      const { data: deptData } = await client
+      const { data: deptData, error: deptError } = await client
         .from('departments')
         .select('id')
         .eq('name', department)
-        .single();
+        .maybeSingle();
+
+      if (deptError) {
+        throw deptError;
+      }
 
       if (deptData) {
         departmentId = deptData.id;
@@ -128,7 +132,11 @@ export const createEmployee = async (req: Request, res: Response) => {
           .select('id')
           .single();
 
-        if (!deptError && newDept) {
+        if (deptError) {
+          throw deptError;
+        }
+
+        if (newDept) {
           departmentId = newDept.id;
         }
       }
@@ -137,11 +145,15 @@ export const createEmployee = async (req: Request, res: Response) => {
     // Get or create designation
     let designationId = null;
     if (designation) {
-      const { data: desigData } = await client
+      const { data: desigData, error: desigError } = await client
         .from('designations')
         .select('id')
         .eq('name', designation)
-        .single();
+        .maybeSingle();
+
+      if (desigError) {
+        throw desigError;
+      }
 
       if (desigData) {
         designationId = desigData.id;
@@ -153,7 +165,11 @@ export const createEmployee = async (req: Request, res: Response) => {
           .select('id')
           .single();
 
-        if (!desigError && newDesig) {
+        if (desigError) {
+          throw desigError;
+        }
+
+        if (newDesig) {
           designationId = newDesig.id;
         }
       }
@@ -195,7 +211,12 @@ export const createEmployee = async (req: Request, res: Response) => {
         }
       }
       
-      throw new Error(userMessage);
+      return res.status(400).json({
+        message: userMessage,
+        error: empError.message,
+        code: empError.code,
+        details: empError.details
+      });
     }
 
     // Insert bank account information if provided

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { customerDirectory } from "@/lib/customer-directory";
+import {
+  createCustomer,
+  deleteCustomer,
+  fetchCustomers,
+  fetchCustomerGroups,
+  updateCustomer,
+  type CustomerRecord,
+} from "@/lib/supabase-data";
 import { useToast } from "@/hooks/use-toast";
 import { saveCustomerForStandaloneView } from "@/lib/customer-view-storage";
 import jsPDF from "jspdf";
@@ -184,9 +191,7 @@ const countries = [
 ];
 
 // Customer groups
-const customerGroups = [
-  "VIP", "Regular", "Enterprise", "Startup", "Government", "Education", "Healthcare", "Retail"
-];
+const defaultCustomerGroups: string[] = [];
 
 const parseMoneyValue = (value: string) => {
   const parsed = Number(value.replace(/[^0-9.-]/g, ""));
@@ -194,6 +199,60 @@ const parseMoneyValue = (value: string) => {
 };
 
 const formatMoney = (value: number) => `₹${value.toLocaleString("en-IN")}`;
+
+const buildAddress = (fields: {
+  street?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  country?: string | null;
+}) => {
+  const hasAny = Object.values(fields).some((value) => value && String(value).trim().length > 0);
+  if (!hasAny) return undefined;
+  return {
+    street: fields.street || "",
+    city: fields.city || "",
+    state: fields.state || "",
+    zipCode: fields.zipCode || "",
+    country: fields.country || "",
+  };
+};
+
+const mapCustomerRecord = (record: CustomerRecord): Customer => ({
+  id: record.id,
+  companyName: record.company_name || "",
+  primaryContact: record.primary_contact || "",
+  primaryEmail: record.primary_email || "",
+  phone: record.phone || "",
+  active: record.active ?? true,
+  groups: record.groups || [],
+  dateCreated: record.date_created
+    ? new Date(record.date_created).toISOString().split("T")[0]
+    : "",
+  vatNumber: record.vat_number || undefined,
+  website: record.website || undefined,
+  currency: record.currency || undefined,
+  language: record.language || undefined,
+  address: record.address || undefined,
+  city: record.city || undefined,
+  state: record.state || undefined,
+  zipCode: record.zip_code || undefined,
+  country: record.country || undefined,
+  billingAddress: buildAddress({
+    street: record.billing_street,
+    city: record.billing_city,
+    state: record.billing_state,
+    zipCode: record.billing_zip_code,
+    country: record.billing_country,
+  }),
+  shippingAddress: buildAddress({
+    street: record.shipping_street,
+    city: record.shipping_city,
+    state: record.shipping_state,
+    zipCode: record.shipping_zip_code,
+    country: record.shipping_country,
+  }),
+});
 
 export default function CustomersListModule() {
   const { toast } = useToast();
@@ -209,7 +268,11 @@ export default function CustomersListModule() {
   const [sortColumn, setSortColumn] = useState<string>("companyName");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>(customerDirectory);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(true);
+  const [customersError, setCustomersError] = useState<string | null>(null);
+  const [groupOptions, setGroupOptions] = useState<string[]>(defaultCustomerGroups);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isContactsOpen, setIsContactsOpen] = useState(false);
   const [contactRows, setContactRows] = useState<ContactOutreachRow[]>([
@@ -237,6 +300,29 @@ export default function CustomersListModule() {
     country: "",
     groups: [] as string[],
   });
+
+  const customerGroups = groupOptions;
+
+  const loadCustomerData = async (isInitial = false) => {
+    try {
+      if (isInitial) setIsLoadingCustomers(true);
+      setCustomersError(null);
+      const [customersData, groupsData] = await Promise.all([
+        fetchCustomers(),
+        fetchCustomerGroups(),
+      ]);
+      setCustomers(customersData.map(mapCustomerRecord));
+      setGroupOptions(groupsData.map((group) => group.name).filter(Boolean));
+    } catch (error: any) {
+      setCustomersError(error?.message || "Failed to load customers");
+    } finally {
+      if (isInitial) setIsLoadingCustomers(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCustomerData(true);
+  }, []);
   
   // Manipulation dialog state
   const [massDelete, setMassDelete] = useState(false);
@@ -286,157 +372,30 @@ export default function CustomersListModule() {
       .sort((a, b) => a.companyName.localeCompare(b.companyName));
   }, [customers]);
 
-  const getCustomerProjects = (customer: Customer): CustomerProject[] => {
-    const base = customer.id * 3;
-    return [
-      {
-        id: `PRJ-${base + 1}`,
-        name: `${customer.companyName} Website Revamp`,
-        status: 'Active',
-        startDate: '2026-01-10',
-        endDate: '2026-03-15',
-        budget: '₹120,000',
-      },
-      {
-        id: `PRJ-${base + 2}`,
-        name: `${customer.companyName} Mobile App`,
-        status: 'In Review',
-        startDate: '2026-02-05',
-        endDate: '2026-04-20',
-        budget: '₹210,000',
-      },
-      {
-        id: `PRJ-${base + 3}`,
-        name: `${customer.companyName} CRM Rollout`,
-        status: 'Completed',
-        startDate: '2025-10-01',
-        endDate: '2025-12-12',
-        budget: '₹75,000',
-      },
-    ];
-  };
+  const getCustomerSummary = () => ({
+    projectCount: 0,
+    activeProjects: 0,
+    transactionCount: 0,
+    totalProjectValue: 0,
+    invoicedValue: 0,
+    receivedValue: 0,
+  });
 
-  const getCustomerTransactions = (customer: Customer): CustomerTransaction[] => {
-    const base = customer.id * 5;
-    return [
-      {
-        id: `TXN-${base + 1}`,
-        type: 'Invoice',
-        amount: '₹45,000',
-        date: '2026-02-02',
-        status: 'Paid',
-        reference: 'INV-2026-102',
-      },
-      {
-        id: `TXN-${base + 2}`,
-        type: 'Payment',
-        amount: '₹30,000',
-        date: '2026-02-15',
-        status: 'Received',
-        reference: 'PAY-2026-44',
-      },
-      {
-        id: `TXN-${base + 3}`,
-        type: 'Invoice',
-        amount: '₹65,000',
-        date: '2026-03-04',
-        status: 'Pending',
-        reference: 'INV-2026-118',
-      },
-    ];
-  };
-
-  const getCustomerSummary = (customer: Customer) => {
-    const projects = getCustomerProjects(customer);
-    const transactions = getCustomerTransactions(customer);
-    const totalProjectValue = projects.reduce((sum, project) => sum + parseMoneyValue(project.budget), 0);
-    const invoicedValue = transactions
-      .filter((transaction) => transaction.type === "Invoice")
-      .reduce((sum, transaction) => sum + parseMoneyValue(transaction.amount), 0);
-    const receivedValue = transactions
-      .filter((transaction) => transaction.type === "Payment" || transaction.status === "Received")
-      .reduce((sum, transaction) => sum + parseMoneyValue(transaction.amount), 0);
-
-    return {
-      projectCount: projects.length,
-      activeProjects: projects.filter((project) => project.status !== "Completed").length,
-      transactionCount: transactions.length,
-      totalProjectValue,
-      invoicedValue,
-      receivedValue,
-    };
-  };
-
-  const buildCustomerStandaloneRecord = (customer: Customer): CustomerStandaloneRecord => {
-    const projects = getCustomerProjects(customer);
-    const transactions = getCustomerTransactions(customer);
-
-    return {
-      ...customer,
-      invoices: transactions.map((transaction, index) => ({
-        id: `INV-${customer.id}-${index + 1}`,
-        date: transaction.date,
-        amount: transaction.amount,
-        status: transaction.status === 'Paid' ? 'Paid' : 'Open',
-        reference: transaction.reference,
-      })),
-      proposals: projects.map((project, index) => ({
-        id: `PRO-${customer.id}-${index + 1}`,
-        title: project.name,
-        amount: project.budget,
-        status: project.status,
-        date: project.startDate,
-      })),
-      creditNotes: [
-        { id: `CN-${customer.id}-1`, date: '2026-02-18', amount: '₹5,000', reason: 'Service credit adjustment' },
-      ],
-      subscriptions: [
-        { id: `SUB-${customer.id}-1`, plan: 'Business Support', status: 'Active', renewalDate: '2026-04-01', amount: '₹12,000' },
-        { id: `SUB-${customer.id}-2`, plan: 'Cloud Hosting', status: 'Trial', renewalDate: '2026-03-15', amount: '₹8,500' },
-      ],
-      expenses: [
-        { id: `EXP-${customer.id}-1`, title: 'Travel and onboarding', date: '2026-02-10', amount: '₹2,400', category: 'Operations' },
-        { id: `EXP-${customer.id}-2`, title: 'Client meeting refreshments', date: '2026-02-19', amount: '₹850', category: 'Sales' },
-      ],
-      tasks: projects.map((project, index) => ({
-        id: `TASK-${customer.id}-${index + 1}`,
-        title: `${project.name} follow-up task`,
-        project: project.name,
-        status: index % 2 === 0 ? 'Open' : 'In Review',
-        dueDate: project.endDate,
-      })),
-      statements: [
-        { id: `ST-${customer.id}-1`, period: 'Jan 2026', openingBalance: '₹50,000', closingBalance: '₹95,000', status: 'Draft' },
-        { id: `ST-${customer.id}-2`, period: 'Feb 2026', openingBalance: '₹95,000', closingBalance: '₹1,20,000', status: 'Issued' },
-      ],
-      notes: [
-        { id: `NOTE-${customer.id}-1`, title: 'Key Account', note: `Customer requires weekly updates and clear project milestone reporting for ${customer.companyName}.`, updatedAt: '2026-02-20' },
-      ],
-      payments: transactions,
-      files: [
-        { id: `FILE-${customer.id}-1`, name: `${customer.companyName}_agreement.pdf`, type: 'application/pdf', size: '184 KB' },
-        { id: `FILE-${customer.id}-2`, name: `${customer.companyName}_brief.docx`, type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: '96 KB' },
-      ],
-      contacts: [
-        {
-          id: `CONTACT-${customer.id}-1`,
-          name: customer.primaryContact || 'Primary Contact',
-          title: 'Decision Maker',
-          email: customer.primaryEmail || '',
-          phone: customer.phone || '',
-          company: customer.companyName,
-        },
-        {
-          id: `CONTACT-${customer.id}-2`,
-          name: 'Accounts Team',
-          title: 'Billing Contact',
-          email: customer.primaryEmail ? `billing+${customer.primaryEmail}` : '',
-          phone: customer.phone || '',
-          company: customer.companyName,
-        },
-      ],
-    };
-  };
+  const buildCustomerStandaloneRecord = (customer: Customer): CustomerStandaloneRecord => ({
+    ...customer,
+    invoices: [],
+    proposals: [],
+    creditNotes: [],
+    subscriptions: [],
+    expenses: [],
+    projects: [],
+    tasks: [],
+    statements: [],
+    notes: [],
+    payments: [],
+    files: [],
+    contacts: [],
+  });
 
   // Summary stats
   const stats = {
@@ -600,42 +559,138 @@ export default function CustomersListModule() {
     setIsEditOpen(true);
   };
 
-  const handleDeleteCustomer = (customer: Customer) => {
+  const handleDeleteCustomer = async (customer: Customer) => {
     if (!window.confirm(`Delete ${customer.companyName}? This cannot be undone.`)) return;
-    setCustomers((prev) => prev.filter((entry) => entry.id !== customer.id));
-    setSelectedCustomers((prev) => prev.filter((id) => id !== customer.id));
+    try {
+      await deleteCustomer(customer.id);
+      setCustomers((prev) => prev.filter((entry) => entry.id !== customer.id));
+      setSelectedCustomers((prev) => prev.filter((id) => id !== customer.id));
+      toast({ title: "Customer deleted", description: `${customer.companyName} removed.` });
+    } catch (error: any) {
+      toast({
+        title: "Delete failed",
+        description: error?.message || "Unable to delete customer.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!selectedCustomer) return;
-    setCustomers((prev) =>
-      prev.map((entry) =>
-        entry.id === selectedCustomer.id
-          ? {
-              ...entry,
-              companyName: editForm.companyName,
-              primaryContact: editForm.primaryContact,
-              primaryEmail: editForm.primaryEmail,
-              phone: editForm.phone,
-              vatNumber: editForm.vatNumber,
-              website: editForm.website,
-              address: editForm.address,
-              city: editForm.city,
-              state: editForm.state,
-              zipCode: editForm.zipCode,
-              country: editForm.country,
-              groups: editForm.groups,
-            }
-          : entry
-      )
-    );
-    setIsEditOpen(false);
+    try {
+      const payload: Partial<CustomerRecord> = {
+        company_name: editForm.companyName,
+        primary_contact: editForm.primaryContact || null,
+        primary_email: editForm.primaryEmail || null,
+        phone: editForm.phone || null,
+        vat_number: editForm.vatNumber || null,
+        website: editForm.website || null,
+        address: editForm.address || null,
+        city: editForm.city || null,
+        state: editForm.state || null,
+        zip_code: editForm.zipCode || null,
+        country: editForm.country || null,
+        groups: editForm.groups,
+      };
+      const updated = await updateCustomer(selectedCustomer.id, payload);
+      setCustomers((prev) =>
+        prev.map((entry) => (entry.id === selectedCustomer.id ? mapCustomerRecord(updated) : entry))
+      );
+      setIsEditOpen(false);
+      toast({ title: "Customer updated", description: `${editForm.companyName} saved.` });
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error?.message || "Unable to update customer.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateCustomer = async () => {
+    if (!newCustomer.companyName.trim()) {
+      toast({
+        title: "Company is required",
+        description: "Please enter a company name before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const payload: Partial<CustomerRecord> = {
+        company_name: newCustomer.companyName.trim(),
+        primary_contact: null,
+        primary_email: null,
+        phone: newCustomer.phone?.trim() || null,
+        active: true,
+        groups: newCustomer.groups ?? [],
+        date_created: new Date().toISOString(),
+        vat_number: newCustomer.vatNumber?.trim() || null,
+        website: newCustomer.website?.trim() || null,
+        currency: newCustomer.currency || null,
+        language: newCustomer.language || null,
+        address: newCustomer.address?.trim() || null,
+        city: newCustomer.city?.trim() || null,
+        state: newCustomer.state?.trim() || null,
+        zip_code: newCustomer.zipCode?.trim() || null,
+        country: newCustomer.country?.trim() || null,
+        billing_street: newCustomer.billingStreet?.trim() || null,
+        billing_city: newCustomer.billingCity?.trim() || null,
+        billing_state: newCustomer.billingState?.trim() || null,
+        billing_zip_code: newCustomer.billingZipCode?.trim() || null,
+        billing_country: newCustomer.billingCountry?.trim() || null,
+        shipping_street: newCustomer.shippingStreet?.trim() || null,
+        shipping_city: newCustomer.shippingCity?.trim() || null,
+        shipping_state: newCustomer.shippingState?.trim() || null,
+        shipping_zip_code: newCustomer.shippingZipCode?.trim() || null,
+        shipping_country: newCustomer.shippingCountry?.trim() || null,
+      };
+
+      const created = await createCustomer(payload);
+      setCustomers((prev) => [mapCustomerRecord(created), ...prev]);
+      setIsNewCustomerOpen(false);
+      toast({
+        title: "Customer created",
+        description: `${newCustomer.companyName} added successfully.`,
+      });
+      setNewCustomer({
+        companyName: "",
+        vatNumber: "",
+        phone: "",
+        website: "",
+        groups: [],
+        currency: "System Default",
+        language: "System Default",
+        address: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        country: "India",
+        billingStreet: "",
+        billingCity: "",
+        billingState: "",
+        billingZipCode: "",
+        billingCountry: "",
+        shippingStreet: "",
+        shippingCity: "",
+        shippingState: "",
+        shippingZipCode: "",
+        shippingCountry: "",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Save failed",
+        description: error?.message || "Unable to create customer.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDownloadCustomerReport = (customer: Customer) => {
-    const projects = getCustomerProjects(customer);
-    const transactions = getCustomerTransactions(customer);
-    const summary = getCustomerSummary(customer);
+    const projects: CustomerProject[] = [];
+    const transactions: CustomerTransaction[] = [];
+    const summary = getCustomerSummary();
 
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -684,35 +739,39 @@ export default function CustomersListModule() {
       headStyles: { fillColor: [15, 118, 110] },
     });
 
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable?.finalY + 8,
-      head: [['Project ID', 'Project', 'Status', 'Start', 'End', 'Budget']],
-      body: projects.map((project) => [
-        project.id,
-        project.name,
-        project.status,
-        project.startDate,
-        project.endDate,
-        project.budget,
-      ]),
-      theme: "striped",
-      headStyles: { fillColor: [55, 65, 81] },
-    });
+    if (projects.length > 0) {
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable?.finalY + 8,
+        head: [['Project ID', 'Project', 'Status', 'Start', 'End', 'Budget']],
+        body: projects.map((project) => [
+          project.id,
+          project.name,
+          project.status,
+          project.startDate,
+          project.endDate,
+          project.budget,
+        ]),
+        theme: "striped",
+        headStyles: { fillColor: [55, 65, 81] },
+      });
+    }
 
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable?.finalY + 8,
-      head: [['Transaction', 'Type', 'Amount', 'Date', 'Status', 'Reference']],
-      body: transactions.map((transaction) => [
-        transaction.id,
-        transaction.type,
-        transaction.amount,
-        transaction.date,
-        transaction.status,
-        transaction.reference,
-      ]),
-      theme: "striped",
-      headStyles: { fillColor: [124, 58, 237] },
-    });
+    if (transactions.length > 0) {
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable?.finalY + 8,
+        head: [['Transaction', 'Type', 'Amount', 'Date', 'Status', 'Reference']],
+        body: transactions.map((transaction) => [
+          transaction.id,
+          transaction.type,
+          transaction.amount,
+          transaction.date,
+          transaction.status,
+          transaction.reference,
+        ]),
+        theme: "striped",
+        headStyles: { fillColor: [124, 58, 237] },
+      });
+    }
 
     const afterTransactionsY = (doc as any).lastAutoTable?.finalY || 0;
     doc.setFontSize(9);
@@ -1025,7 +1084,7 @@ export default function CustomersListModule() {
                 >
                   Save and create contact
                 </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreateCustomer}>
                   Save
                 </Button>
               </DialogFooter>

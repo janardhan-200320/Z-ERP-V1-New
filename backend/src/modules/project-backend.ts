@@ -310,14 +310,36 @@ function registerCrudRoutes(routePath: string, tableName: string, app: express.E
 
     const insertPayload = routePath === 'project-milestones' ? normalizeMilestonePayload(req.body) : req.body;
 
-    const { data, error } = await supabase!
-      .from(tableName)
-      .insert(insertPayload)
-      .select('*')
-      .single();
+    // For customer-communications, exclude attachment_files from select to avoid schema cache issues
+    let selectQuery = supabase!.from(tableName).insert(insertPayload);
+    
+    if (routePath === 'customer-communications') {
+      selectQuery = selectQuery.select('id, customer_id, contact_person, type, subject, date, time, priority, follow_up_date, status, notes, outcome, attachments, created_at, updated_at');
+    } else {
+      selectQuery = selectQuery.select('*');
+    }
+
+    const { data, error } = await selectQuery.single();
 
     if (error) {
-      return res.status(400).json({ error: extractError(error) });
+      console.error(`[${routePath}] INSERT ERROR:`, { error, payload: insertPayload, details: (error as any).details, hint: (error as any).hint });
+      return res.status(400).json({ error: extractError(error), details: (error as any).details, hint: (error as any).hint });
+    }
+    
+    // For customer-communications, try to fetch attachment_files if it exists
+    if (routePath === 'customer-communications' && data) {
+      const { data: fullRecord } = await supabase!
+        .from(tableName)
+        .select('attachment_files')
+        .eq('id', data.id)
+        .single()
+        .catch(() => ({ data: null }));
+      if (fullRecord && fullRecord.attachment_files) {
+        data.attachment_files = fullRecord.attachment_files;
+      } else {
+        data.attachment_files = [];
+      }
+    }
     }
 
     if (routePath === 'project-milestones' || routePath === 'project-tasks') {

@@ -35,7 +35,7 @@ type CommunicationView = {
   status: "completed" | "pending" | "scheduled";
   notes?: string;
   outcome?: string;
-  attachments?: number;
+  attachments?: number; //
 };
 
 export default function CommunicationLogModule() {

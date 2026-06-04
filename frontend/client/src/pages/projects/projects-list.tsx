@@ -120,7 +120,7 @@ const RichTextEditor = ({ value, onChange }: { value: string; onChange: (val: st
         onChange={(e) => onChange(e.target.value)}
       />
       <div className="bg-slate-50 border-t border-slate-100 px-3 py-1 flex justify-between items-center">
-        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest italic">Live Editor</span>
+        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest italic">Mock Editor</span>
         <span className="text-[9px] text-slate-500 font-bold">{value.length} CHARS</span>
       </div>
     </div>

@@ -75,6 +75,105 @@ function normalizeMilestonePayload(body = {}) {
   return payload;
 }
 
+async function resolveDepartmentId(departmentName) {
+  if (!supabase || !departmentName) return null;
+
+  const normalized = String(departmentName).trim();
+  if (!normalized) return null;
+
+  const { data: existingDepartment, error: existingError } = await supabase
+    .from('departments')
+    .select('id')
+    .eq('name', normalized)
+    .maybeSingle();
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  if (existingDepartment?.id) {
+    return existingDepartment.id;
+  }
+
+  const { data: newDepartment, error: insertError } = await supabase
+    .from('departments')
+    .insert([{ name: normalized, description: '' }])
+    .select('id')
+    .single();
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  return newDepartment?.id ?? null;
+}
+
+async function resolveDesignationId(designationName) {
+  if (!supabase || !designationName) return null;
+
+  const normalized = String(designationName).trim();
+  if (!normalized) return null;
+
+  const { data: existingDesignation, error: existingError } = await supabase
+    .from('designations')
+    .select('id')
+    .eq('name', normalized)
+    .maybeSingle();
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  if (existingDesignation?.id) {
+    return existingDesignation.id;
+  }
+
+  const { data: newDesignation, error: insertError } = await supabase
+    .from('designations')
+    .insert([{ name: normalized, description: '' }])
+    .select('id')
+    .single();
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  return newDesignation?.id ?? null;
+}
+
+async function hydrateEmployees(rows) {
+  if (!supabase || !Array.isArray(rows) || rows.length === 0) return rows;
+
+  const departmentIds = Array.from(new Set(rows.map((row) => row.department_id).filter(Boolean)));
+  const designationIds = Array.from(new Set(rows.map((row) => row.designation_id).filter(Boolean)));
+
+  const [departmentsResult, designationsResult] = await Promise.all([
+    departmentIds.length
+      ? supabase.from('departments').select('id, name').in('id', departmentIds)
+      : Promise.resolve({ data: [] }),
+    designationIds.length
+      ? supabase.from('designations').select('id, name').in('id', designationIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  if (departmentsResult.error) {
+    throw departmentsResult.error;
+  }
+
+  if (designationsResult.error) {
+    throw designationsResult.error;
+  }
+
+  const departmentMap = new Map((departmentsResult.data || []).map((dept) => [dept.id, dept.name]));
+  const designationMap = new Map((designationsResult.data || []).map((desig) => [desig.id, desig.name]));
+
+  return rows.map((row) => ({
+    ...row,
+    department: row.department_id ? departmentMap.get(row.department_id) ?? null : null,
+    designation: row.designation_id ? designationMap.get(row.designation_id) ?? null : null,
+  }));
+}
+
 function calculateTaskProgress(task) {
   const totalSubtasks = Number(task?.subtasks_total ?? 0);
   const completedSubtasks = Number(task?.subtasks_completed ?? 0);
@@ -694,6 +793,203 @@ app.get('/api/storage/customer-communications/ensure', async (req, res) => {
   res.json({ ok: true, bucket: communicationStorageBucket });
 });
 
+app.get('/api/hrm/employees', async (req, res) => {
+  if (!ensureSupabaseConfigured(res)) return;
+
+  try {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.status(500).json({ error: extractError(error) });
+    }
+
+    const hydrated = await hydrateEmployees(data || []);
+    res.json(hydrated);
+  } catch (err) {
+    res.status(500).json({ error: extractError(err) });
+  }
+});
+
+app.get('/api/hrm/employees/:id', async (req, res) => {
+  if (!ensureSupabaseConfigured(res)) return;
+
+  try {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (error) {
+      return res.status(500).json({ error: extractError(error) });
+    }
+
+    if (!data) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    const [hydrated] = await hydrateEmployees([data]);
+    res.json(hydrated);
+  } catch (err) {
+    res.status(500).json({ error: extractError(err) });
+  }
+});
+
+app.post('/api/hrm/employees', async (req, res) => {
+  if (!ensureSupabaseConfigured(res)) return;
+
+  try {
+    const {
+      full_name,
+      email,
+      phone,
+      department,
+      designation,
+      gender,
+      join_date,
+      location,
+      status = 'onboarding',
+    } = req.body || {};
+
+    const nameParts = String(full_name || '').trim().split(' ').filter(Boolean);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ');
+
+    if (!firstName || !email) {
+      return res.status(400).json({ error: 'Full name and email are required.' });
+    }
+
+    const departmentId = await resolveDepartmentId(department);
+    const designationId = await resolveDesignationId(designation);
+
+    const employeePayload = {
+      first_name: firstName,
+      last_name: lastName,
+      email: String(email).trim().toLowerCase(),
+      phone: phone ? String(phone).trim() : null,
+      department_id: departmentId,
+      designation_id: designationId,
+      date_of_joining: join_date || new Date().toISOString().slice(0, 10),
+      gender: gender || null,
+      address: location || null,
+      status: status || 'onboarding',
+    };
+
+    const { data, error } = await supabase
+      .from('employees')
+      .insert(employeePayload)
+      .select('*')
+      .single();
+
+    if (error) {
+      return res.status(400).json({ error: extractError(error) });
+    }
+
+    const [hydrated] = await hydrateEmployees([data]);
+    res.status(201).json(hydrated);
+  } catch (err) {
+    res.status(500).json({ error: extractError(err) });
+  }
+});
+
+app.put('/api/hrm/employees/:id', async (req, res) => {
+  if (!ensureSupabaseConfigured(res)) return;
+
+  try {
+    const { id } = req.params;
+    const {
+      full_name,
+      email,
+      phone,
+      department,
+      designation,
+      gender,
+      join_date,
+      location,
+      status,
+    } = req.body || {};
+
+    const updatePayload = {};
+
+    if (full_name) {
+      const nameParts = String(full_name).trim().split(' ').filter(Boolean);
+      updatePayload.first_name = nameParts[0] || '';
+      updatePayload.last_name = nameParts.slice(1).join(' ');
+    }
+
+    if (email !== undefined) {
+      updatePayload.email = String(email).trim().toLowerCase();
+    }
+
+    if (phone !== undefined) {
+      const normalizedPhone = String(phone || '').trim();
+      updatePayload.phone = normalizedPhone ? normalizedPhone : null;
+    }
+
+    if (gender !== undefined) {
+      updatePayload.gender = gender || null;
+    }
+
+    if (location !== undefined) {
+      updatePayload.address = location || null;
+    }
+
+    if (status !== undefined) {
+      updatePayload.status = status;
+    }
+
+    if (join_date) {
+      updatePayload.date_of_joining = join_date;
+    }
+
+    if (department !== undefined) {
+      updatePayload.department_id = await resolveDepartmentId(department);
+    }
+
+    if (designation !== undefined) {
+      updatePayload.designation_id = await resolveDesignationId(designation);
+    }
+
+    const { data, error } = await supabase
+      .from('employees')
+      .update(updatePayload)
+      .eq('id', id)
+      .select('*')
+      .maybeSingle();
+
+    if (error) {
+      return res.status(400).json({ error: extractError(error) });
+    }
+
+    if (!data) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    const [hydrated] = await hydrateEmployees([data]);
+    res.json(hydrated);
+  } catch (err) {
+    res.status(500).json({ error: extractError(err) });
+  }
+});
+
+app.delete('/api/hrm/employees/:id', async (req, res) => {
+  if (!ensureSupabaseConfigured(res)) return;
+
+  const { error } = await supabase
+    .from('employees')
+    .delete()
+    .eq('id', req.params.id);
+
+  if (error) {
+    return res.status(400).json({ error: extractError(error) });
+  }
+
+  res.status(204).send();
+});
+
 registerCrudRoutes('projects', managedTables.projects);
 registerCrudRoutes('customers', managedTables.customers);
 registerCrudRoutes('customer-groups', managedTables['customer-groups']);
@@ -706,6 +1002,10 @@ registerCrudRoutes('project-timesheets', managedTables['project-timesheets']);
 registerCrudRoutes('project-tasks', managedTables['project-tasks']);
 registerCrudRoutes('project-task-subtasks', managedTables['project-task-subtasks']);
 registerCrudRoutes('project-task-time-entries', managedTables['project-task-time-entries']);
+
+// Client Portal Routes
+const clientPortalRoutes = require('./src/routes/client-portal.routes');
+app.use('/api/client-portal', clientPortalRoutes);
 
 app.listen(port, () => {
   console.log(`Z-ERP backend running on http://localhost:${port}`);

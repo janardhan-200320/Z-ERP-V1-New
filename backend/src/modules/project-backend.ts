@@ -31,6 +31,7 @@ const managedTables: Record<string, string> = {
   'project-tasks': 'project_tasks',
   'project-task-subtasks': 'project_task_subtasks',
   'project-task-time-entries': 'project_task_time_entries',
+  'project-automation-rules': 'project_automation_rules',
 };
 
 const upload = multer({
@@ -680,4 +681,8 @@ export function registerProjectModule(app: express.Express) {
   registerCrudRoutes('project-tasks', managedTables['project-tasks'], app);
   registerCrudRoutes('project-task-subtasks', managedTables['project-task-subtasks'], app);
   registerCrudRoutes('project-task-time-entries', managedTables['project-task-time-entries'], app);
+<<<<<<< HEAD
+=======
+  registerCrudRoutes('project-automation-rules', managedTables['project-automation-rules'], app);
+>>>>>>> 4edec32d47db7e5e4849e494786fff7d71a54372
 }

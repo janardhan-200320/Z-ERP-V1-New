@@ -62,6 +62,7 @@ import {
 } from '@/lib/finance-settings';
 import { BANK_ACCOUNTS_UPDATED_EVENT, getBankAccounts } from '@/lib/bank-accounts';
 import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
+import { getInvoices, createInvoice, updateInvoice, deleteInvoice, SalesInvoice } from '@/lib/sales-api';
 
 const calculateInvoiceItemAmountWithTax = (
   item: { qty: number; rate: number; tax: string },
@@ -197,18 +198,31 @@ export default function InvoicesTab() {
     { value: 'custome', label: 'custome' },
   ];
 
-  // Mock data - Updated to match screenshot
-  const [invoices, setInvoices] = useState([
-    { id: 'INV-000010', amount: '₹1,200.00', totalTax: '₹0.00', date: '2026-01-13', customer: '', project: '', tags: '', dueDate: '2026-02-12', status: 'unpaid' },
-    { id: 'INV-000014', amount: '₹1,000.00', totalTax: '₹0.00', date: '2025-10-22', customer: 'Jack', project: '', tags: '', dueDate: '2025-11-21', status: 'unpaid' },
-    { id: 'INV-000013', amount: '826.00', totalTax: '126.00', date: '2025-09-12', customer: 'Sarmad', project: '', tags: '', dueDate: '2025-09-19', status: 'unpaid' },
-    { id: 'INV-000012', amount: '8.26', totalTax: '1.26', date: '2025-09-12', customer: 'Sarmad', project: '', tags: '', dueDate: '2025-09-19', status: 'unpaid' },
-    { id: 'INV-000011', amount: '826.00', totalTax: '126.00', date: '2025-09-12', customer: 'Sarmad', project: '', tags: '', dueDate: '2025-09-19', status: 'unpaid' },
-    { id: 'INV-000010', amount: '826.00', totalTax: '126.00', date: '2025-09-12', customer: 'Sarmad', project: '', tags: '', dueDate: '2025-09-19', status: 'unpaid' },
-    { id: 'INV-000009', amount: '₹1,000.00', totalTax: '₹0.00', date: '2025-09-08', customer: 'jack', project: '', tags: '', dueDate: '2025-10-08', status: 'unpaid' },
-    { id: 'INV-000009', amount: '₹100,000.00', totalTax: '₹0.00', date: '2025-11-07', customer: 'Greeen Dot', project: '', tags: '', dueDate: '2025-12-07', status: 'unpaid' },
-    { id: 'INV-000008', amount: '₹1,000.00', totalTax: '₹0.00', date: '2025-09-15', customer: 'Greeen Dot', project: '', tags: '', dueDate: '2025-10-15', status: 'unpaid' },
-  ]);
+  // Load invoices from backend
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
+
+  useEffect(() => {
+    const loadInvoices = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await getInvoices();
+        if (error) {
+          toast({ title: 'Error', description: error, variant: 'destructive' });
+        } else if (data) {
+          setInvoices(data || []);
+        }
+      } catch (err) {
+        console.error('Error loading invoices:', err);
+        toast({ title: 'Error', description: 'Failed to load invoices', variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadInvoices();
+  }, []);
 
   // Calculate totals
   const calculateTotals = () => {
@@ -454,6 +468,56 @@ export default function InvoicesTab() {
     });
   }, [searchQuery, statusFilter, invoices]);
 
+  const [createInvoiceCustomer, setCreateInvoiceCustomer] = useState('');
+  const [createInvoiceDate, setCreateInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [createInvoiceDueDate, setCreateInvoiceDueDate] = useState('');
+
+  const handleCreateInvoice = async (isDraft: boolean = true) => {
+    try {
+      setIsSaving(true);
+
+      if (!createInvoiceCustomer.trim()) {
+        toast({ title: 'Error', description: 'Customer is required', variant: 'destructive' });
+        return;
+      }
+
+      const newInvoice: SalesInvoice = {
+        customer: createInvoiceCustomer,
+        invoice_date: createInvoiceDate,
+        due_date: createInvoiceDueDate || createInvoiceDate,
+        status: isDraft ? 'draft' : 'sent',
+        total_amount: calculateTotals().total,
+        amount_paid: 0,
+        line_items: invoiceItems as any,
+      };
+
+      const { data, error } = await createInvoice(newInvoice);
+
+      if (error) {
+        toast({ title: 'Error', description: error, variant: 'destructive' });
+      } else if (data) {
+        toast({ title: 'Success', description: 'Invoice created successfully' });
+
+        // Reload invoices
+        const { data: updatedInvoices } = await getInvoices();
+        if (updatedInvoices) {
+          setInvoices(updatedInvoices);
+        }
+
+        // Reset form
+        setCreateInvoiceCustomer('');
+        setCreateInvoiceDate(new Date().toISOString().split('T')[0]);
+        setCreateInvoiceDueDate('');
+        setInvoiceItems([{ id: 1, description: '', longDescription: '', hsn: '', qty: 1, rate: 0, tax: FINANCE_DEFAULT_TAX_VALUE, amount: 0 }]);
+      }
+    } catch (err) {
+      console.error('Error creating invoice:', err);
+      toast({ title: 'Error', description: 'Failed to create invoice', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleExport = (type: 'excel' | 'pdf') => {
     setIsExporting(true);
     toast({ title: "Exporting...", description: `Preparing invoice list in ${type.toUpperCase()}.` });
@@ -466,8 +530,8 @@ export default function InvoicesTab() {
         doc.text("Invoices Report", 14, 15);
         autoTable(doc, {
           startY: 25,
-          head: [['ID', 'Amount', 'Total Tax', 'Date', 'Customer', 'Due Date', 'Status']],
-          body: filteredInvoices.map(i => [i.id, i.amount, i.totalTax, i.date, i.customer, i.dueDate, i.status]),
+          head: [['ID', 'Amount', 'Date', 'Customer', 'Due Date', 'Status']],
+          body: filteredInvoices.map(i => [i.id || '', (i.total_amount || 0).toString(), i.invoice_date || '', i.customer || '', i.due_date || '', i.status || '']),
         });
         doc.save(`Invoices_${new Date().toISOString().split('T')[0]}.pdf`);
       }
@@ -488,6 +552,7 @@ export default function InvoicesTab() {
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0">
+            <DialogDescription className="sr-only">Create and configure a new invoice</DialogDescription>
             <div className="sticky top-0 z-10 bg-white border-b px-6 py-4">
               <DialogHeader>
                 <div className="flex items-center justify-between">
@@ -519,17 +584,13 @@ export default function InvoicesTab() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="customer" className="text-sm">* Customer</Label>
-                    <Select>
-                      <SelectTrigger id="customer" className="h-10">
-                        <SelectValue placeholder="Greeen Dot" defaultValue="greeen-dot" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="greeen-dot">Greeen Dot</SelectItem>
-                        <SelectItem value="jack">Jack</SelectItem>
-                        <SelectItem value="sarmad">Sarmad</SelectItem>
-                        <SelectItem value="acme">Acme Corp</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Input 
+                      id="customer"
+                      placeholder="Enter customer name"
+                      value={createInvoiceCustomer}
+                      onChange={(e) => setCreateInvoiceCustomer(e.target.value)}
+                      className="h-10"
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -1151,9 +1212,9 @@ export default function InvoicesTab() {
 
             {/* Footer Actions */}
             <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end gap-2">
-              <Button variant="outline">Save as Draft</Button>
+              <Button variant="outline" onClick={() => handleCreateInvoice(true)}>Save as Draft</Button>
               <div className="relative inline-flex">
-                <Button className="bg-blue-600 hover:bg-blue-700 rounded-r-none">
+                <Button className="bg-blue-600 hover:bg-blue-700 rounded-r-none" onClick={() => handleCreateInvoice(false)}>
                   Save
                 </Button>
                 <DropdownMenu>
@@ -1278,6 +1339,7 @@ export default function InvoicesTab() {
                               <button className="hover:underline" onClick={() => setSelectedInvoice(invoice)}>View</button>
                             </DialogTrigger>
                             <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden">
+                              <DialogDescription className="sr-only">View complete invoice details and information</DialogDescription>
                               <ScrollArea className="max-h-[95vh] pr-4">
                                 <div className="p-10 bg-white">
                                   {/* Header with Logo and Invoice Title */}
@@ -1584,6 +1646,7 @@ export default function InvoicesTab() {
                               <button className="hover:underline" onClick={() => { setSelectedInvoice(invoice); setIsEditMode(true); }}>Edit</button>
                             </DialogTrigger>
                             <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0 bg-gradient-to-br from-slate-50 to-white">
+                              <DialogDescription className="sr-only">Edit invoice details and configuration</DialogDescription>
                               <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-5 shadow-lg">
                                 <DialogHeader>
                                   <div className="flex items-center justify-between">

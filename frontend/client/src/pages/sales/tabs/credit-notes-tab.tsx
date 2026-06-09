@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,73 +42,48 @@ import { exportToCSV } from '@/lib/csv-export';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from "@/lib/utils";
+import { getCreditNotes, createCreditNote, updateCreditNote, deleteCreditNote, SalesCreditNote } from '@/lib/sales-api';
 
 export default function CreditNotesTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isExporting, setIsExporting] = useState(false);
   const [showNoteView, setShowNoteView] = useState(false);
-  const [selectedNote, setSelectedNote] = useState<any>(null);
+  const [selectedNote, setSelectedNote] = useState<SalesCreditNote | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  // Mock data
-  const [creditNotes, setCreditNotes] = useState([
-    {
-      id: 'CN-001',
-      invoice: 'INV-001',
-      client: 'Acme Corporation',
-      amount: '-₹5,000.00',
-      remainingAmount: '₹0.00',
-      reference: 'REF-001',
-      reason: 'Product Return',
-      date: '2026-01-12',
-      project: 'Web Development',
-      status: 'issued'
-    },
-    {
-      id: 'CN-002',
-      invoice: 'INV-005',
-      client: 'TechStart Inc.',
-      amount: '-₹2,500.00',
-      remainingAmount: '₹2,500.00',
-      reference: 'REF-002',
-      reason: 'Service Adjustment',
-      date: '2026-01-14',
-      project: 'Mobile App',
-      status: 'applied'
-    },
-    {
-      id: 'CN-003',
-      invoice: 'INV-007',
-      client: 'Global Brands Ltd.',
-      amount: '-₹1,200.00',
-      remainingAmount: '₹1,200.00',
-      reference: 'REF-003',
-      reason: 'Billing Error',
-      date: '2026-01-16',
-      project: 'Marketing',
-      status: 'pending'
-    },
-    {
-      id: 'CN-004',
-      invoice: 'INV-009',
-      client: 'Enterprise Solutions',
-      amount: '-₹15,000.00',
-      remainingAmount: '₹0.00',
-      reference: 'REF-004',
-      reason: 'Scope Change',
-      date: '2026-01-18',
-      project: 'ERP',
-      status: 'applied'
-    }
-  ]);
+  // Load credit notes from backend
+  const [creditNotes, setCreditNotes] = useState<SalesCreditNote[]>([]);
+
+  useEffect(() => {
+    const loadCreditNotes = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await getCreditNotes();
+        if (error) {
+          toast({ title: 'Error', description: error, variant: 'destructive' });
+        } else if (data) {
+          setCreditNotes(data || []);
+        }
+      } catch (err) {
+        console.error('Error loading credit notes:', err);
+        toast({ title: 'Error', description: 'Failed to load credit notes', variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCreditNotes();
+  }, []);
 
   const filteredNotes = useMemo(() => {
     return creditNotes.filter(note => {
       const matchesSearch = 
-        note.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        note.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        note.invoice.toLowerCase().includes(searchQuery.toLowerCase());
+        (note.id?.toLowerCase().includes(searchQuery.toLowerCase()) || false) ||
+        (note.customer?.toLowerCase().includes(searchQuery.toLowerCase()) || false) ||
+        (note.related_invoice_id?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
       
       const matchesStatus = statusFilter === 'all' || note.status === statusFilter;
       
@@ -128,14 +103,65 @@ export default function CreditNotesTab() {
         doc.text("Credit Notes Report", 14, 15);
         autoTable(doc, {
           startY: 25,
-          head: [['ID', 'Invoice', 'Client', 'Amount', 'Reason', 'Status']],
-          body: filteredNotes.map(n => [n.id, n.invoice, n.client, n.amount, n.reason, n.status]),
+          head: [['ID', 'Number', 'Customer', 'Amount', 'Date', 'Status']],
+          body: filteredNotes.map(n => [n.id || '', n.credit_note_number || '', n.customer || '', (n.amount || 0).toString(), n.created_at || '', n.status || '']),
         });
         doc.save(`CreditNotes_${new Date().toISOString().split('T')[0]}.pdf`);
       }
       setIsExporting(false);
       toast({ title: "Export Ready", description: "Download started." });
     }, 1200);
+  };
+
+  const [createCreditNoteCustomer, setCreateCreditNoteCustomer] = useState('');
+  const [createCreditNoteAmount, setCreateCreditNoteAmount] = useState(0);
+  const [createCreditNoteRelatedInvoiceId, setCreateCreditNoteRelatedInvoiceId] = useState('');
+
+  const handleCreateCreditNote = async () => {
+    try {
+      setIsSaving(true);
+
+      if (!createCreditNoteCustomer.trim()) {
+        toast({ title: 'Error', description: 'Customer is required', variant: 'destructive' });
+        return;
+      }
+
+      if (createCreditNoteAmount <= 0) {
+        toast({ title: 'Error', description: 'Credit note amount must be greater than 0', variant: 'destructive' });
+        return;
+      }
+
+      const newCreditNote: SalesCreditNote = {
+        customer: createCreditNoteCustomer,
+        amount: createCreditNoteAmount,
+        related_invoice_id: createCreditNoteRelatedInvoiceId || undefined,
+        status: 'issued',
+      };
+
+      const { data, error } = await createCreditNote(newCreditNote);
+
+      if (error) {
+        toast({ title: 'Error', description: error, variant: 'destructive' });
+      } else if (data) {
+        toast({ title: 'Success', description: 'Credit note created successfully' });
+
+        // Reload credit notes
+        const { data: updatedNotes } = await getCreditNotes();
+        if (updatedNotes) {
+          setCreditNotes(updatedNotes);
+        }
+
+        // Reset form
+        setCreateCreditNoteCustomer('');
+        setCreateCreditNoteAmount(0);
+        setCreateCreditNoteRelatedInvoiceId('');
+      }
+    } catch (err) {
+      console.error('Error creating credit note:', err);
+      toast({ title: 'Error', description: 'Failed to create credit note', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const statusConfig: Record<string, { label: string; class: string }> = {
@@ -218,25 +244,19 @@ export default function CreditNotesTab() {
                 New Credit Note
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">              <DialogDescription className="sr-only">Create a new credit note for customer transactions</DialogDescription>              <DialogHeader>
                 <DialogTitle className="text-xl font-bold">Create New Credit Note</DialogTitle>
               </DialogHeader>
               <div className="space-y-6 py-4">
                 {/* Customer Selection */}
                 <div className="space-y-2">
                   <Label htmlFor="cn-customer">Customer</Label>
-                  <Select>
-                    <SelectTrigger id="cn-customer">
-                      <SelectValue placeholder="Select Customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="acme">Acme Corporation</SelectItem>
-                      <SelectItem value="techstart">TechStart Inc.</SelectItem>
-                      <SelectItem value="global">Global Brands Ltd.</SelectItem>
-                      <SelectItem value="enterprise">Enterprise Solutions</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input 
+                    id="cn-customer"
+                    placeholder="Enter customer name"
+                    value={createCreditNoteCustomer}
+                    onChange={(e) => setCreateCreditNoteCustomer(e.target.value)}
+                  />
                 </div>
 
                 {/* Bill To / Ship To */}
@@ -439,11 +459,11 @@ export default function CreditNotesTab() {
                 <Button variant="outline">
                   Cancel
                 </Button>
-                <Button variant="outline" className="text-blue-600 border-blue-200 hover:bg-blue-50">
+                <Button variant="outline" className="text-blue-600 border-blue-200 hover:bg-blue-50" onClick={handleCreateCreditNote}>
                   <Send className="h-4 w-4 mr-2" />
                   Save & Send
                 </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreateCreditNote}>
                   Save
                 </Button>
               </div>
@@ -540,6 +560,7 @@ export default function CreditNotesTab() {
     {/* Credit Note View Dialog */}
     <Dialog open={showNoteView} onOpenChange={setShowNoteView}>
       <DialogContent className="max-w-3xl">
+        <DialogDescription className="sr-only">View detailed information about the credit note</DialogDescription>
         <DialogHeader>
           <DialogTitle>Credit Note Details</DialogTitle>
         </DialogHeader>

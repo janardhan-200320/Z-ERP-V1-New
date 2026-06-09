@@ -44,6 +44,7 @@ import autoTable from 'jspdf-autotable';
 import { cn } from "@/lib/utils";
 import { BANK_ACCOUNTS_UPDATED_EVENT, getActiveBankAccountOptions } from '@/lib/bank-accounts';
 import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
+import { getPayments, createPayment, updatePayment, deletePayment, SalesPayment } from '@/lib/sales-api';
 
 export default function PaymentsTab() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -134,58 +135,39 @@ export default function PaymentsTab() {
     setRecordSignatureDesignation(selectedSignature.designation || '');
   }, [recordESignatureId, eSignatures]);
 
-  // Mock data
-  const [payments, setPayments] = useState([
-    {
-      id: 'PAY-001',
-      invoice: 'INV-001',
-      customer: 'Acme Corporation',
-      amount: '₹45,000',
-      mode: 'Bank Transfer',
-      transactionId: 'TXN-2026-001',
-      date: '2026-01-10',
-      status: 'completed'
-    },
-    {
-      id: 'PAY-002',
-      invoice: 'INV-005',
-      customer: 'TechStart Inc.',
-      amount: '₹25,000',
-      mode: 'Credit Card',
-      transactionId: 'TXN-2026-002',
-      date: '2026-01-12',
-      status: 'completed'
-    },
-    {
-      id: 'PAY-003',
-      invoice: 'INV-007',
-      customer: 'Global Brands Ltd.',
-      amount: '₹15,000',
-      mode: 'PayPal',
-      transactionId: 'TXN-2026-003',
-      date: '2026-01-15',
-      status: 'pending'
-    },
-    {
-      id: 'PAY-004',
-      invoice: 'INV-009',
-      customer: 'Enterprise Solutions',
-      amount: '₹125,000',
-      mode: 'Bank Transfer',
-      transactionId: 'TXN-2026-004',
-      date: '2026-01-18',
-      status: 'completed'
-    }
-  ]);
+  // Load payments from backend
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [payments, setPayments] = useState<SalesPayment[]>([]);
+
+  useEffect(() => {
+    const loadPayments = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await getPayments();
+        if (error) {
+          toast({ title: 'Error', description: error, variant: 'destructive' });
+        } else if (data) {
+          setPayments(data || []);
+        }
+      } catch (err) {
+        console.error('Error loading payments:', err);
+        toast({ title: 'Error', description: 'Failed to load payments', variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPayments();
+  }, []);
 
   const filteredPayments = useMemo(() => {
     return payments.filter(pay => {
       const matchesSearch = 
-        pay.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        pay.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        pay.invoice.toLowerCase().includes(searchQuery.toLowerCase());
+        (pay.id?.toLowerCase().includes(searchQuery.toLowerCase()) || false) ||
+        (pay.record_invoice_id?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
       
-      const matchesStatus = statusFilter === 'all' || pay.status === statusFilter;
+      const matchesStatus = statusFilter === 'all';
       
       return matchesSearch && matchesStatus;
     });
@@ -203,14 +185,67 @@ export default function PaymentsTab() {
         doc.text("Payments Report", 14, 15);
         autoTable(doc, {
           startY: 25,
-          head: [['ID', 'Invoice', 'Customer', 'Amount', 'Date', 'Status']],
-          body: filteredPayments.map(p => [p.id, p.invoice, p.customer, p.amount, p.date, p.status]),
+          head: [['ID', 'Invoice', 'Amount', 'Date', 'Mode']],
+          body: filteredPayments.map(p => [p.id || '', p.record_invoice_id || '', (p.amount || 0).toString(), p.payment_date || '', p.payment_mode || '']),
         });
         doc.save(`Payments_${new Date().toISOString().split('T')[0]}.pdf`);
       }
       setIsExporting(false);
       toast({ title: "Export Ready", description: "Download started." });
     }, 1200);
+  };
+
+  const [createPaymentInvoiceId, setCreatePaymentInvoiceId] = useState('');
+  const [createPaymentAmount, setCreatePaymentAmount] = useState(0);
+  const [createPaymentDate, setCreatePaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [createPaymentMode, setCreatePaymentMode] = useState('cash');
+
+  const handleCreatePayment = async () => {
+    try {
+      setIsSaving(true);
+
+      if (!createPaymentInvoiceId.trim()) {
+        toast({ title: 'Error', description: 'Invoice ID is required', variant: 'destructive' });
+        return;
+      }
+
+      if (createPaymentAmount <= 0) {
+        toast({ title: 'Error', description: 'Payment amount must be greater than 0', variant: 'destructive' });
+        return;
+      }
+
+      const newPayment: SalesPayment = {
+        record_invoice_id: createPaymentInvoiceId,
+        amount: createPaymentAmount,
+        payment_date: createPaymentDate,
+        payment_mode: createPaymentMode,
+      };
+
+      const { data, error } = await createPayment(newPayment);
+
+      if (error) {
+        toast({ title: 'Error', description: error, variant: 'destructive' });
+      } else if (data) {
+        toast({ title: 'Success', description: 'Payment recorded successfully' });
+
+        // Reload payments
+        const { data: updatedPayments } = await getPayments();
+        if (updatedPayments) {
+          setPayments(updatedPayments);
+        }
+
+        // Reset form
+        setCreatePaymentInvoiceId('');
+        setCreatePaymentAmount(0);
+        setCreatePaymentDate(new Date().toISOString().split('T')[0]);
+        setCreatePaymentMode('cash');
+      }
+    } catch (err) {
+      console.error('Error creating payment:', err);
+      toast({ title: 'Error', description: 'Failed to create payment', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const statusConfig: Record<string, { label: string; class: string }> = {
@@ -301,25 +336,24 @@ export default function PaymentsTab() {
                   {/* Payment Info */}
                   <div className="space-y-2">
                     <Label htmlFor="pay-date">Payment Date</Label>
-                    <Input id="pay-date" type="date" />
+                    <Input 
+                      id="pay-date" 
+                      type="date"
+                      value={createPaymentDate}
+                      onChange={(e) => setCreatePaymentDate(e.target.value)}
+                    />
                   </div>
 
                   {/* Invoice & Customer */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="pay-invoice">Invoice</Label>
-                      <Select value={recordInvoiceId} onValueChange={setRecordInvoiceId}>
-                        <SelectTrigger id="pay-invoice">
-                          <SelectValue placeholder="Select invoice" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {recordInvoiceOptions.map((invoiceOption) => (
-                            <SelectItem key={invoiceOption.value} value={invoiceOption.value}>
-                              {invoiceOption.invoice} - ₹{invoiceOption.amount.toLocaleString('en-IN')}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="pay-invoice">Invoice ID</Label>
+                      <Input 
+                        id="pay-invoice"
+                        placeholder="Enter invoice ID"
+                        value={createPaymentInvoiceId}
+                        onChange={(e) => setCreatePaymentInvoiceId(e.target.value)}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="pay-customer">Customer</Label>
@@ -336,17 +370,17 @@ export default function PaymentsTab() {
                         type="text"
                         inputMode="decimal"
                         placeholder="0.00"
-                        value={recordAmountPaid === 0 ? '' : String(recordAmountPaid)}
+                        value={createPaymentAmount === 0 ? '' : String(createPaymentAmount)}
                         onChange={(e) => {
                           const sanitized = e.target.value.replace(/[^0-9.]/g, '');
                           const parsed = parseFloat(sanitized);
-                          setRecordAmountPaid(Number.isFinite(parsed) ? parsed : 0);
+                          setCreatePaymentAmount(Number.isFinite(parsed) ? parsed : 0);
                         }}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="pay-mode">Payment Mode</Label>
-                      <Select value={recordPaymentMode} onValueChange={setRecordPaymentMode}>
+                      <Select value={createPaymentMode} onValueChange={setCreatePaymentMode}>
                         <SelectTrigger id="pay-mode">
                           <SelectValue placeholder="Select mode" />
                         </SelectTrigger>
@@ -450,11 +484,11 @@ export default function PaymentsTab() {
                 </ScrollArea>
                 <div className="sticky bottom-0 border-t bg-white px-6 py-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsRecordPaymentOpen(false)}>Cancel</Button>
-                  <Button className="w-full sm:w-auto bg-black text-white hover:bg-black/90" onClick={() => handlePaymentAction('send')}>
+                  <Button className="w-full sm:w-auto bg-black text-white hover:bg-black/90" onClick={handleCreatePayment}>
                     <Send className="h-4 w-4 mr-2" />
                     Save & Send
                   </Button>
-                  <Button className="w-full sm:w-auto" onClick={() => handlePaymentAction('record')}>
+                  <Button className="w-full sm:w-auto" onClick={handleCreatePayment}>
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Record Payment
                   </Button>
@@ -545,6 +579,7 @@ export default function PaymentsTab() {
       {/* Payment Receipt View Modal */}
       <Dialog open={showReceiptView} onOpenChange={setShowReceiptView}>
         <DialogContent className="max-w-4xl">
+          <DialogDescription className="sr-only">View payment receipt and transaction details</DialogDescription>
           <DialogHeader>
             <DialogTitle>Payment for Invoice {selectedPayment?.invoice || 'INV-000001'}</DialogTitle>
           </DialogHeader>

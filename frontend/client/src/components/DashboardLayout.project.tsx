@@ -423,13 +423,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     {
       name: 'Profile',
       icon: Users,
-      path: '/profile',
-      hasSubmenu: true,
-      submenuKey: 'profile',
-      submenu: [
-        { name: 'My Attendance', path: '/profile?tab=attendance' },
-        { name: 'My Leaves', path: '/profile?tab=leave' },
-      ]
+      path: '/profile'
     },
     
     { name: 'Subscription', icon: CreditCard, path: '/subscriptions' },
@@ -454,7 +448,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     admin: false,
     customers: false,
     'team-space': false,
-    profile: false,
     settings: false,
   });
 
@@ -668,8 +661,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     { name: 'Team Space', path: '/team-space', category: 'Communication', keywords: 'team collaboration meetings calls chats files' },
     { name: 'Flip Book', path: '/team-space/flip-books', category: 'Communication', keywords: 'flip book pdf documents reader pages' },
     { name: 'Profile', path: '/profile', category: 'Profile', keywords: 'account settings preferences' },
-    { name: 'My Attendance', path: '/profile?tab=attendance', category: 'Profile', keywords: 'attendance check in check out history' },
-    { name: 'My Leaves', path: '/profile?tab=leave', category: 'Profile', keywords: 'leave requests approvals status' },
   ], []);
 
   // Filter search results (memoized for performance)

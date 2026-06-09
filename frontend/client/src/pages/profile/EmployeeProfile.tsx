@@ -73,6 +73,8 @@ import {
   type PayrollRecord,
 } from '@/lib/api';
 
+const activeSessionStorageKey = 'z_erp_active_session';
+
 // Type for attendance record with formatted fields
 interface AttRec {
   id: string;
@@ -149,6 +151,18 @@ export default function EmployeeProfile() {
   const [user, setUser] = useState<any>(null);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
+  }, []);
+
+  // Require login for profile access
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(activeSessionStorageKey);
+      if (!raw) {
+        window.location.href = `/login?next=${encodeURIComponent('/profile?tab=overview')}`;
+      }
+    } catch {
+      window.location.href = `/login?next=${encodeURIComponent('/profile?tab=overview')}`;
+    }
   }, []);
 
   // Fetch employee profile

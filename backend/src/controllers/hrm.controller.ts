@@ -6,13 +6,24 @@ import { Employee, Department, Designation, Attendance, LeaveApplication, LeaveT
 
 export const getEmployees = async (req: Request, res: Response) => {
   try {
+    const { user_id, email } = req.query;
     const client = supabaseAdmin || supabase;
     
     // Fetch all employees
-    const { data: employees, error: empError } = await client
+    let employeeQuery = client
       .from('employees')
       .select('*')
       .order('created_at', { ascending: false });
+
+    if (user_id) {
+      employeeQuery = employeeQuery.eq('user_id', user_id);
+    }
+
+    if (email) {
+      employeeQuery = employeeQuery.ilike('email', String(email));
+    }
+
+    const { data: employees, error: empError } = await employeeQuery;
 
     if (empError) throw empError;
 
@@ -38,6 +49,38 @@ export const getEmployees = async (req: Request, res: Response) => {
     res.json(transformedData);
   } catch (err: any) {
     console.error('Get Employees Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const loginWithEmployeeEmail = async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body || {};
+    const expectedPassword = process.env.HRM_DEFAULT_PASSWORD || 'Zollid@123';
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (password !== expectedPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const client = supabaseAdmin || supabase;
+    const { data: employee, error } = await client
+      .from('employees')
+      .select('*')
+      .ilike('email', String(email))
+      .single();
+
+    if (error || !employee) {
+      return res.status(404).json({ error: 'Employee email not found in HRM' });
+    }
+
+    res.json({
+      employee
+    });
+  } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 };
@@ -84,11 +127,17 @@ export const getEmployeeById = async (req: Request, res: Response) => {
 export const createEmployee = async (req: Request, res: Response) => {
   try {
     const {
+      user_id,
       full_name,
       email,
       phone,
       department,
       designation,
+      position,
+      address,
+      emergency_contact_name,
+      emergency_contact_relationship,
+      emergency_contact_phone,
       gender,
       join_date,
       bank_name,
@@ -161,12 +210,20 @@ export const createEmployee = async (req: Request, res: Response) => {
 
     // Prepare employee data for database
     const employeeData = {
+      user_id: user_id || null,
+      full_name: full_name || null,
       first_name: first_name.trim(),
       last_name: last_name.trim(),
       email: email.trim().toLowerCase(),
       phone: phone || null,
       gender: gender || null,
-      address: location || null,
+      address: address || location || null,
+      department: department || null,
+      designation: designation || null,
+      position: position || null,
+      emergency_contact_name: emergency_contact_name || null,
+      emergency_contact_relationship: emergency_contact_relationship || null,
+      emergency_contact_phone: emergency_contact_phone || null,
       status: status,
       date_of_joining: join_date ? new Date(join_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       department_id: departmentId,
@@ -234,6 +291,11 @@ export const updateEmployee = async (req: Request, res: Response) => {
       phone,
       department,
       designation,
+      position,
+      address,
+      emergency_contact_name,
+      emergency_contact_relationship,
+      emergency_contact_phone,
       gender,
       join_date,
       bank_name,
@@ -252,12 +314,19 @@ export const updateEmployee = async (req: Request, res: Response) => {
       const nameParts = full_name.trim().split(' ');
       updateData.first_name = nameParts[0] || '';
       updateData.last_name = nameParts.slice(1).join(' ') || '';
+      updateData.full_name = full_name;
     }
 
     if (email) updateData.email = email.trim().toLowerCase();
     if (phone !== undefined) updateData.phone = phone || null;
     if (gender !== undefined) updateData.gender = gender || null;
-    if (location !== undefined) updateData.address = location || null;
+    if (address !== undefined || location !== undefined) {
+      updateData.address = address || location || null;
+    }
+    if (position !== undefined) updateData.position = position || null;
+    if (emergency_contact_name !== undefined) updateData.emergency_contact_name = emergency_contact_name || null;
+    if (emergency_contact_relationship !== undefined) updateData.emergency_contact_relationship = emergency_contact_relationship || null;
+    if (emergency_contact_phone !== undefined) updateData.emergency_contact_phone = emergency_contact_phone || null;
     if (status !== undefined) updateData.status = status;
     if (join_date) {
       updateData.date_of_joining = new Date(join_date).toISOString().split('T')[0];
@@ -285,6 +354,8 @@ export const updateEmployee = async (req: Request, res: Response) => {
           updateData.department_id = newDept.id;
         }
       }
+
+      updateData.department = department;
     }
 
     // Get or create designation
@@ -309,6 +380,8 @@ export const updateEmployee = async (req: Request, res: Response) => {
           updateData.designation_id = newDesig.id;
         }
       }
+
+      updateData.designation = designation;
     }
 
     // Update employee
@@ -443,6 +516,94 @@ export const updateAttendance = async (req: Request, res: Response) => {
   }
 };
 
+// ==================== ATTENDANCE RECORDS (SELF-SERVICE) ====================
+
+export const getAttendanceRecords = async (req: Request, res: Response) => {
+  try {
+    const { employee_id, date, month } = req.query;
+    const client = supabaseAdmin || supabase;
+    let query = client.from('attendance_records').select('*');
+
+    if (employee_id) query = query.eq('employee_id', employee_id);
+    if (date) query = query.eq('date', date);
+    if (month) {
+      const start = new Date(`${month}-01T00:00:00.000Z`);
+      const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+      const startStr = start.toISOString().split('T')[0];
+      const endStr = end.toISOString().split('T')[0];
+      query = query.gte('date', startStr).lt('date', endStr);
+    }
+
+    const { data, error } = await query.order('date', { ascending: false });
+    if (error) throw error;
+    res.json(data || []);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const checkInAttendanceRecord = async (req: Request, res: Response) => {
+  try {
+    const { employee_id, work_mode, location } = req.body || {};
+
+    if (!employee_id || !work_mode) {
+      return res.status(400).json({ error: 'employee_id and work_mode are required' });
+    }
+
+    const client = supabaseAdmin || supabase;
+    const today = new Date().toISOString().split('T')[0];
+
+    const { data, error } = await client
+      .from('attendance_records')
+      .upsert({
+        employee_id,
+        date: today,
+        check_in: new Date().toISOString(),
+        work_mode,
+        location: location || null,
+        status: 'present'
+      }, {
+        onConflict: 'employee_id,date'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const checkOutAttendanceRecord = async (req: Request, res: Response) => {
+  try {
+    const { employee_id, location } = req.body || {};
+
+    if (!employee_id) {
+      return res.status(400).json({ error: 'employee_id is required' });
+    }
+
+    const client = supabaseAdmin || supabase;
+    const today = new Date().toISOString().split('T')[0];
+
+    const { data, error } = await client
+      .from('attendance_records')
+      .update({
+        check_out: new Date().toISOString(),
+        location: location || null
+      })
+      .eq('employee_id', employee_id)
+      .eq('date', today)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ==================== LEAVE ENDPOINTS ====================
 
 export const getLeaveApplications = async (req: Request, res: Response) => {
@@ -523,6 +684,80 @@ export const createLeaveType = async (req: Request, res: Response) => {
 
     if (error) throw error;
     res.status(201).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ==================== LEAVE REQUESTS (SELF-SERVICE) ====================
+
+export const getLeaveRequests = async (req: Request, res: Response) => {
+  try {
+    const { employee_id, status } = req.query;
+    const client = supabaseAdmin || supabase;
+    let query = client.from('leave_requests').select('*');
+
+    if (employee_id) query = query.eq('employee_id', employee_id);
+    if (status) query = query.eq('status', status);
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json(data || []);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const createLeaveRequest = async (req: Request, res: Response) => {
+  try {
+    const client = supabaseAdmin || supabase;
+    const leave = { ...req.body };
+
+    if (!leave.days && leave.start_date && leave.end_date) {
+      const start = new Date(leave.start_date);
+      const end = new Date(leave.end_date);
+      leave.days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    }
+
+    const { data, error } = await client
+      .from('leave_requests')
+      .insert([leave])
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const updateLeaveRequest = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body || {};
+    const client = supabaseAdmin || supabase;
+
+    let query = client
+      .from('leave_requests')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updates.status === 'cancelled') {
+      query = client
+        .from('leave_requests')
+        .update(updates)
+        .eq('id', id)
+        .eq('status', 'pending')
+        .select()
+        .single();
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json(data);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

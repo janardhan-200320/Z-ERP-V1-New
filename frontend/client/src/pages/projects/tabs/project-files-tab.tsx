@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { fetchProjectFiles, uploadProjectDocuments, getProjectFileSignedUrl, type ProjectFileRecord } from '@/lib/supabase-data';
 import { Upload, Folder, File, Download, Eye, MoreVertical, Search, FolderPlus, Trash2 } from 'lucide-react';
 
 interface ProjectFilesTabProps {
@@ -17,10 +18,12 @@ interface ProjectFilesTabProps {
 export default function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<ProjectFileRecord[]>([]);
   const [uploadForm, setUploadForm] = useState({
     folder: '',
     description: ''
@@ -32,21 +35,46 @@ export default function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isDragging, setIsDragging] = useState(false);
 
-  const folders = [
-    { name: 'Design Files', count: 12, size: '145 MB' },
-    { name: 'Documentation', count: 8, size: '24 MB' },
-    { name: 'Source Code', count: 156, size: '892 MB' },
-    { name: 'Assets', count: 45, size: '234 MB' }
-  ];
+  useEffect(() => {
+    if (!projectId) return;
 
-  const files = [
-    { name: 'Project_Requirements.pdf', size: '2.4 MB', version: 'v2.0', uploadedBy: 'John Smith', date: '2026-01-10', icon: File },
-    { name: 'Design_Mockups.fig', size: '15.8 MB', version: 'v3.5', uploadedBy: 'Alex Wilson', date: '2026-01-15', icon: File },
-    { name: 'Technical_Spec.docx', size: '1.2 MB', version: 'v1.0', uploadedBy: 'Sarah Johnson', date: '2026-01-12', icon: File },
-    { name: 'Budget_Plan.xlsx', size: '856 KB', version: 'v2.1', uploadedBy: 'John Smith', date: '2026-01-11', icon: File },
-    { name: 'API_Documentation.pdf', size: '3.1 MB', version: 'v1.5', uploadedBy: 'Emily Davis', date: '2026-01-14', icon: File },
-    { name: 'Brand_Guidelines.pdf', size: '5.6 MB', version: 'v1.0', uploadedBy: 'Alex Wilson', date: '2026-01-13', icon: File }
-  ];
+    let active = true;
+    setIsLoading(true);
+
+    fetchProjectFiles()
+      .then((records) => {
+        if (!active) return;
+        setFiles(records.filter((file) => Number(file.project_id) === Number(projectId)));
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        toast({
+          title: 'Failed to load files',
+          description: error instanceof Error ? error.message : 'Unable to fetch files from Supabase.',
+          variant: 'destructive',
+        });
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [projectId, toast]);
+
+  const folders = useMemo(() => {
+    const grouped = new Map<string, { name: string; count: number; size: string }>();
+
+    files.forEach((file) => {
+      const folderKey = file.folder_id ? `Folder ${file.folder_id}` : 'Root Folder';
+      const entry = grouped.get(folderKey) ?? { name: folderKey, count: 0, size: '—' };
+      entry.count += 1;
+      grouped.set(folderKey, entry);
+    });
+
+    return Array.from(grouped.values());
+  }, [files]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -86,16 +114,88 @@ export default function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
       return;
     }
 
-    const fileNames = Array.from(selectedFiles).map(f => f.name).join(', ');
-    toast({
-      title: "Files Uploaded",
-      description: `${selectedFiles.length} file(s) uploaded successfully: ${fileNames}`,
-    });
-    setShowUploadDialog(false);
-    setSelectedFiles(null);
-    setUploadForm({ folder: '', description: '' });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    uploadProjectDocuments(Number(projectId), Array.from(selectedFiles))
+      .then(async (uploaded) => {
+        const records = await fetchProjectFiles();
+        setFiles(records.filter((file) => Number(file.project_id) === Number(projectId)));
+        toast({
+          title: 'Files Uploaded',
+          description: `${uploaded.length} file(s) saved to Supabase storage.`,
+        });
+        setShowUploadDialog(false);
+        setSelectedFiles(null);
+        setUploadForm({ folder: '', description: '' });
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      })
+      .catch((error: unknown) => {
+        toast({
+          title: 'Failed to upload files',
+          description: error instanceof Error ? error.message : 'Unable to upload files.',
+          variant: 'destructive',
+        });
+      });
+  };
+
+  const resolveFileUrl = async (file: ProjectFileRecord) => {
+    if (file.storage_path) {
+      try {
+        const signedUrl = await getProjectFileSignedUrl(file.storage_path);
+        if (signedUrl) return signedUrl;
+      } catch (error) {
+        toast({
+          title: 'Failed to get file URL',
+          description: error instanceof Error ? error.message : 'Unable to retrieve signed URL.',
+          variant: 'destructive',
+        });
+      }
+    }
+
+    return file.file_url ?? null;
+  };
+
+  const handleOpenFile = async (file: ProjectFileRecord) => {
+    const url = await resolveFileUrl(file);
+    if (!url) {
+      toast({
+        title: 'File not available',
+        description: 'This file does not have a reachable URL yet.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDownloadFile = async (file: ProjectFileRecord) => {
+    const url = await resolveFileUrl(file);
+    if (!url) {
+      toast({
+        title: 'File not available',
+        description: 'This file does not have a downloadable URL yet.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = file.name || 'download';
+      link.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      toast({
+        title: 'Download failed',
+        description: error instanceof Error ? error.message : 'Unable to download file.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -124,7 +224,7 @@ export default function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
   return (
     <div className="space-y-6">
       {/* Upload Area */}
-      <Card 
+      <Card
         className={`border-dashed border-2 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 bg-slate-50'} transition-colors`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -156,6 +256,8 @@ export default function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
         </CardContent>
       </Card>
 
+      {isLoading && <p className="text-sm text-slate-500">Loading project files from Supabase...</p>}
+
       {/* Search Bar */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -174,7 +276,9 @@ export default function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {folders.map((folder, index) => (
+            {folders.length === 0 ? (
+              <p className="text-sm text-slate-500">No folders yet. Upload a file to create one.</p>
+            ) : folders.map((folder, index) => (
               <div
                 key={index}
                 className="p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
@@ -197,30 +301,32 @@ export default function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {files.map((file, index) => (
+            {files.length === 0 ? (
+              <p className="text-sm text-slate-500">No project files yet.</p>
+            ) : files.map((file) => (
               <div
-                key={index}
+                key={String(file.id)}
                 className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50"
               >
                 <div className="flex items-center gap-3 flex-1">
                   <div className="p-2 bg-blue-100 rounded">
-                    <file.icon className="h-5 w-5 text-blue-600" />
+                    <File className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{file.name}</p>
                     <p className="text-xs text-slate-600">
-                      {file.size} • {file.version} • {file.uploadedBy} • {file.date}
+                      {(file.file_size_bytes ? `${(file.file_size_bytes / (1024 * 1024)).toFixed(1)} MB` : '—')} • {file.version ?? 'v1.0'} • {file.uploaded_by ?? 'Unknown'} • {file.created_at ?? ''}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">
-                    {file.version}
+                    {file.version ?? 'v1.0'}
                   </Badge>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" onClick={() => handleOpenFile(file)}>
                     <Eye className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" onClick={() => handleDownloadFile(file)}>
                     <Download className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon">

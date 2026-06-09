@@ -8,6 +8,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,34 +17,26 @@ export default function Login() {
       return;
     }
     setIsLoading(true);
-    setTimeout(() => {
-      const getStoredCredentials = () => {
-        try {
-          const raw = localStorage.getItem('z_erp_credentials');
-          const parsed = raw ? JSON.parse(raw) : [];
-          return Array.isArray(parsed) ? parsed : [];
-        } catch {
-          return [];
-        }
-      };
+    try {
+      const response = await fetch(`${apiUrl}/hrm/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          password
+        })
+      });
 
-      const credentials = getStoredCredentials();
-      const inputEmail = email.trim().toLowerCase();
+      const payload = await response.json().catch(() => ({}));
 
-      const matched = credentials.find((item: any) =>
-        String(item?.email || '').toLowerCase() === inputEmail && String(item?.password || '') === password,
-      );
-
-      if (!matched) {
-        setIsLoading(false);
-        toast({ title: 'Invalid credentials', description: 'Please check your email and password.', variant: 'destructive' });
-        return;
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Login failed');
       }
 
       const activeSession = {
-        email: matched.email,
-        roleName: matched.roleName,
-        allowedModules: Array.isArray(matched.allowedModules) ? matched.allowedModules : [],
+        email: payload?.employee?.email || email.trim(),
+        employeeId: payload?.employee?.id,
+        fullName: payload?.employee?.full_name,
         loginAt: new Date().toISOString(),
       };
 
@@ -51,10 +44,20 @@ export default function Login() {
         localStorage.setItem('z_erp_active_session', JSON.stringify(activeSession));
       } catch {}
 
+      toast({ title: 'Welcome back!', description: `Logged in as ${activeSession.email}.` });
+
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('next') || '/profile?tab=overview';
+      window.location.href = next;
+    } catch (err: any) {
+      toast({
+        title: 'Invalid credentials',
+        description: err.message || 'Please check your email and password.',
+        variant: 'destructive'
+      });
+    } finally {
       setIsLoading(false);
-      toast({ title: 'Welcome back!', description: `Logged in as ${matched.email}.` });
-      window.location.href = '/';
-    }, 1800);
+    }
   };
 
   return (

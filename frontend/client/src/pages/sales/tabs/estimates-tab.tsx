@@ -49,6 +49,7 @@ import autoTable from 'jspdf-autotable';
 import { cn } from '@/lib/utils';
 import { BANK_ACCOUNTS_UPDATED_EVENT, getActiveBankAccountOptions } from '@/lib/bank-accounts';
 import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
+import { getEstimates, createEstimate, updateEstimate, deleteEstimate, SalesEstimate } from '@/lib/sales-api';
 
 type EstimateLineItem = {
   id: number;
@@ -86,13 +87,15 @@ export default function EstimatesTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isExporting, setIsExporting] = useState(false);
-  const [viewEstimate, setViewEstimate] = useState<typeof estimates[0] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [viewEstimate, setViewEstimate] = useState<SalesEstimate | null>(null);
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const { toast } = useToast();
 
   // Edit Form State
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editingEstimate, setEditingEstimate] = useState<typeof estimates[0] | null>(null);
+  const [editingEstimate, setEditingEstimate] = useState<SalesEstimate | null>(null);
   const [editCustomer, setEditCustomer] = useState('');
   const [editProject, setEditProject] = useState('');
   const [editBillTo, setEditBillTo] = useState({ address: '', city: '' });
@@ -397,62 +400,35 @@ export default function EstimatesTab() {
   };
 
   // Mock data
-  const [estimates, setEstimates] = useState([
-    {
-      id: 'EST-001',
-      customer: 'Acme Corporation',
-      amount: '₹42,000',
-      tax: '₹4,200',
-      date: '2026-01-03',
-      expiryDate: '2026-02-03',
-      reference: 'REF-2026-001',
-      project: 'Web Development',
-      status: 'sent',
-      invoiced: false
-    },
-    {
-      id: 'EST-002',
-      customer: 'TechStart Inc.',
-      amount: '₹78,000',
-      tax: '₹7,800',
-      date: '2026-01-06',
-      expiryDate: '2026-02-06',
-      reference: 'REF-2026-002',
-      project: 'Mobile App',
-      status: 'accepted',
-      invoiced: true
-    },
-    {
-      id: 'EST-003',
-      customer: 'Global Brands Ltd.',
-      amount: '₹22,000',
-      tax: '₹2,200',
-      date: '2026-01-09',
-      expiryDate: '2026-02-09',
-      reference: 'REF-2026-003',
-      project: 'Marketing',
-      status: 'draft',
-      invoiced: false
-    },
-    {
-      id: 'EST-004',
-      customer: 'Enterprise Solutions',
-      amount: '₹115,000',
-      tax: '₹11,500',
-      date: '2026-01-11',
-      expiryDate: '2026-02-11',
-      reference: 'REF-2026-004',
-      project: 'ERP',
-      status: 'expired',
-      invoiced: false
-    }
-  ]);
+  const [estimates, setEstimates] = useState<SalesEstimate[]>([]);
+
+  // Load estimates from backend
+  useEffect(() => {
+    const loadEstimates = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await getEstimates();
+        if (error) {
+          toast({ title: 'Error', description: error, variant: 'destructive' });
+        } else if (data) {
+          setEstimates(data || []);
+        }
+      } catch (err) {
+        console.error('Error loading estimates:', err);
+        toast({ title: 'Error', description: 'Failed to load estimates', variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadEstimates();
+  }, []);
 
   const filteredEstimates = useMemo(() => {
     return estimates.filter(est => {
       const matchesSearch = 
-        est.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        est.customer.toLowerCase().includes(searchQuery.toLowerCase());
+        (est.id?.toLowerCase().includes(searchQuery.toLowerCase()) || false) ||
+        (est.customer?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
       
       const matchesStatus = statusFilter === 'all' || est.status === statusFilter;
       
@@ -472,8 +448,8 @@ export default function EstimatesTab() {
         doc.text("Sales Estimates Report", 14, 15);
         autoTable(doc, {
           startY: 25,
-          head: [['ID', 'Customer', 'Amount', 'Tax', 'Expiry Date', 'Status']],
-          body: filteredEstimates.map(e => [e.id, e.customer, e.amount, e.tax, e.expiryDate, e.status]),
+          head: [['ID', 'Customer', 'Amount', 'Expiry Date', 'Status']],
+          body: filteredEstimates.map(e => [e.id || '', e.customer || '', (e.total_amount || 0).toString(), e.expiry_date || '', e.status || '']),
         });
         doc.save(`Estimates_${new Date().toISOString().split('T')[0]}.pdf`);
       }
@@ -490,46 +466,116 @@ export default function EstimatesTab() {
     expired: { label: 'Expired', class: 'bg-orange-100 text-orange-700 border-orange-200' }
   };
 
-  const handleUpdateEstimate = () => {
-    if (!editingEstimate) return;
+  const handleUpdateEstimate = async () => {
+    if (!editingEstimate || !editingEstimate.id) return;
     
-    const { total } = calculateEditTotals();
-    const taxAmount = total * 0.1; // 10% tax
-    
-    const updatedEstimate = {
-      ...editingEstimate,
-      id: `${editEstimatePrefix}${editEstimateNumber}`,
-      customer: editCustomer,
-      project: editProject,
-      amount: `₹${total.toLocaleString()}`,
-      tax: `₹${taxAmount.toLocaleString()}`,
-      date: editEstimateDate,
-      expiryDate: editExpiryDate,
-      reference: editReference,
-      status: editStatus
-    };
-    
-    setEstimates(estimates.map(est => 
-      est.id === editingEstimate.id ? updatedEstimate : est
-    ));
-    setIsEditOpen(false);
-    setEditingEstimate(null);
-    toast({ 
-      title: "Estimate Updated", 
-      description: `${updatedEstimate.id} has been updated successfully.` 
-    });
+    try {
+      setIsSaving(true);
+      
+      const updatedData: Partial<SalesEstimate> = {
+        customer: editCustomer,
+        bill_to: editBillTo.address,
+        ship_to: editShipTo.address,
+        estimate_date: editEstimateDate,
+        expiry_date: editExpiryDate,
+        status: editStatus,
+      };
+      
+      const { error } = await updateEstimate(editingEstimate.id, updatedData);
+      
+      if (error) {
+        toast({ title: 'Error', description: error, variant: 'destructive' });
+      } else {
+        toast({ title: 'Success', description: 'Estimate updated successfully' });
+        
+        // Reload estimates
+        const { data } = await getEstimates();
+        if (data) setEstimates(data);
+        
+        setIsEditOpen(false);
+        setEditingEstimate(null);
+      }
+    } catch (err) {
+      console.error('Error updating estimate:', err);
+      toast({ title: 'Error', description: 'Failed to update estimate', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSendEstimate = (estimate: typeof estimates[0]) => {
-    toast({ 
-      title: "Sending Estimate", 
-      description: `Preparing to send ${estimate.id} to ${estimate.customer}...` 
-    });
-    // Update status to sent
-    setEstimates(estimates.map(est => 
-      est.id === estimate.id ? { ...est, status: 'sent' } : est
-    ));
+  const handleSendEstimate = async (estimate: SalesEstimate) => {
+    if (!estimate.id) return;
+    
+    try {
+      setIsSaving(true);
+      
+      const { error } = await updateEstimate(estimate.id, { status: 'sent' });
+      
+      if (error) {
+        toast({ title: 'Error', description: error, variant: 'destructive' });
+      } else {
+        toast({ title: 'Success', description: `Estimate ${estimate.id} sent` });
+        
+        // Reload estimates
+        const { data } = await getEstimates();
+        if (data) setEstimates(data);
+      }
+    } catch (err) {
+      console.error('Error sending estimate:', err);
+      toast({ title: 'Error', description: 'Failed to send estimate', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const [createEstimateCustomer, setCreateEstimateCustomer] = useState('');
+  const [createEstimateDate, setCreateEstimateDate] = useState(new Date().toISOString().split('T')[0]);
+  const [createEstimateExpiryDate, setCreateEstimateExpiryDate] = useState('');
+
+  const handleCreateEstimate = async () => {
+    try {
+      setIsSaving(true);
+
+      if (!createEstimateCustomer.trim()) {
+        toast({ title: 'Error', description: 'Customer is required', variant: 'destructive' });
+        return;
+      }
+
+      const newEstimate: SalesEstimate = {
+        customer: createEstimateCustomer,
+        estimate_date: createEstimateDate,
+        expiry_date: createEstimateExpiryDate || createEstimateDate,
+        status: 'draft',
+        total_amount: 0,
+        line_items: [] as any,
+      };
+
+      const { data, error } = await createEstimate(newEstimate);
+
+      if (error) {
+        toast({ title: 'Error', description: error, variant: 'destructive' });
+      } else if (data) {
+        toast({ title: 'Success', description: 'Estimate created successfully' });
+
+        // Reload estimates
+        const { data: updatedEstimates } = await getEstimates();
+        if (updatedEstimates) {
+          setEstimates(updatedEstimates);
+        }
+
+        // Reset form
+        setCreateEstimateCustomer('');
+        setCreateEstimateDate(new Date().toISOString().split('T')[0]);
+        setCreateEstimateExpiryDate('');
+      }
+    } catch (err) {
+      console.error('Error creating estimate:', err);
+      toast({ title: 'Error', description: 'Failed to create estimate', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
 
   return (
     <>
@@ -649,6 +695,7 @@ export default function EstimatesTab() {
       {/* Enhanced Edit Estimate Dialog */}
       <Dialog open={isEditOpen} onOpenChange={(open) => { if (!open) { setIsEditOpen(false); setEditingEstimate(null); } }}>
         <DialogContent className="max-w-6xl max-h-[95vh] p-0">
+          <DialogDescription className="sr-only">Edit estimate details and line items</DialogDescription>
           <ScrollArea className="max-h-[95vh]">
             <div className="p-6">
               {/* Header with EST Number and Status Badge */}
@@ -1127,6 +1174,7 @@ export default function EstimatesTab() {
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-6xl max-h-[95vh] p-0">
+              <DialogDescription className="sr-only">Create a new sales estimate with line items and details</DialogDescription>
               <ScrollArea className="max-h-[95vh]">
                 <div className="p-6">
                   {/* Header */}
@@ -1142,18 +1190,12 @@ export default function EstimatesTab() {
                         {/* Customer */}
                         <div className="space-y-2">
                           <Label className="text-xs text-blue-600">* Customer</Label>
-                          <Select>
-                            <SelectTrigger className="h-10">
-                              <SelectValue placeholder="Select and begin typing" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="acme">Acme Corporation</SelectItem>
-                              <SelectItem value="techstart">TechStart Inc.</SelectItem>
-                              <SelectItem value="global">Global Brands Ltd.</SelectItem>
-                              <SelectItem value="enterprise">Enterprise Solutions</SelectItem>
-                              <SelectItem value="arun">Arun Pools Studio</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <Input 
+                            placeholder="Enter customer name"
+                            value={createEstimateCustomer}
+                            onChange={(e) => setCreateEstimateCustomer(e.target.value)}
+                            className="h-10"
+                          />
                         </div>
 
                         {/* Bill To / Ship To */}
@@ -1667,7 +1709,7 @@ export default function EstimatesTab() {
 
                     {/* Save Button */}
                     <div className="flex justify-end pt-4 border-t">
-                      <Button className="bg-blue-600 hover:bg-blue-700">
+                      <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreateEstimate}>
                         Save
                       </Button>
                     </div>

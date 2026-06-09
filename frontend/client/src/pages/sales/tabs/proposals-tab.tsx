@@ -52,6 +52,7 @@ import { exportProposalToPDF } from '@/lib/proposal-pdf-generator';
 import { FINANCE_DEFAULT_TAX_VALUE, getFinanceSettings, getFinanceTaxLabel } from '@/lib/finance-settings';
 import { saveProposalForStandaloneView } from '@/lib/proposal-view-storage';
 import { ESIGN_SIGNATURES_UPDATED_EVENT, getDefaultESignatureProfile, getESignatureProfiles } from '@/lib/esign-signatures';
+import { getProposals, createProposal, updateProposal, deleteProposal, SalesProposal } from '@/lib/sales-api';
 
 type ProposalLineItem = {
   id: number;
@@ -196,6 +197,8 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const [financeDefaultTaxRate, setFinanceDefaultTaxRate] = useState(() => getFinanceSettings().defaultTaxRate);
   const financeDefaultTaxLabel = useMemo(
@@ -203,145 +206,32 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     [financeDefaultTaxRate],
   );
 
-  // Mock data
-  const [proposals, setProposals] = useState([
-    {
-      id: 'PRO-001',
-      subject: 'Website Redesign Project',
-      customer: 'Acme Corporation',
-      totalAmount: '₹45,000',
-      date: '2026-01-05',
-      validUntil: '2026-02-05',
-      project: 'Web Development',
-      status: 'sent',
-      preparedFor: 'Acme Corporation',
-      preparedBy: 'Your Business Name',
-      title: 'WEBSITE REDESIGN & DEVELOPMENT',
-      overview: 'This proposal outlines the comprehensive redesign and development of a modern, responsive website for Acme Corporation. Our goal is to create a user-friendly platform that enhances your online presence, improves customer engagement, and drives business growth.',
-      scopeOfWork: [
-        { id: 1, description: 'Website Design', longDescription: 'Three initial design concepts, two rounds of revisions.' },
-        { id: 2, description: 'Frontend Development', longDescription: 'Responsive HTML/CSS/JavaScript implementation.' },
-        { id: 3, description: 'Backend Integration', longDescription: 'CMS setup and database configuration.' },
-        { id: 4, description: 'SEO Optimization', longDescription: 'On-page SEO and performance optimization.' },
-        { id: 5, description: 'Quality Assurance', longDescription: 'Cross-browser testing and bug fixes.' },
-      ],
-      timeline: [
-        { phase: 1, task: 'Discovery & Planning', completionDate: '2026-01-12' },
-        { phase: 2, task: 'Design & Approval', completionDate: '2026-01-26' },
-        { phase: 3, task: 'Development & Testing', completionDate: '2026-02-23' },
-        { phase: 4, task: 'Launch & Training', completionDate: '2026-03-05' },
-      ],
-      items: [
-        { id: 1, description: 'Website Design & Mockups', longDescription: 'Complete UI/UX design with 3 revisions', qty: 1, rate: 15000, amount: 15000 },
-        { id: 2, description: 'Frontend Development', longDescription: 'Responsive implementation for all devices', qty: 1, rate: 18000, amount: 18000 },
-        { id: 3, description: 'Backend & CMS Integration', longDescription: 'WordPress/Custom CMS setup', qty: 1, rate: 10000, amount: 10000 },
-        { id: 4, description: 'Training & Documentation', longDescription: 'User training and complete documentation', qty: 1, rate: 2000, amount: 2000 },
-      ]
-    },
-    {
-      id: 'PRO-002',
-      subject: 'Mobile App Development',
-      customer: 'TechStart Inc.',
-      totalAmount: '₹85,000',
-      date: '2026-01-08',
-      validUntil: '2026-02-08',
-      project: 'Mobile App',
-      status: 'accepted',
-      preparedFor: 'TechStart Inc.',
-      preparedBy: 'Your Business Name',
-      title: 'MOBILE APPLICATION DEVELOPMENT',
-      overview: 'This proposal outlines the development of a cutting-edge mobile application for TechStart Inc. We will create native iOS and Android applications that deliver exceptional user experience and robust functionality.',
-      scopeOfWork: [
-        { id: 1, description: 'UI/UX Design', longDescription: 'Mobile-first design for iOS and Android platforms.' },
-        { id: 2, description: 'Native Development', longDescription: 'Swift for iOS and Kotlin for Android.' },
-        { id: 3, description: 'API Integration', longDescription: 'RESTful API development and integration.' },
-        { id: 4, description: 'Push Notifications', longDescription: 'Firebase Cloud Messaging setup.' },
-        { id: 5, description: 'App Store Deployment', longDescription: 'Submission to App Store and Play Store.' },
-      ],
-      timeline: [
-        { phase: 1, task: 'Requirements & Wireframing', completionDate: '2026-01-22' },
-        { phase: 2, task: 'Design & Prototyping', completionDate: '2026-02-05' },
-        { phase: 3, task: 'Development & Integration', completionDate: '2026-03-19' },
-        { phase: 4, task: 'Testing & Deployment', completionDate: '2026-04-02' },
-      ],
-      items: [
-        { id: 1, description: 'Mobile UI/UX Design', longDescription: 'Complete app design for iOS and Android', qty: 1, rate: 20000, amount: 20000 },
-        { id: 2, description: 'iOS App Development', longDescription: 'Native Swift development', qty: 1, rate: 30000, amount: 30000 },
-        { id: 3, description: 'Android App Development', longDescription: 'Native Kotlin development', qty: 1, rate: 25000, amount: 25000 },
-        { id: 4, description: 'Backend API & Testing', longDescription: 'API development and comprehensive testing', qty: 1, rate: 10000, amount: 10000 },
-      ]
-    },
-    {
-      id: 'PRO-003',
-      subject: 'Digital Marketing Campaign',
-      customer: 'Global Brands Ltd.',
-      totalAmount: '₹25,000',
-      date: '2026-01-10',
-      validUntil: '2026-02-10',
-      project: 'Marketing',
-      status: 'draft',
-      preparedFor: 'Global Brands Ltd.',
-      preparedBy: 'Your Business Name',
-      title: 'DIGITAL MARKETING STRATEGY',
-      overview: 'This proposal outlines a comprehensive digital marketing campaign for Global Brands Ltd. Our strategy focuses on increasing brand awareness, driving website traffic, and generating qualified leads through multi-channel marketing efforts.',
-      scopeOfWork: [
-        { id: 1, description: 'Social Media Strategy', longDescription: 'Content calendar for Facebook, Instagram, LinkedIn.' },
-        { id: 2, description: 'SEO Campaign', longDescription: 'Keyword research and on-page optimization.' },
-        { id: 3, description: 'PPC Advertising', longDescription: 'Google Ads and social media ad management.' },
-        { id: 4, description: 'Content Creation', longDescription: 'Blog posts, infographics, and video content.' },
-        { id: 5, description: 'Analytics & Reporting', longDescription: 'Monthly performance reports and insights.' },
-      ],
-      timeline: [
-        { phase: 1, task: 'Strategy Development', completionDate: '2026-01-24' },
-        { phase: 2, task: 'Campaign Launch', completionDate: '2026-02-07' },
-        { phase: 3, task: 'Optimization & Scaling', completionDate: '2026-02-28' },
-        { phase: 4, task: 'Final Report & Handover', completionDate: '2026-03-14' },
-      ],
-      items: [
-        { id: 1, description: 'Social Media Campaign', longDescription: '3-month multi-platform campaign', qty: 3, rate: 5000, amount: 15000 },
-        { id: 2, description: 'SEO Services', longDescription: 'Complete on-page and off-page optimization', qty: 1, rate: 6000, amount: 6000 },
-        { id: 3, description: 'Content Creation', longDescription: '20 blog posts, 10 infographics, 5 videos', qty: 1, rate: 4000, amount: 4000 },
-      ]
-    },
-    {
-      id: 'PRO-004',
-      subject: 'ERP System Implementation',
-      customer: 'Enterprise Solutions',
-      totalAmount: '₹125,000',
-      date: '2026-01-12',
-      validUntil: '2026-02-12',
-      project: 'ERP',
-      status: 'declined',
-      preparedFor: 'Enterprise Solutions',
-      preparedBy: 'Your Business Name',
-      title: 'ENTERPRISE RESOURCE PLANNING IMPLEMENTATION',
-      overview: 'This proposal outlines the implementation of a comprehensive ERP system for Enterprise Solutions. Our solution will streamline business processes, improve data accuracy, and provide real-time insights across all departments.',
-      scopeOfWork: [
-        { id: 1, description: 'Needs Assessment', longDescription: 'Comprehensive analysis of business requirements.' },
-        { id: 2, description: 'System Configuration', longDescription: 'ERP modules setup and customization.' },
-        { id: 3, description: 'Data Migration', longDescription: 'Transfer of existing data to new system.' },
-        { id: 4, description: 'User Training', longDescription: 'Comprehensive training for all user levels.' },
-        { id: 5, description: 'Go-Live Support', longDescription: 'Post-implementation support and monitoring.' },
-      ],
-      timeline: [
-        { phase: 1, task: 'Assessment & Planning', completionDate: '2026-02-09' },
-        { phase: 2, task: 'Configuration & Testing', completionDate: '2026-03-23' },
-        { phase: 3, task: 'Data Migration & Training', completionDate: '2026-04-20' },
-        { phase: 4, task: 'Go-Live & Support', completionDate: '2026-05-04' },
-      ],
-      items: [
-        { id: 1, description: 'ERP Software License', longDescription: 'Enterprise license for 100 users', qty: 1, rate: 50000, amount: 50000 },
-        { id: 2, description: 'System Configuration', longDescription: 'Complete module setup and customization', qty: 1, rate: 35000, amount: 35000 },
-        { id: 3, description: 'Data Migration Services', longDescription: 'Legacy system data migration', qty: 1, rate: 25000, amount: 25000 },
-        { id: 4, description: 'Training & Support', longDescription: 'User training and 6-month support', qty: 1, rate: 15000, amount: 15000 },
-      ]
-    }
-  ]);
+  // Load proposals from backend
+  const [proposals, setProposals] = useState<SalesProposal[]>([]);
 
   useEffect(() => {
-    if (proposalsData) {
-      setProposals(proposalsData);
-    }
+    const loadProposals = async () => {
+      setIsLoading(true);
+      try {
+        if (proposalsData) {
+          setProposals(proposalsData);
+        } else {
+          const { data, error } = await getProposals();
+          if (error) {
+            toast({ title: 'Error', description: error, variant: 'destructive' });
+          } else if (data) {
+            setProposals(data || []);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading proposals:', err);
+        toast({ title: 'Error', description: 'Failed to load proposals', variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProposals();
   }, [proposalsData]);
 
   useEffect(() => {
@@ -561,6 +451,10 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
   };
 
   // New Proposal Form State
+  const [createProposalSubject, setCreateProposalSubject] = useState('');
+  const [createProposalDate, setCreateProposalDate] = useState(new Date().toISOString().split('T')[0]);
+  const [createProposalValidUntil, setCreateProposalValidUntil] = useState('');
+  const [createProposalCurrency, setCreateProposalCurrency] = useState('inr');
   const [allowComments, setAllowComments] = useState(false);
   const [proposalItems, setProposalItems] = useState<ProposalLineItem[]>([
     { id: 1, description: '', longDescription: '', qty: 1, rate: 0, tax: FINANCE_DEFAULT_TAX_VALUE, amount: 0 }
@@ -950,6 +844,61 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     return 'bg-slate-100 text-slate-600 border-slate-200';
   };
 
+  const handleSaveProposal = async (status: 'draft' | 'sent' = 'draft') => {
+    try {
+      setIsSaving(true);
+      
+      if (!createProposalSubject.trim()) {
+        toast({ title: 'Error', description: 'Subject is required', variant: 'destructive' });
+        return;
+      }
+
+      if (!createProposalDate) {
+        toast({ title: 'Error', description: 'Date is required', variant: 'destructive' });
+        return;
+      }
+
+      const newProposal: SalesProposal = {
+        subject: createProposalSubject,
+        customer: recipientName || 'Not specified',
+        date: createProposalDate,
+        valid_until: createProposalValidUntil,
+        currency: createProposalCurrency,
+        status: status,
+        allow_comments: allowComments,
+        overview: proposalOverview,
+        notes: proposalTitle,
+      };
+
+      const { data, error } = await createProposal(newProposal);
+      
+      if (error) {
+        toast({ title: 'Error', description: error, variant: 'destructive' });
+      } else if (data) {
+        toast({ title: 'Success', description: 'Proposal created successfully' });
+        
+        // Reload proposals
+        const { data: updatedProposals, error: loadError } = await getProposals();
+        if (!loadError && updatedProposals) {
+          setProposals(updatedProposals);
+        }
+        
+        // Reset form
+        setCreateProposalSubject('');
+        setRecipientName('');
+        setCreateProposalDate(new Date().toISOString().split('T')[0]);
+        setCreateProposalValidUntil('');
+        setProposalOverview('');
+        setProposalTitle('');
+      }
+    } catch (err) {
+      console.error('Error saving proposal:', err);
+      toast({ title: 'Error', description: 'Failed to save proposal', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const filteredProposals = useMemo(() => {
     const normalizedCustomerFilter = (customerFilter || '').trim().toLowerCase();
 
@@ -994,6 +943,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
     const deduped = new Map<string, CatalogItem>();
 
     proposals.forEach((proposal) => {
+      if (!proposal.items || !Array.isArray(proposal.items)) return;
       proposal.items.forEach((item) => {
         const key = item.description.trim().toLowerCase();
         if (!key || deduped.has(key)) return;
@@ -1061,7 +1011,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
         autoTable(doc, {
           startY: 25,
           head: [['ID', 'Subject', 'Customer', 'Amount', 'Date', 'Status']],
-          body: filteredProposals.map(p => [p.id, p.subject, p.customer, p.totalAmount, p.date, p.status]),
+          body: filteredProposals.map(p => [p.id || '', p.subject || '', p.customer || '', (p.total_amount || 0).toString(), p.created_date || '', p.status || '']),
         });
         doc.save(`Proposals_${new Date().toISOString().split('T')[0]}.pdf`);
       }
@@ -1223,6 +1173,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-7xl max-h-[95vh] p-0 flex flex-col">
+              <DialogDescription className="sr-only">Create and customize a new sales proposal</DialogDescription>
               {/* Sticky Header */}
               <div className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-b px-6 py-4">
                 <div className="flex items-center gap-3">
@@ -1250,7 +1201,13 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         <Label htmlFor="subject" className="text-sm font-medium text-slate-700">
                           <span className="text-red-500">*</span> Subject
                         </Label>
-                        <Input id="subject" placeholder="Enter proposal subject" className="h-10 bg-white border-slate-300 focus:border-blue-500" />
+                        <Input 
+                          id="subject" 
+                          value={createProposalSubject}
+                          onChange={(e) => setCreateProposalSubject(e.target.value)}
+                          placeholder="Enter proposal subject" 
+                          className="h-10 bg-white border-slate-300 focus:border-blue-500" 
+                        />
                       </div>
 
                       <div className="space-y-2">
@@ -1292,11 +1249,23 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                           <Label htmlFor="date" className="text-sm font-medium text-slate-700">
                             <span className="text-red-500">*</span> Date
                           </Label>
-                          <Input id="date" type="date" defaultValue="2026-02-09" className="h-10 bg-white border-slate-300" />
+                          <Input 
+                            id="date" 
+                            type="date" 
+                            value={createProposalDate}
+                            onChange={(e) => setCreateProposalDate(e.target.value)}
+                            className="h-10 bg-white border-slate-300" 
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="open-till" className="text-sm font-medium text-slate-700">Open Till</Label>
-                          <Input id="open-till" type="date" defaultValue="2026-02-16" className="h-10 bg-white border-slate-300" />
+                          <Input 
+                            id="open-till" 
+                            type="date" 
+                            value={createProposalValidUntil}
+                            onChange={(e) => setCreateProposalValidUntil(e.target.value)}
+                            className="h-10 bg-white border-slate-300" 
+                          />
                         </div>
                       </div>
 
@@ -1304,7 +1273,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
                         <Label htmlFor="currency" className="text-sm font-medium text-slate-700">
                           <span className="text-red-500">*</span> Currency
                         </Label>
-                        <Select defaultValue="usd">
+                        <Select value={createProposalCurrency} onValueChange={setCreateProposalCurrency}>
                           <SelectTrigger id="currency" className="h-10 w-full max-w-[220px] bg-white border-slate-300">
                             <SelectValue />
                           </SelectTrigger>
@@ -2234,35 +2203,50 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
 
               {/* Footer Actions */}
               <div className="flex-shrink-0 bg-white border-t px-6 py-4 flex justify-end gap-3 shadow-lg">
-                <Button variant="outline" size="lg" className="px-6">
+                <Button variant="outline" size="lg" className="px-6" disabled={isSaving}>
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
-                <Button variant="outline" size="lg" className="px-6 border-slate-300">
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  className="px-6 border-slate-300"
+                  onClick={() => handleSaveProposal('draft')}
+                  disabled={isSaving}
+                >
                   <FileText className="h-4 w-4 mr-2" />
-                  Save as Draft
+                  {isSaving ? 'Saving...' : 'Save as Draft'}
                 </Button>
                 <div className="relative inline-flex">
-                  <Button size="lg" className="rounded-r-none bg-blue-600 hover:bg-blue-700 px-6">
+                  <Button 
+                    size="lg" 
+                    className="rounded-r-none bg-blue-600 hover:bg-blue-700 px-6"
+                    onClick={() => handleSaveProposal('draft')}
+                    disabled={isSaving}
+                  >
                     <Check className="h-4 w-4 mr-2" />
-                    Save
+                    {isSaving ? 'Saving...' : 'Save'}
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button size="lg" className="rounded-l-none border-l border-white/20 px-3 bg-blue-600 hover:bg-blue-700">
+                      <Button 
+                        size="lg" 
+                        className="rounded-l-none border-l border-white/20 px-3 bg-blue-600 hover:bg-blue-700"
+                        disabled={isSaving}
+                      >
                         <ChevronDown className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleSaveProposal('sent')}>
                         <Send className="h-4 w-4 mr-2" />
                         Save & Send
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleSaveProposal('sent')}>
                         <Mail className="h-4 w-4 mr-2" />
                         Save and Send Later
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleSaveProposal('draft')}>
                         <CheckSquare className="h-4 w-4 mr-2" />
                         Save & Record Payment
                       </DropdownMenuItem>
@@ -2363,6 +2347,7 @@ export default function ProposalsTab({ customerFilter, proposalsData, hideCreate
         {/* View Dialog */}
         <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
           <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden p-0">
+            <DialogDescription className="sr-only">View and manage proposal details</DialogDescription>
             <ScrollArea className="max-h-[95vh]">
               <div className="p-6">
                 <DialogHeader className="mb-6">

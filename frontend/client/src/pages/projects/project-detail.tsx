@@ -1,30 +1,32 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   ArrowLeft,
   Filter,
   MoreVertical,
   FolderKanban,
   Target,
-  IndianRupee,
   Users,
-  TrendingUp,
   Upload,
-  Calendar,
   CheckSquare,
   Clock,
   FileText,
   Settings,
   BarChart3,
-  Kanban,
-  List,
-  GanttChart
+  RefreshCw,
+  Edit,
+  Trash2,
+  ExternalLink
 } from 'lucide-react';
 import { useRoute, useLocation } from 'wouter';
 
@@ -37,116 +39,51 @@ import ProjectMilestonesTab from './tabs/project-milestones-tab';
 import ProjectFilesTab from './tabs/project-files-tab';
 import ProjectAutomationTab from './tabs/project-automation-tab';
 import ProjectReportsTab from './tabs/project-reports-tab';
+import { fetchProjectById, deleteProject, type ProjectRecord } from '@/lib/supabase-data';
+import { useToast } from '@/hooks/use-toast';
+import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
 
 export default function ProjectDetail() {
   const [, params] = useRoute('/projects/:id');
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('overview');
+  const { toast } = useToast();
 
-  // Mock project data (synchronized with projects-list.tsx)
-  const projects = [
-    {
-      id: "1",
-      name: 'E-Commerce Platform Redesign',
-      customer: 'TechCorp Solutions',
-      status: 'in-progress',
-      progress: 65,
-      budget: 150000,
-      spent: 97500,
-      teamMembers: 8,
-      startDate: '2026-01-10',
-      deadline: '2026-03-15'
-    },
-    {
-      id: "2",
-      name: 'Mobile Banking App',
-      customer: 'FirstBank Ltd',
-      status: 'in-progress',
-      progress: 78,
-      budget: 220000,
-      spent: 165000,
-      teamMembers: 12,
-      startDate: '2025-12-01',
-      deadline: '2026-02-28'
-    },
-    {
-      id: "3",
-      name: 'CRM System Integration',
-      customer: 'SalesForce Pro',
-      status: 'not-started',
-      progress: 0,
-      budget: 85000,
-      spent: 0,
-      teamMembers: 6,
-      startDate: '2026-01-05',
-      deadline: '2026-04-20'
-    },
-    {
-      id: "4",
-      name: 'Data Analytics Dashboard',
-      customer: 'Analytics Inc',
-      status: 'finished',
-      progress: 100,
-      budget: 110000,
-      spent: 105000,
-      teamMembers: 5,
-      startDate: '2025-11-15',
-      deadline: '2026-01-30'
-    },
-    {
-      id: "5",
-      name: 'Supply Chain Management',
-      customer: 'LogiTech Corp',
-      status: 'on-hold',
-      progress: 45,
-      budget: 195000,
-      spent: 88000,
-      teamMembers: 10,
-      startDate: '2025-10-20',
-      deadline: '2026-02-10'
-    },
-    {
-      id: "6",
-      name: 'Cloud Migration Project',
-      customer: 'CloudFirst Systems',
-      status: 'finished',
-      progress: 100,
-      budget: 300000,
-      spent: 295000,
-      teamMembers: 7,
-      startDate: '2025-09-01',
-      deadline: '2025-12-31'
-    },
-    {
-      id: "7",
-      name: 'AI Chatbot Development',
-      customer: 'AI Innovations',
-      status: 'in-progress',
-      progress: 25,
-      budget: 175000,
-      spent: 45000,
-      teamMembers: 9,
-      startDate: '2026-01-15',
-      deadline: '2026-05-30'
-    },
-    {
-      id: "8",
-      name: 'Security Audit Platform',
-      customer: 'SecureNet Ltd',
-      status: 'cancelled',
-      progress: 30,
-      budget: 95000,
-      spent: 35000,
-      teamMembers: 4,
-      startDate: '2025-12-10',
-      deadline: '2026-03-01'
+  const [project, setProject] = useState<null | (ProjectRecord & { teamMembers: number; startDate: string; deadline: string })>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadProject = useCallback(() => {
+    const projectId = Number(params?.id);
+    if (!projectId || Number.isNaN(projectId)) {
+      setLoadError('Invalid project id');
+      setIsLoading(false);
+      return;
     }
-  ];
 
-  // Find project by ID or use default
-  const project = projects.find(p => p.id === params?.id) || projects[0];
+    setIsLoading(true);
+    setLoadError(null);
+    fetchProjectById(projectId)
+      .then((data) => {
+        setProject({
+          ...data,
+          teamMembers: data.members,
+          startDate: data.start_date,
+          deadline: data.deadline,
+        });
+      })
+      .catch((error) => setLoadError(error.message || 'Failed to load project'))
+      .finally(() => setIsLoading(false));
+  }, [params?.id]);
+
+  useEffect(() => {
+    loadProject();
+  }, [loadProject]);
+
+  const mappedProject = project;
 
   const statusConfig: Record<string, { label: string; class: string }> = {
+    pending: { label: 'Pending', class: 'bg-slate-100 text-slate-700 border-slate-200' },
     'not-started': { label: 'Not Started', class: 'bg-slate-100 text-slate-700 border-slate-200' },
     'in-progress': { label: 'In Progress', class: 'bg-blue-100 text-blue-700 border-blue-200' },
     'on-hold': { label: 'On Hold', class: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
@@ -154,8 +91,116 @@ export default function ProjectDetail() {
     finished: { label: 'Finished', class: 'bg-green-100 text-green-700 border-green-200' }
   };
 
+  const projectStatus = statusConfig[mappedProject?.status] ?? statusConfig.pending;
+
+  const handleEditProject = () => {
+    if (!mappedProject?.id) return;
+    localStorage.setItem('z_erp_project_edit_id', String(mappedProject.id));
+    setLocation('/projects');
+  };
+
+  const handleOpenInNewTab = () => {
+    if (!mappedProject?.id) return;
+    window.open(`/projects/${mappedProject.id}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDeleteProject = async () => {
+    if (!mappedProject?.id) return;
+    const confirmed = window.confirm(`Delete "${mappedProject.name}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      await deleteProject(mappedProject.id);
+      toast({
+        title: 'Project deleted',
+        description: `"${mappedProject.name}" has been removed.`,
+      });
+      setLocation('/projects');
+    } catch (error: any) {
+      toast({
+        title: 'Failed to delete project',
+        description: error?.message || 'Supabase rejected the delete request.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (!mappedProject?.id) return;
+    const shareUrl = `${window.location.origin}/projects/${mappedProject.id}`;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = shareUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+
+      toast({
+        title: 'Link copied',
+        description: 'Project link copied to clipboard.',
+      });
+    } catch {
+      toast({
+        title: 'Unable to copy link',
+        description: 'Please copy the URL from the address bar.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (!mappedProject) return;
+    const rows = [
+      {
+        'Project Name': mappedProject.name,
+        Customer: mappedProject.customer,
+        Status: mappedProject.status,
+        'Start Date': mappedProject.start_date,
+        Deadline: mappedProject.deadline,
+        Members: mappedProject.members,
+        Progress: mappedProject.progress ?? 0,
+      },
+    ];
+    exportToExcel(rows, `project-${mappedProject.id}-summary-${new Date().toISOString().slice(0, 10)}`);
+  };
+
+  const handleExportPdf = () => {
+    if (!mappedProject) return;
+    const headers = ['Project Name', 'Customer', 'Status', 'Start Date', 'Deadline', 'Members', 'Progress'];
+    const data = [[
+      mappedProject.name,
+      mappedProject.customer,
+      mappedProject.status,
+      mappedProject.start_date,
+      mappedProject.deadline,
+      String(mappedProject.members ?? 0),
+      `${mappedProject.progress ?? 0}%`,
+    ]];
+
+    exportToPDF(
+      `Project Summary - ${mappedProject.name}`,
+      headers,
+      data,
+      `project-${mappedProject.id}-summary-${new Date().toISOString().slice(0, 10)}`
+    );
+  };
+
   return (
     <DashboardLayout>
+      {isLoading ? (
+        <div className="p-6 text-sm text-slate-600">Loading project…</div>
+      ) : loadError ? (
+        <div className="p-6 text-sm text-red-600">{loadError}</div>
+      ) : mappedProject ? (
       <div className="space-y-6">
         {/* Sticky Header Bar */}
         <div className="sticky top-0 z-10 bg-white border-b border-slate-200 -mx-6 -mt-6 px-6 py-4">
@@ -173,12 +218,12 @@ export default function ProjectDetail() {
                   <FolderKanban className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-slate-900">{project.name}</h1>
-                  <p className="text-sm text-slate-600">{project.customer}</p>
+                  <h1 className="text-xl font-bold text-slate-900">{mappedProject.name}</h1>
+                  <p className="text-sm text-slate-600">{mappedProject.customer}</p>
                 </div>
               </div>
-              <Badge variant="outline" className={statusConfig[project.status].class}>
-                {statusConfig[project.status].label}
+              <Badge variant="outline" className={projectStatus.class}>
+                {projectStatus.label}
               </Badge>
             </div>
             <div className="flex items-center gap-2">
@@ -186,9 +231,47 @@ export default function ProjectDetail() {
                 <Filter className="h-4 w-4 mr-2" />
                 Filter
               </Button>
-              <Button variant="ghost" size="icon">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleEditProject}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit project
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleOpenInNewTab}>
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Open in new tab
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleShareLink}>
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Share link
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={loadProject}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Refresh project
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLocation('/projects')}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to projects
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportCsv}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Export CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportPdf}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Export PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-red-600" onClick={handleDeleteProject}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete project
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
@@ -233,38 +316,39 @@ export default function ProjectDetail() {
           </ScrollArea>
 
           <TabsContent value="overview">
-            <ProjectOverviewTab project={project} />
+            <ProjectOverviewTab project={mappedProject} />
           </TabsContent>
 
           <TabsContent value="tasks">
-            <ProjectTasksTab projectId={project.id} />
+            <ProjectTasksTab projectId={String(mappedProject.id)} />
           </TabsContent>
 
           <TabsContent value="timesheets">
-            <ProjectTimesheetsTab projectId={project.id} />
+            <ProjectTimesheetsTab projectId={String(mappedProject.id)} />
           </TabsContent>
 
           <TabsContent value="team">
-            <ProjectTeamTab projectId={project.id} />
+            <ProjectTeamTab projectId={String(mappedProject.id)} />
           </TabsContent>
 
           <TabsContent value="milestones">
-            <ProjectMilestonesTab projectId={project.id} />
+            <ProjectMilestonesTab projectId={String(mappedProject.id)} />
           </TabsContent>
 
           <TabsContent value="files">
-            <ProjectFilesTab projectId={project.id} />
+            <ProjectFilesTab projectId={String(mappedProject.id)} />
           </TabsContent>
 
           <TabsContent value="automation">
-            <ProjectAutomationTab projectId={project.id} />
+            <ProjectAutomationTab projectId={String(mappedProject.id)} />
           </TabsContent>
 
           <TabsContent value="reports">
-            <ProjectReportsTab projectId={project.id} />
+            <ProjectReportsTab projectId={String(mappedProject.id)} />
           </TabsContent>
         </Tabs>
       </div>
+      ) : null}
     </DashboardLayout>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { Activity, UserPlus } from 'lucide-react';
+import { createTeamSpaceMember, fetchTeamSpaceMembers } from '@/lib/supabase-data';
 
 interface ProjectTeamTabProps {
   projectId: string | undefined;
@@ -18,23 +19,35 @@ interface ProjectTeamTabProps {
 export default function ProjectTeamTab({ projectId }: ProjectTeamTabProps) {
   const { toast } = useToast();
   const { addNotification } = useNotifications();
+  const [teamMembers, setTeamMembers] = useState<Array<{ name: string; role: string; joinDate: string; avatar: string }>>([]);
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
   const [memberForm, setMemberForm] = useState({
     name: '',
     sendNotification: true
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  // Mock data
-  const teamMembers = [
-    { name: 'John Smith', role: 'Project Manager', joinDate: '2026-01-10', avatar: 'JS' },
-    { name: 'Sarah Johnson', role: 'Lead Developer', joinDate: '2026-01-10', avatar: 'SJ' },
-    { name: 'Mike Brown', role: 'Frontend Developer', joinDate: '2026-01-11', avatar: 'MB' },
-    { name: 'Emily Davis', role: 'Backend Developer', joinDate: '2026-01-11', avatar: 'ED' },
-    { name: 'Alex Wilson', role: 'UI/UX Designer', joinDate: '2026-01-12', avatar: 'AW' },
-    { name: 'Chris Taylor', role: 'QA Engineer', joinDate: '2026-01-13', avatar: 'CT' },
-    { name: 'Lisa Anderson', role: 'DevOps Engineer', joinDate: '2026-01-14', avatar: 'LA' },
-    { name: 'Tom White', role: 'Business Analyst', joinDate: '2026-01-15', avatar: 'TW' }
-  ];
+
+  useEffect(() => {
+    let active = true;
+
+    fetchTeamSpaceMembers()
+      .then((rows) => {
+        if (!active) return;
+        setTeamMembers(rows.map((row) => ({
+          name: row.name,
+          role: row.role,
+          joinDate: row.created_at ? row.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+          avatar: row.avatar || row.name.slice(0, 2).toUpperCase(),
+        })));
+      })
+      .catch(() => {
+        if (active) setTeamMembers([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const activities = [
     { user: 'Sarah Johnson', action: 'Completed task: User Authentication', time: '2 hours ago', avatar: 'SJ' },
@@ -76,27 +89,53 @@ export default function ProjectTeamTab({ projectId }: ProjectTeamTabProps) {
   const handleAddMember = () => {
     if (!validateMemberForm()) return;
 
-    if (memberForm.sendNotification) {
-      addNotification({
-        title: 'Added to Project Team',
-        message: `You have been added to project ${projectId ?? 'team'}.`,
-        type: 'info',
-        metadata: {
-          projectId,
-          memberName: memberForm.name,
-          category: 'project-team'
+    const slug = memberForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '') || 'team-member';
+
+    createTeamSpaceMember({
+      name: memberForm.name.trim(),
+      role: 'Team Member',
+      department: 'General',
+      email: `${slug}.${Date.now()}@local.invalid`,
+      phone: 'N/A',
+      status: 'offline',
+      avatar: memberForm.name.slice(0, 2).toUpperCase(),
+      notes: projectId ? `Added from project ${projectId}` : 'Added from project team tab',
+    })
+      .then((created) => {
+        setTeamMembers((prev) => [{
+          name: created.name,
+          role: created.role,
+          joinDate: created.created_at ? created.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+          avatar: created.avatar || created.name.slice(0, 2).toUpperCase(),
+        }, ...prev]);
+
+        if (memberForm.sendNotification) {
+          addNotification({
+            title: 'Added to Project Team',
+            message: `You have been added to project ${projectId ?? 'team'}.`,
+            type: 'info',
+            metadata: {
+              projectId,
+              memberName: memberForm.name,
+              category: 'project-team'
+            }
+          });
         }
+
+        toast({
+          title: 'Team Member Added',
+          description: `${memberForm.name} has been saved to Supabase.`,
+        });
+        setShowAddMemberDialog(false);
+        resetMemberForm();
+      })
+      .catch((error) => {
+        toast({
+          title: 'Failed to add team member',
+          description: error.message || 'Supabase rejected the team member insert',
+          variant: 'destructive',
+        });
       });
-    }
-    
-    toast({
-      title: "Team Member Added",
-      description: memberForm.sendNotification
-        ? `${memberForm.name} has been added to the project and notified.`
-        : `${memberForm.name} has been added to the project.`,
-    });
-    setShowAddMemberDialog(false);
-    resetMemberForm();
   };
 
   return (

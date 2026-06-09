@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,7 +62,39 @@ import {
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
-import { customerDirectory } from '@/lib/customer-directory';
+import { fetchCustomers, fetchProjects, createProject, updateProject, deleteProject, uploadProjectDocuments, type ProjectRecord } from '@/lib/supabase-data';
+import { exportToExcel } from '@/lib/exportUtils';
+
+type ProjectItem = {
+  id: number;
+  name: string;
+  customer: string;
+  tags: string[];
+  startDate: string;
+  deadline: string;
+  members: number;
+  teamMembers?: string[];
+  status: string;
+  progress: number;
+  description?: string;
+  budget?: number | null;
+  spent?: number | null;
+  calculateProgress?: boolean;
+  billingType?: string;
+  totalRate?: number | null;
+  estimatedHours?: number | null;
+  sendEmail?: boolean;
+  projectDocuments?: Array<{
+    name: string;
+    size: number;
+    type: string;
+    lastModified?: number | null;
+    bucket?: string;
+    storage_path?: string;
+    file_url?: string | null;
+    uploaded_at?: string;
+  }>;
+};
 
 const RichTextEditor = ({ value, onChange }: { value: string; onChange: (val: string) => void }) => {
   return (
@@ -88,7 +120,7 @@ const RichTextEditor = ({ value, onChange }: { value: string; onChange: (val: st
         onChange={(e) => onChange(e.target.value)}
       />
       <div className="bg-slate-50 border-t border-slate-100 px-3 py-1 flex justify-between items-center">
-        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest italic">Mock Editor</span>
+        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest italic">Live Editor</span>
         <span className="text-[9px] text-slate-500 font-bold">{value.length} CHARS</span>
       </div>
     </div>
@@ -98,6 +130,9 @@ const RichTextEditor = ({ value, onChange }: { value: string; onChange: (val: st
 export default function ProjectsList() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [customerSuggestions, setCustomerSuggestions] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState('25');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -129,104 +164,77 @@ export default function ProjectsList() {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Mock data
-  const statusStats = [
-    { label: 'Not Started', value: 12, icon: Circle, color: 'text-slate-600', bgColor: 'bg-slate-100', borderColor: 'border-slate-200' },
-    { label: 'In Progress', value: 28, icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-100', borderColor: 'border-blue-200' },
-    { label: 'Urgent', value: 7, icon: Zap, color: 'text-orange-600', bgColor: 'bg-orange-100', borderColor: 'border-orange-200' },
-    { label: 'On Hold', value: 5, icon: PauseCircle, color: 'text-yellow-600', bgColor: 'bg-yellow-100', borderColor: 'border-yellow-200' },
-    { label: 'Finished', value: 45, icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-100', borderColor: 'border-green-200' }
-  ];
+  useEffect(() => {
+    let active = true;
 
-  const projects = [
-    {
-      id: 1,
-      name: 'E-Commerce Platform Redesign',
-      customer: 'TechCorp Solutions',
-      tags: ['Web', 'UI/UX'],
-      startDate: '2026-01-10',
-      deadline: '2026-03-15',
-      members: 8,
-      status: 'in-progress',
-      progress: 65
-    },
-    {
-      id: 2,
-      name: 'Mobile Banking App',
-      customer: 'FirstBank Ltd',
-      tags: ['Mobile', 'Fintech'],
-      startDate: '2025-12-01',
-      deadline: '2026-02-28',
-      members: 12,
-      status: 'in-progress',
-      progress: 78
-    },
-    {
-      id: 3,
-      name: 'CRM System Integration',
-      customer: 'SalesForce Pro',
-      tags: ['Backend', 'API'],
-      startDate: '2026-01-05',
-      deadline: '2026-04-20',
-      members: 6,
-      status: 'not-started',
-      progress: 0
-    },
-    {
-      id: 4,
-      name: 'Data Analytics Dashboard',
-      customer: 'Analytics Inc',
-      tags: ['Data', 'Visualization'],
-      startDate: '2025-11-15',
-      deadline: '2026-01-30',
-      members: 5,
-      status: 'finished',
-      progress: 100
-    },
-    {
-      id: 5,
-      name: 'Supply Chain Management',
-      customer: 'LogiTech Corp',
-      tags: ['ERP', 'Logistics'],
-      startDate: '2025-10-20',
-      deadline: '2026-02-10',
-      members: 10,
-      status: 'on-hold',
-      progress: 45
-    },
-    {
-      id: 6,
-      name: 'Cloud Migration Project',
-      customer: 'CloudFirst Systems',
-      tags: ['Cloud', 'DevOps'],
-      startDate: '2025-09-01',
-      deadline: '2025-12-31',
-      members: 7,
-      status: 'finished',
-      progress: 100
-    },
-    {
-      id: 7,
-      name: 'AI Chatbot Development',
-      customer: 'AI Innovations',
-      tags: ['AI', 'ML'],
-      startDate: '2026-01-15',
-      deadline: '2026-05-30',
-      members: 9,
-      status: 'in-progress',
-      progress: 25
-    },
-    {
-      id: 8,
-      name: 'Security Audit Platform',
-      customer: 'SecureNet Ltd',
-      tags: ['Security', 'Compliance'],
-      startDate: '2025-12-10',
-      deadline: '2026-03-01',
-      members: 4,
-      status: 'cancelled',
-      progress: 30
-    }
+    Promise.all([fetchProjects(), fetchCustomers()])
+      .then(([projectRows, customerRows]) => {
+        if (!active) return;
+
+        const mapped = projectRows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          customer: row.customer,
+          tags: row.tags ?? [],
+          startDate: row.start_date,
+          deadline: row.deadline,
+          members: row.members ?? 0,
+          teamMembers: row.team_members ?? [],
+          status: row.status,
+          progress: row.progress ?? 0,
+          calculateProgress: row.calculate_progress ?? true,
+          billingType: row.billing_type ?? 'fixed-rate',
+          totalRate: row.total_rate ?? null,
+          estimatedHours: row.estimated_hours ?? null,
+          sendEmail: row.send_email ?? false,
+          projectDocuments: row.project_documents ?? [],
+          description: row.description ?? '',
+          budget: row.budget ?? null,
+          spent: row.spent ?? null,
+        }));
+
+        setProjects(mapped);
+        setCustomerSuggestions(
+          Array.from(
+            new Set([
+              ...customerRows.map((customer) => customer.company_name.trim()).filter(Boolean),
+              ...mapped.map((project) => project.customer.trim()).filter(Boolean),
+            ])
+          ).sort((a, b) => a.localeCompare(b))
+        );
+
+        const pendingEditId = localStorage.getItem('z_erp_project_edit_id');
+        if (pendingEditId) {
+          const projectToEdit = mapped.find((project) => String(project.id) === pendingEditId);
+          if (projectToEdit) {
+            handleEditProject(projectToEdit);
+            localStorage.removeItem('z_erp_project_edit_id');
+          }
+        }
+      })
+      .catch((error) => {
+        if (!active) return;
+        toast({
+          title: 'Failed to load projects',
+          description: error.message || 'Could not load project data from Supabase',
+          variant: 'destructive',
+        });
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [toast]);
+
+  const statusStats = [
+    { label: 'Not Started', value: projects.filter((project) => project.status === 'not-started').length, icon: Circle, color: 'text-slate-600', bgColor: 'bg-slate-100', borderColor: 'border-slate-200' },
+    { label: 'In Progress', value: projects.filter((project) => project.status === 'in-progress').length, icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-100', borderColor: 'border-blue-200' },
+    { label: 'Urgent', value: projects.filter((project) => project.status === 'urgent').length, icon: Zap, color: 'text-orange-600', bgColor: 'bg-orange-100', borderColor: 'border-orange-200' },
+    { label: 'On Hold', value: projects.filter((project) => project.status === 'on-hold').length, icon: PauseCircle, color: 'text-yellow-600', bgColor: 'bg-yellow-100', borderColor: 'border-yellow-200' },
+    { label: 'Finished', value: projects.filter((project) => project.status === 'finished').length, icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-100', borderColor: 'border-green-200' }
   ];
 
   const statusConfig: Record<string, { label: string; class: string; icon: any }> = {
@@ -238,16 +246,35 @@ export default function ProjectsList() {
     finished: { label: 'Finished', class: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle }
   };
 
-  const customerSuggestions = Array.from(
-    new Set(customerDirectory.map((customer) => customer.companyName.trim()).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b));
-
   const filteredProjects = projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          project.customer.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const handleExport = () => {
+    if (filteredProjects.length === 0) {
+      toast({
+        title: 'No projects to export',
+        description: 'Try adjusting filters or search before exporting.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const exportRows = filteredProjects.map((project) => ({
+      'Project Name': project.name,
+      Customer: project.customer,
+      Tags: project.tags?.length ? project.tags.join(', ') : '',
+      'Start Date': project.startDate,
+      Deadline: project.deadline,
+      Members: project.members,
+      Status: project.status,
+    }));
+
+    exportToExcel(exportRows, `projects-summary-${new Date().toISOString().slice(0, 10)}`);
+  };
 
   const handleViewProject = (projectId: number) => {
     setLocation(`/projects/${projectId}`);
@@ -290,15 +317,85 @@ export default function ProjectsList() {
     setFormErrors({});
   };
 
-  const handleCreateProject = () => {
+  const handleCreateProject = async () => {
     if (!validateProjectForm()) return;
-    
-    toast({
-      title: "Project Created",
-      description: `Project "${projectForm.name}" has been created successfully.`,
-    });
-    setShowNewProjectDialog(false);
-    resetProjectForm();
+
+    try {
+      const created = await createProject({
+        name: projectForm.name.trim(),
+        customer: projectForm.customer.trim(),
+        description: projectForm.description.trim() || null,
+        start_date: projectForm.startDate,
+        deadline: projectForm.deadline,
+        members: projectForm.members.length || 0,
+        team_members: projectForm.members,
+        status: projectForm.status,
+        calculate_progress: projectForm.calculateProgress,
+        billing_type: projectForm.billingType,
+        total_rate: projectForm.totalRate ? Number(projectForm.totalRate) : null,
+        estimated_hours: projectForm.estimatedHours ? Number(projectForm.estimatedHours) : null,
+        send_email: projectForm.sendEmail,
+        project_documents: [],
+        tags: projectForm.tags
+          ? projectForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+          : [],
+        progress: 0,
+        budget: projectForm.budget ? Number(projectForm.budget) : null,
+        spent: 0,
+      });
+
+      let uploadedDocuments = created.project_documents ?? [];
+
+      if (projectForm.projectDocuments.length > 0) {
+        const uploaded = await uploadProjectDocuments(created.id, projectForm.projectDocuments);
+        uploadedDocuments = uploaded;
+
+        await updateProject(created.id, {
+          project_documents: uploadedDocuments,
+        });
+      }
+
+      setProjects((prev) => [
+        {
+          id: created.id,
+          name: created.name,
+          customer: created.customer,
+          tags: created.tags ?? [],
+          startDate: created.start_date,
+          deadline: created.deadline,
+          members: created.members ?? 0,
+          teamMembers: created.team_members ?? [],
+          status: created.status,
+          progress: created.progress ?? 0,
+          calculateProgress: created.calculate_progress ?? true,
+          billingType: created.billing_type ?? 'fixed-rate',
+          totalRate: created.total_rate ?? null,
+          estimatedHours: created.estimated_hours ?? null,
+          sendEmail: created.send_email ?? false,
+          projectDocuments: uploadedDocuments,
+          description: created.description ?? '',
+          budget: created.budget ?? null,
+          spent: created.spent ?? null,
+        },
+        ...prev,
+      ]);
+
+      toast({
+        title: 'Project Created',
+        description:
+          projectForm.projectDocuments.length > 0
+            ? `Project "${projectForm.name}" saved and ${projectForm.projectDocuments.length} file(s) uploaded to Supabase Storage.`
+            : `Project "${projectForm.name}" has been saved to Supabase.`,
+      });
+      setShowNewProjectDialog(false);
+      resetProjectForm();
+    } catch (error: any) {
+      toast({
+        title: 'Failed to create project',
+        description: error?.message || 'Supabase rejected the project payload',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleEditProject = (project: any) => {
@@ -316,7 +413,7 @@ export default function ProjectsList() {
       billingType: project.billingType || 'fixed-rate',
       totalRate: project.totalRate || '',
       estimatedHours: project.estimatedHours || '',
-      members: Array.isArray(project.members) ? project.members : typeof project.members === 'string' ? [project.members] : [],
+      members: Array.isArray(project.teamMembers) ? project.teamMembers : [],
       sendEmail: project.sendEmail || false,
       projectDocuments: []
     });
@@ -325,14 +422,76 @@ export default function ProjectsList() {
 
   const handleUpdateProject = () => {
     if (!validateProjectForm()) return;
-    
-    toast({
-      title: "Project Updated",
-      description: `Project "${projectForm.name}" has been updated successfully.`,
-    });
-    setShowEditDialog(false);
-    resetProjectForm();
-    setSelectedProject(null);
+
+    if (!selectedProject?.id) return;
+
+    updateProject(selectedProject.id, {
+      name: projectForm.name.trim(),
+      customer: projectForm.customer.trim(),
+      description: projectForm.description.trim() || null,
+      start_date: projectForm.startDate,
+      deadline: projectForm.deadline,
+      members: projectForm.members.length || 0,
+      team_members: projectForm.members,
+      status: projectForm.status,
+      calculate_progress: projectForm.calculateProgress,
+      billing_type: projectForm.billingType,
+      total_rate: projectForm.totalRate ? Number(projectForm.totalRate) : null,
+      estimated_hours: projectForm.estimatedHours ? Number(projectForm.estimatedHours) : null,
+      send_email: projectForm.sendEmail,
+      ...(projectForm.projectDocuments.length > 0
+        ? {
+            project_documents: projectForm.projectDocuments.map((file) => ({
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              lastModified: file.lastModified,
+            })),
+          }
+        : {}),
+      tags: projectForm.tags
+        ? projectForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+        : [],
+      budget: projectForm.budget ? Number(projectForm.budget) : null,
+    })
+      .then((updated) => {
+        setProjects((prev) => prev.map((project) => project.id === updated.id ? {
+          id: updated.id,
+          name: updated.name,
+          customer: updated.customer,
+          tags: updated.tags ?? [],
+          startDate: updated.start_date,
+          deadline: updated.deadline,
+          members: updated.members ?? 0,
+          teamMembers: updated.team_members ?? [],
+          status: updated.status,
+          progress: updated.progress ?? 0,
+          calculateProgress: updated.calculate_progress ?? true,
+          billingType: updated.billing_type ?? 'fixed-rate',
+          totalRate: updated.total_rate ?? null,
+          estimatedHours: updated.estimated_hours ?? null,
+          sendEmail: updated.send_email ?? false,
+          projectDocuments: updated.project_documents ?? [],
+          description: updated.description ?? '',
+          budget: updated.budget ?? null,
+          spent: updated.spent ?? null,
+        } : project));
+
+        toast({
+          title: 'Project Updated',
+          description: `Project "${projectForm.name}" was updated in Supabase.`,
+        });
+        setShowEditDialog(false);
+        resetProjectForm();
+        setSelectedProject(null);
+      })
+      .catch((error) => {
+        toast({
+          title: 'Failed to update project',
+          description: error.message || 'Supabase rejected the update',
+          variant: 'destructive',
+        });
+      });
   };
 
   const handleDeleteProject = (project: any) => {
@@ -341,13 +500,26 @@ export default function ProjectsList() {
   };
 
   const confirmDeleteProject = () => {
-    toast({
-      title: "Project Deleted",
-      description: `Project "${selectedProject?.name}" has been deleted.`,
-      variant: "destructive"
-    });
-    setShowDeleteDialog(false);
-    setSelectedProject(null);
+    if (!selectedProject?.id) return;
+
+    deleteProject(selectedProject.id)
+      .then(() => {
+        setProjects((prev) => prev.filter((project) => project.id !== selectedProject.id));
+        toast({
+          title: 'Project Deleted',
+          description: `Project "${selectedProject?.name}" has been deleted from Supabase.`,
+          variant: 'destructive'
+        });
+        setShowDeleteDialog(false);
+        setSelectedProject(null);
+      })
+      .catch((error) => {
+        toast({
+          title: 'Failed to delete project',
+          description: error.message || 'Supabase rejected the delete request',
+          variant: 'destructive',
+        });
+      });
   };
 
   // Available team members
@@ -489,7 +661,7 @@ export default function ProjectsList() {
                     <SelectItem value="100">100</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handleExport}>
                   <Download className="h-4 w-4 mr-2" />
                   Export
                 </Button>

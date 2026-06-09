@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Zap, Plus, Play, Settings, Trash2 } from 'lucide-react';
+import { fetchProjectAutomationRules, createProjectAutomationRule, updateProjectAutomationRule, deleteProjectAutomationRule, type ProjectAutomationRuleRecord } from '@/lib/supabase-data';
 
 interface ProjectAutomationTabProps {
   projectId: string | undefined;
@@ -19,36 +20,42 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
   const [showNewRuleDialog, setShowNewRuleDialog] = useState(false);
   const [showEditRuleDialog, setShowEditRuleDialog] = useState(false);
   const [selectedRule, setSelectedRule] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [ruleForm, setRuleForm] = useState({
     trigger: '',
     action: '',
     name: ''
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  
-  const [automationRules, setAutomationRules] = useState([
-    {
-      id: 'AR-001',
-      name: 'Notify on Task Done',
-      trigger: 'task-done',
-      action: 'notify-pm',
-      status: true
-    },
-    {
-      id: 'AR-002',
-      name: 'Invoice on Milestone',
-      trigger: 'milestone-complete',
-      action: 'create-invoice',
-      status: true
-    },
-    {
-      id: 'AR-003',
-      name: 'Deadline Reminders',
-      trigger: 'deadline-approaching',
-      action: 'send-reminder',
-      status: true
-    }
-  ]);
+  const [automationRules, setAutomationRules] = useState<ProjectAutomationRuleRecord[]>([]);
+
+  useEffect(() => {
+    if (!projectId) return;
+
+    let active = true;
+    setIsLoading(true);
+
+    fetchProjectAutomationRules(Number(projectId))
+      .then((records) => {
+        if (!active) return;
+        setAutomationRules(records);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        toast({
+          title: 'Failed to load automation rules',
+          description: error instanceof Error ? error.message : 'Unable to fetch automation rules from Supabase.',
+          variant: 'destructive',
+        });
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [projectId, toast]);
 
   const triggerOptions = [
     { value: 'task-done', label: 'When task status changes to "Done"' },
@@ -92,29 +99,39 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
 
   const handleCreateRule = () => {
     if (!validateRuleForm()) return;
-    
-    // Auto-generate next ID based on length
-    const nextIdNumber = automationRules.length > 0
-      ? Math.max(...automationRules.map(r => parseInt((r.id.split('-')[1] || '0'), 10) || 0)) + 1
-      : 1;
-    const newId = `AR-${String(nextIdNumber).padStart(3, '0')}`;
 
-    const newRule = {
-      id: newId,
-      name: ruleForm.name,
+    if (!projectId) {
+      toast({
+        title: 'Project not selected',
+        description: 'Cannot create rule: project id is missing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    createProjectAutomationRule({
+      project_id: Number(projectId),
+      name: ruleForm.name.trim(),
       trigger: ruleForm.trigger,
       action: ruleForm.action,
-      status: true
-    };
-    
-    setAutomationRules([...automationRules, newRule]);
-
-    toast({
-      title: "Automation Rule Created",
-      description: `Rule "${newRule.name}" has been created and activated.`,
-    });
-    setShowNewRuleDialog(false);
-    resetRuleForm();
+      is_active: true,
+    })
+      .then((created) => {
+        setAutomationRules([...automationRules, created]);
+        toast({
+          title: 'Automation Rule Created',
+          description: `Rule "${created.name}" has been saved to Supabase.`,
+        });
+        setShowNewRuleDialog(false);
+        resetRuleForm();
+      })
+      .catch((error: unknown) => {
+        toast({
+          title: 'Failed to create rule',
+          description: error instanceof Error ? error.message : 'Supabase rejected the rule creation.',
+          variant: 'destructive',
+        });
+      });
   };
 
   const handleEditRule = (rule: any) => {
@@ -130,25 +147,50 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
   const handleUpdateRule = () => {
     if (!validateRuleForm() || !selectedRule) return;
 
-    setAutomationRules(automationRules.map(r => 
-      r.id === selectedRule.id ? { ...r, name: ruleForm.name, trigger: ruleForm.trigger, action: ruleForm.action } : r
-    ));
-
-    toast({
-      title: "Rule Updated",
-      description: `Automation rule has been updated successfully.`,
-    });
-    setShowEditRuleDialog(false);
-    resetRuleForm();
-    setSelectedRule(null);
+    updateProjectAutomationRule(selectedRule.id, {
+      name: ruleForm.name.trim(),
+      trigger: ruleForm.trigger,
+      action: ruleForm.action,
+    })
+      .then(() => {
+        setAutomationRules(automationRules.map(r =>
+          r.id === selectedRule.id
+            ? { ...r, name: ruleForm.name, trigger: ruleForm.trigger, action: ruleForm.action }
+            : r
+        ));
+        toast({
+          title: 'Rule Updated',
+          description: 'Automation rule has been saved to Supabase.',
+        });
+        setShowEditRuleDialog(false);
+        resetRuleForm();
+        setSelectedRule(null);
+      })
+      .catch((error: unknown) => {
+        toast({
+          title: 'Failed to update rule',
+          description: error instanceof Error ? error.message : 'Supabase rejected the update.',
+          variant: 'destructive',
+        });
+      });
   };
 
-  const handleDeleteRule = (ruleId: string) => {
-    setAutomationRules(automationRules.filter(r => r.id !== ruleId));
-    toast({
-      title: "Rule Deleted",
-      description: `Automation rule ${ruleId} has been removed.`,
-    });
+  const handleDeleteRule = (ruleId: string | number) => {
+    deleteProjectAutomationRule(ruleId)
+      .then(() => {
+        setAutomationRules(automationRules.filter(r => r.id !== ruleId));
+        toast({
+          title: 'Rule Deleted',
+          description: 'Automation rule has been removed from Supabase.',
+        });
+      })
+      .catch((error: unknown) => {
+        toast({
+          title: 'Failed to delete rule',
+          description: error instanceof Error ? error.message : 'Supabase rejected the deletion.',
+          variant: 'destructive',
+        });
+      });
   };
 
   const handleTestRule = (rule: any) => {
@@ -161,12 +203,22 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
     });
   };
 
-  const handleToggleRule = (ruleId: string, enabled: boolean) => {
-    setAutomationRules(automationRules.map(r => r.id === ruleId ? { ...r, status: enabled } : r));
-    toast({
-      title: enabled ? "Rule Enabled" : "Rule Disabled",
-      description: `Automation rule ${ruleId} has been ${enabled ? 'enabled' : 'disabled'}.`,
-    });
+  const handleToggleRule = (ruleId: string | number, enabled: boolean) => {
+    updateProjectAutomationRule(ruleId, { is_active: enabled })
+      .then(() => {
+        setAutomationRules(automationRules.map(r => r.id === ruleId ? { ...r, is_active: enabled } : r));
+        toast({
+          title: enabled ? 'Rule Enabled' : 'Rule Disabled',
+          description: 'Rule status updated in Supabase.',
+        });
+      })
+      .catch((error: unknown) => {
+        toast({
+          title: 'Failed to toggle rule',
+          description: error instanceof Error ? error.message : 'Supabase update failed.',
+          variant: 'destructive',
+        });
+      });
   };
 
   const getTriggerLabel = (value: string) => triggerOptions.find(t => t.value === value)?.label || value;
@@ -210,7 +262,7 @@ export default function ProjectAutomationTab({ projectId }: ProjectAutomationTab
                        </Badge>
                     </div>
                     <Switch
-                      checked={rule.status}
+                      checked={rule.is_active}
                       onCheckedChange={(checked) => handleToggleRule(rule.id, checked)}
                     />
                   </div>

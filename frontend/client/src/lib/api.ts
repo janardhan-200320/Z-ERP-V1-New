@@ -5,6 +5,55 @@
 
 import { supabase } from './superbase';
 
+const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const activeSessionStorageKey = 'z_erp_active_session';
+
+const readActiveSession = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(activeSessionStorageKey);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const buildHeaders = async () => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`;
+  }
+  return headers;
+};
+
+const requestJson = async <T>(path: string, options: RequestInit = {}): Promise<{ data?: T; error?: string }> => {
+  const headers = await buildHeaders();
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...options,
+    headers: {
+      ...headers,
+      ...(options.headers || {})
+    }
+  });
+
+  const text = await response.text();
+  let body: any = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = { error: text };
+    }
+  }
+
+  if (!response.ok) {
+    return { error: body?.error || response.statusText || 'Request failed' };
+  }
+
+  return { data: body as T };
+};
+
 // =====================================================
 // TYPE DEFINITIONS
 // =====================================================
@@ -118,41 +167,62 @@ export async function getMyEmployee(): Promise<{
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      return { error: 'Not authenticated' };
+      const session = readActiveSession();
+      const sessionEmail = String(session?.email || '').trim();
+
+      if (!sessionEmail) {
+        return { error: 'Not authenticated' };
+      }
+
+      const { data: employees, error } = await requestJson<Employee[]>(
+        `/hrm/employees?email=${encodeURIComponent(sessionEmail)}`
+      );
+
+      if (error) {
+        return { error };
+      }
+
+      const employee = Array.isArray(employees) ? employees[0] : undefined;
+
+      if (!employee) {
+        return { error: 'Email not found in HRM' };
+      }
+
+      return { data: employee as Employee };
     }
 
-    let { data: employee, error } = await supabase
-      .from('employees')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
+    const { data: employees, error } = await requestJson<Employee[]>(
+      `/hrm/employees?user_id=${encodeURIComponent(user.id)}`
+    );
 
-    // Auto-create employee record if doesn't exist
-    if (error && error.code === 'PGRST116') {
+    if (error) {
+      return { error };
+    }
+
+    let employee = Array.isArray(employees) ? employees[0] : undefined;
+
+    if (!employee) {
       const fullName =
         user.user_metadata?.full_name ||
         user.user_metadata?.name ||
         user.email?.split('@')[0] ||
         'Employee';
 
-      const { data: created, error: createError } = await supabase
-        .from('employees')
-        .insert({
+      const { data: created, error: createError } = await requestJson<Employee>('/hrm/employees', {
+        method: 'POST',
+        body: JSON.stringify({
           user_id: user.id,
           full_name: fullName,
           email: user.email,
-          status: 'active',
+          status: 'active'
         })
-        .select()
-        .single();
+      });
 
       if (createError) {
-        return { error: createError.message };
+        return { error: createError };
       }
 
       employee = created;
-    } else if (error) {
-      return { error: error.message };
     }
 
     return { data: employee as Employee };
@@ -168,21 +238,21 @@ export async function updateMyEmployee(
   payload: Partial<Employee>
 ): Promise<{ data?: Employee; error?: string }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return { error: 'Not authenticated' };
+    const { data: employee, error } = await getMyEmployee();
+    if (error || !employee) {
+      return { error: error || 'Employee record not found' };
     }
 
-    const { data, error } = await supabase
-      .from('employees')
-      .update(payload)
-      .eq('user_id', user.id)
-      .select()
-      .single();
+    const { data, error: updateError } = await requestJson<Employee>(
+      `/hrm/employees/${employee.id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }
+    );
 
-    if (error) {
-      return { error: error.message };
+    if (updateError) {
+      return { error: updateError };
     }
 
     return { data: data as Employee };
@@ -244,30 +314,25 @@ export async function checkIn(payload: {
   location?: string;
 }): Promise<{ data?: AttendanceRecord; error?: string }> {
   try {
-    const { data: employee } = await getMyEmployee();
+    const { data: employee, error: employeeError } = await getMyEmployee();
+    if (employeeError) {
+      return { error: employeeError };
+    }
     if (!employee) {
       return { error: 'Employee record not found' };
     }
 
-    const today = new Date().toISOString().split('T')[0];
-
-    const { data, error } = await supabase
-      .from('attendance_records')
-      .upsert({
+    const { data, error } = await requestJson<AttendanceRecord>('/hrm/attendance-records/check-in', {
+      method: 'POST',
+      body: JSON.stringify({
         employee_id: employee.id,
-        date: today,
-        check_in: new Date().toISOString(),
         work_mode: payload.work_mode,
-        location: payload.location,
-        status: 'present',
-      }, {
-        onConflict: 'employee_id,date'
+        location: payload.location
       })
-      .select()
-      .single();
+    });
 
     if (error) {
-      return { error: error.message };
+      return { error };
     }
 
     return { data: data as AttendanceRecord };
@@ -283,26 +348,24 @@ export async function checkOut(payload?: {
   location?: string;
 }): Promise<{ data?: AttendanceRecord; error?: string }> {
   try {
-    const { data: employee } = await getMyEmployee();
+    const { data: employee, error: employeeError } = await getMyEmployee();
+    if (employeeError) {
+      return { error: employeeError };
+    }
     if (!employee) {
       return { error: 'Employee record not found' };
     }
 
-    const today = new Date().toISOString().split('T')[0];
-
-    const { data, error } = await supabase
-      .from('attendance_records')
-      .update({
-        check_out: new Date().toISOString(),
-        location: payload?.location,
+    const { data, error } = await requestJson<AttendanceRecord>('/hrm/attendance-records/check-out', {
+      method: 'POST',
+      body: JSON.stringify({
+        employee_id: employee.id,
+        location: payload?.location
       })
-      .eq('employee_id', employee.id)
-      .eq('date', today)
-      .select()
-      .single();
+    });
 
     if (error) {
-      return { error: error.message };
+      return { error };
     }
 
     return { data: data as AttendanceRecord };
@@ -319,33 +382,33 @@ export async function getAttendanceHistory(params?: {
   limit?: number;
 }): Promise<{ data?: AttendanceRecord[]; error?: string }> {
   try {
-    const { data: employee } = await getMyEmployee();
+    const { data: employee, error: employeeError } = await getMyEmployee();
+    if (employeeError) {
+      return { error: employeeError };
+    }
     if (!employee) {
       return { error: 'Employee record not found' };
     }
 
-    let query = supabase
-      .from('attendance_records')
-      .select('*')
-      .eq('employee_id', employee.id)
-      .order('date', { ascending: false });
-
+    const search = new URLSearchParams({ employee_id: employee.id });
     if (params?.month) {
-      query = query.gte('date', `${params.month}-01`)
-                   .lt('date', `${params.month}-32`);
+      search.set('month', params.month);
     }
 
-    if (params?.limit) {
-      query = query.limit(params.limit);
-    }
-
-    const { data, error } = await query;
+    const { data, error } = await requestJson<AttendanceRecord[]>(
+      `/hrm/attendance-records?${search.toString()}`
+    );
 
     if (error) {
-      return { error: error.message };
+      return { error };
     }
 
-    return { data: data as AttendanceRecord[] };
+    let records = Array.isArray(data) ? data : [];
+    if (params?.limit) {
+      records = records.slice(0, params.limit);
+    }
+
+    return { data: records as AttendanceRecord[] };
   } catch (err: any) {
     return { error: err.message || 'Failed to fetch attendance history' };
   }
@@ -359,25 +422,31 @@ export async function getTodayAttendance(): Promise<{
   error?: string 
 }> {
   try {
-    const { data: employee } = await getMyEmployee();
+    const { data: employee, error: employeeError } = await getMyEmployee();
+    if (employeeError) {
+      return { error: employeeError };
+    }
     if (!employee) {
       return { error: 'Employee record not found' };
     }
 
     const today = new Date().toISOString().split('T')[0];
 
-    const { data, error } = await supabase
-      .from('attendance_records')
-      .select('*')
-      .eq('employee_id', employee.id)
-      .eq('date', today)
-      .single();
+    const search = new URLSearchParams({
+      employee_id: employee.id,
+      date: today
+    });
 
-    if (error && error.code !== 'PGRST116') {
-      return { error: error.message };
+    const { data, error } = await requestJson<AttendanceRecord[]>(
+      `/hrm/attendance-records?${search.toString()}`
+    );
+
+    if (error) {
+      return { error };
     }
 
-    return { data: data as AttendanceRecord };
+    const record = Array.isArray(data) ? data[0] : undefined;
+    return { data: record as AttendanceRecord };
   } catch (err: any) {
     return { error: err.message || 'Failed to fetch today\'s attendance' };
   }
@@ -395,22 +464,23 @@ export async function getMyLeaveRequests(): Promise<{
   error?: string 
 }> {
   try {
-    const { data: employee } = await getMyEmployee();
+    const { data: employee, error: employeeError } = await getMyEmployee();
+    if (employeeError) {
+      return { error: employeeError };
+    }
     if (!employee) {
       return { error: 'Employee record not found' };
     }
 
-    const { data, error } = await supabase
-      .from('leave_requests')
-      .select('*')
-      .eq('employee_id', employee.id)
-      .order('created_at', { ascending: false });
+    const { data, error } = await requestJson<LeaveRequest[]>(
+      `/hrm/leave-requests?employee_id=${encodeURIComponent(employee.id)}`
+    );
 
     if (error) {
-      return { error: error.message };
+      return { error };
     }
 
-    return { data: data as LeaveRequest[] };
+    return { data: (data || []) as LeaveRequest[] };
   } catch (err: any) {
     return { error: err.message || 'Failed to fetch leave requests' };
   }
@@ -427,7 +497,10 @@ export async function createLeaveRequest(payload: {
   attachment_url?: string;
 }): Promise<{ data?: LeaveRequest; error?: string }> {
   try {
-    const { data: employee } = await getMyEmployee();
+    const { data: employee, error: employeeError } = await getMyEmployee();
+    if (employeeError) {
+      return { error: employeeError };
+    }
     if (!employee) {
       return { error: 'Employee record not found' };
     }
@@ -437,9 +510,9 @@ export async function createLeaveRequest(payload: {
     const end = new Date(payload.end_date);
     const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-    const { data, error } = await supabase
-      .from('leave_requests')
-      .insert({
+    const { data, error } = await requestJson<LeaveRequest>('/hrm/leave-requests', {
+      method: 'POST',
+      body: JSON.stringify({
         employee_id: employee.id,
         leave_type: payload.leave_type,
         start_date: payload.start_date,
@@ -447,13 +520,12 @@ export async function createLeaveRequest(payload: {
         days,
         reason: payload.reason,
         attachment_url: payload.attachment_url,
-        status: 'pending',
+        status: 'pending'
       })
-      .select()
-      .single();
+    });
 
     if (error) {
-      return { error: error.message };
+      return { error };
     }
 
     return { data: data as LeaveRequest };
@@ -467,14 +539,13 @@ export async function createLeaveRequest(payload: {
  */
 export async function cancelLeaveRequest(id: string): Promise<{ error?: string }> {
   try {
-    const { error } = await supabase
-      .from('leave_requests')
-      .update({ status: 'cancelled' })
-      .eq('id', id)
-      .eq('status', 'pending'); // Only allow cancelling pending requests
+    const { error } = await requestJson<LeaveRequest>(`/hrm/leave-requests/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'cancelled' })
+    });
 
     if (error) {
-      return { error: error.message };
+      return { error };
     }
 
     return {};
@@ -495,22 +566,23 @@ export async function getMyInsurancePolicies(): Promise<{
   error?: string 
 }> {
   try {
-    const { data: employee } = await getMyEmployee();
+    const { data: employee, error: employeeError } = await getMyEmployee();
+    if (employeeError) {
+      return { error: employeeError };
+    }
     if (!employee) {
       return { error: 'Employee record not found' };
     }
 
-    const { data, error } = await supabase
-      .from('insurance_policies')
-      .select('*')
-      .eq('employee_id', employee.id)
-      .order('created_at', { ascending: false });
+    const { data, error } = await requestJson<InsurancePolicy[]>(
+      `/hrm/insurance-policies?employee_id=${encodeURIComponent(employee.id)}`
+    );
 
     if (error) {
-      return { error: error.message };
+      return { error };
     }
 
-    return { data: data as InsurancePolicy[] };
+    return { data: (data || []) as InsurancePolicy[] };
   } catch (err: any) {
     return { error: err.message || 'Failed to fetch insurance policies' };
   }
@@ -528,22 +600,23 @@ export async function getMyPayrollRecords(): Promise<{
   error?: string 
 }> {
   try {
-    const { data: employee } = await getMyEmployee();
+    const { data: employee, error: employeeError } = await getMyEmployee();
+    if (employeeError) {
+      return { error: employeeError };
+    }
     if (!employee) {
       return { error: 'Employee record not found' };
     }
 
-    const { data, error } = await supabase
-      .from('payroll_records')
-      .select('*')
-      .eq('employee_id', employee.id)
-      .order('month', { ascending: false });
+    const { data, error } = await requestJson<PayrollRecord[]>(
+      `/hrm/payroll-records?employee_id=${encodeURIComponent(employee.id)}`
+    );
 
     if (error) {
-      return { error: error.message };
+      return { error };
     }
 
-    return { data: data as PayrollRecord[] };
+    return { data: (data || []) as PayrollRecord[] };
   } catch (err: any) {
     return { error: err.message || 'Failed to fetch payroll records' };
   }

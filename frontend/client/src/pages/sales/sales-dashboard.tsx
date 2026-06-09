@@ -58,25 +58,9 @@ import InvoicesTab from './tabs/invoices-tab';
 import PaymentsTab from './tabs/payments-tab';
 import CreditNotesTab from './tabs/credit-notes-tab';
 
-// Mock data for charts
-const revenueData = [
-  { name: 'Jan', revenue: 45000, target: 40000 },
-  { name: 'Feb', revenue: 52000, target: 42000 },
-  { name: 'Mar', revenue: 48000, target: 45000 },
-  { name: 'Apr', revenue: 61000, target: 48000 },
-  { name: 'May', revenue: 55000, target: 50000 },
-  { name: 'Jun', revenue: 67000, target: 55000 },
-  { name: 'Jul', revenue: 72000, target: 60000 },
-];
-
-const salesData = [
-  { name: 'Jan', sales: 4000, target: 4500 },
-  { name: 'Feb', sales: 3000, target: 4500 },
-  { name: 'Mar', sales: 5000, target: 4500 },
-  { name: 'Apr', sales: 2780, target: 4500 },
-  { name: 'May', sales: 1890, target: 4500 },
-  { name: 'Jun', sales: 2390, target: 4500 },
-];
+// Chart data - empty by default, will be populated from API
+const revenueData: any[] = [];
+const salesData: any[] = [];
 
 export default function SalesDashboard() {
   const [location, navigate] = useLocation();
@@ -208,10 +192,10 @@ export default function SalesDashboard() {
         {/* Enhanced Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { title: 'Total Revenue', value: '₹842,000', change: '+12.5%', trend: 'up', icon: Wallet, color: 'indigo' },
-            { title: 'Open Proposals', value: '42', change: '+3', trend: 'up', icon: FileText, color: 'blue' },
-            { title: 'Conversion Rate', value: '24.2%', change: '-2.1%', trend: 'down', icon: TrendingUp, color: 'emerald' },
-            { title: 'Average Deal Size', value: '₹12.4k', change: '+0.8%', trend: 'up', icon: Receipt, color: 'amber' },
+            { title: 'Total Revenue', value: '₹0', change: '--', trend: 'up', icon: Wallet, color: 'indigo' },
+            { title: 'Open Proposals', value: '0', change: '--', trend: 'up', icon: FileText, color: 'blue' },
+            { title: 'Conversion Rate', value: '0%', change: '--', trend: 'down', icon: TrendingUp, color: 'emerald' },
+            { title: 'Average Deal Size', value: '₹0', change: '--', trend: 'up', icon: Receipt, color: 'amber' },
           ].map((stat, i) => (
             <motion.div
               key={stat.title}
@@ -227,10 +211,9 @@ export default function SalesDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
-                  <div className={`text-xs mt-1 flex items-center gap-1 font-medium ${stat.trend === 'up' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {stat.trend === 'up' ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                  <div className={`text-xs mt-1 flex items-center gap-1 font-medium text-slate-400`}>
                     {stat.change}
-                    <span className="text-slate-400 font-normal ml-1">vs last month</span>
+                    <span className="text-slate-400 font-normal ml-1">No data yet</span>
                   </div>
                 </CardContent>
               </Card>
@@ -308,12 +291,7 @@ export default function SalesDashboard() {
             <CardContent>
               <div className="h-[250px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={[
-                    {name: 'Services', val: 45},
-                    {name: 'Products', val: 32},
-                    {name: 'Subs', val: 18},
-                    {name: 'Other', val: 5},
-                  ]}>
+                  <BarChart data={[]}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 11}} />
                     <YAxis hide />
@@ -324,9 +302,6 @@ export default function SalesDashboard() {
               </div>
               <div className="mt-8 space-y-3">
                 {[
-                  { label: 'Cloud Services', value: '45%', color: 'bg-indigo-500' },
-                  { label: 'Hardware Sales', value: '32%', color: 'bg-indigo-300' },
-                  { label: 'Consulting', value: '18%', color: 'bg-indigo-100' },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">

@@ -3,6 +3,9 @@ import * as hrmController from '../controllers/hrm.controller';
 
 const router = express.Router();
 
+// ==================== AUTH ROUTES ====================
+router.post('/auth/login', hrmController.loginWithEmployeeEmail);
+
 // ==================== EMPLOYEE ROUTES ====================
 router.get('/employees', hrmController.getEmployees);
 router.get('/employees/:id', hrmController.getEmployeeById);
@@ -27,6 +30,11 @@ router.get('/attendance', hrmController.getAttendance);
 router.post('/attendance', hrmController.createAttendance);
 router.put('/attendance/:id', hrmController.updateAttendance);
 
+// ==================== ATTENDANCE RECORDS (SELF-SERVICE) ====================
+router.get('/attendance-records', hrmController.getAttendanceRecords);
+router.post('/attendance-records/check-in', hrmController.checkInAttendanceRecord);
+router.post('/attendance-records/check-out', hrmController.checkOutAttendanceRecord);
+
 // ==================== LEAVE TYPE ROUTES ====================
 router.get('/leave-types', hrmController.getLeaveTypes);
 router.post('/leave-types', hrmController.createLeaveType);
@@ -35,6 +43,11 @@ router.post('/leave-types', hrmController.createLeaveType);
 router.get('/leave-applications', hrmController.getLeaveApplications);
 router.post('/leave-applications', hrmController.createLeaveApplication);
 router.put('/leave-applications/:id', hrmController.updateLeaveApplication);
+
+// ==================== LEAVE REQUESTS (SELF-SERVICE) ====================
+router.get('/leave-requests', hrmController.getLeaveRequests);
+router.post('/leave-requests', hrmController.createLeaveRequest);
+router.put('/leave-requests/:id', hrmController.updateLeaveRequest);
 
 // ==================== SALARY ROUTES ====================
 router.get('/salaries', hrmController.getSalaries);

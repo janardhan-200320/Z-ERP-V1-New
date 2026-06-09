@@ -1,15 +1,7 @@
-require('dotenv').config();
-
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const multer = require('multer');
-const { createClient } = require('@supabase/supabase-js');
-const { v4: uuidv4 } = require('uuid');
-
-const app = express();
-const port = Number(process.env.PORT || 4000);
+import express from 'express';
+import multer from 'multer';
+import { createClient } from '@supabase/supabase-js';
+import { v4 as uuidv4 } from 'uuid';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -26,7 +18,7 @@ const supabase =
       })
     : null;
 
-const managedTables = {
+const managedTables: Record<string, string> = {
   projects: 'projects',
   customers: 'customers',
   'customer-groups': 'customer_groups',
@@ -49,7 +41,7 @@ const upload = multer({
   },
 });
 
-function ensureSupabaseConfigured(res) {
+function ensureSupabaseConfigured(res: express.Response) {
   if (!supabase) {
     res.status(500).json({
       error: 'Supabase is not configured on the backend',
@@ -60,12 +52,12 @@ function ensureSupabaseConfigured(res) {
   return true;
 }
 
-function extractError(error) {
-  return error?.message || 'Supabase request failed';
+function extractError(error: unknown) {
+  return (error as { message?: string })?.message || 'Supabase request failed';
 }
 
-function normalizeMilestonePayload(body = {}) {
-  const payload = { ...body };
+function normalizeMilestonePayload(body: Record<string, unknown> = {}) {
+  const payload: Record<string, unknown> = { ...body };
 
   if (payload.targetDate && !payload.target_date) {
     payload.target_date = payload.targetDate;
@@ -75,7 +67,7 @@ function normalizeMilestonePayload(body = {}) {
   return payload;
 }
 
-function calculateTaskProgress(task) {
+function calculateTaskProgress(task: any) {
   const totalSubtasks = Number(task?.subtasks_total ?? 0);
   const completedSubtasks = Number(task?.subtasks_completed ?? 0);
 
@@ -100,7 +92,7 @@ function calculateTaskProgress(task) {
   }
 }
 
-function calculateMilestoneProgress(milestone) {
+function calculateMilestoneProgress(milestone: any) {
   if (typeof milestone?.progress === 'number') {
     return Math.max(0, Math.min(100, milestone.progress));
   }
@@ -116,7 +108,7 @@ function calculateMilestoneProgress(milestone) {
   }
 }
 
-async function syncProjectProgress(projectId) {
+async function syncProjectProgress(projectId: number) {
   if (!supabase || !projectId) return;
 
   const { data: project, error: projectError } = await supabase
@@ -146,11 +138,11 @@ async function syncProjectProgress(projectId) {
   const milestones = milestonesResult.data ?? [];
 
   const taskProgress = tasks.length
-    ? Math.round(tasks.reduce((sum, task) => sum + calculateTaskProgress(task), 0) / tasks.length)
+    ? Math.round(tasks.reduce((sum: number, task: any) => sum + calculateTaskProgress(task), 0) / tasks.length)
     : 0;
 
   const milestoneProgress = milestones.length
-    ? Math.round(milestones.reduce((sum, milestone) => sum + calculateMilestoneProgress(milestone), 0) / milestones.length)
+    ? Math.round(milestones.reduce((sum: number, milestone: any) => sum + calculateMilestoneProgress(milestone), 0) / milestones.length)
     : 0;
 
   const hasTasks = tasks.length > 0;
@@ -173,7 +165,7 @@ async function syncProjectProgress(projectId) {
     .eq('id', projectId);
 }
 
-async function syncProjectTimesheets(projectId) {
+async function syncProjectTimesheets(projectId: number) {
   if (!supabase || !projectId) return;
 
   const { data: tasks, error: taskError } = await supabase
@@ -186,7 +178,7 @@ async function syncProjectTimesheets(projectId) {
     return;
   }
 
-  const rows = (tasks || []).map((task) => {
+  const rows = (tasks || []).map((task: any) => {
     const progress = calculateTaskProgress(task);
     const estimated = Number(task.estimated_hours ?? 0);
     const computedHours = Math.round(estimated * (progress / 100) * 100) / 100;
@@ -223,14 +215,14 @@ async function syncProjectTimesheets(projectId) {
   }
 }
 
-function sanitizeFilename(filename) {
+function sanitizeFilename(filename: string) {
   return String(filename || 'file')
     .replace(/[^a-zA-Z0-9._-]+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '');
 }
 
-async function ensureStorageBucketExists(bucketName) {
+async function ensureStorageBucketExists(bucketName: string) {
   if (!supabase) {
     return { ok: false, error: 'Supabase is not configured on the backend' };
   }
@@ -257,22 +249,22 @@ async function ensureStorageBucketExists(bucketName) {
   return { ok: true };
 }
 
-function registerCrudRoutes(routePath, tableName) {
+function registerCrudRoutes(routePath: string, tableName: string, app: express.Express) {
   app.get(`/api/${routePath}`, async (req, res) => {
     if (!ensureSupabaseConfigured(res)) return;
 
-    const { limit = '100', orderBy = 'created_at', ascending = 'false' } = req.query;
+    const { limit = '100', orderBy = 'created_at', ascending = 'false' } = req.query as Record<string, string>;
     const reservedParams = new Set(['limit', 'orderBy', 'ascending']);
     const queryLimit = Number(limit);
 
-    let query = supabase.from(tableName).select('*');
+    let query = supabase!.from(tableName).select('*');
 
     Object.entries(req.query).forEach(([key, value]) => {
       if (reservedParams.has(key) || value === undefined || value === null || value === '') {
         return;
       }
 
-      query = query.eq(key, value);
+      query = query.eq(key, value as string);
     });
 
     if (orderBy) {
@@ -295,7 +287,7 @@ function registerCrudRoutes(routePath, tableName) {
   app.get(`/api/${routePath}/:id`, async (req, res) => {
     if (!ensureSupabaseConfigured(res)) return;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabase!
       .from(tableName)
       .select('*')
       .eq('id', req.params.id)
@@ -317,7 +309,7 @@ function registerCrudRoutes(routePath, tableName) {
 
     const insertPayload = routePath === 'project-milestones' ? normalizeMilestonePayload(req.body) : req.body;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabase!
       .from(tableName)
       .insert(insertPayload)
       .select('*')
@@ -335,7 +327,6 @@ function registerCrudRoutes(routePath, tableName) {
       await syncProjectTimesheets(data?.project_id);
     }
 
-    // If a subtask changed, update parent task counters and project progress
     if (routePath === 'project-task-subtasks') {
       try {
         const parentTaskId = data?.task_id;
@@ -353,7 +344,7 @@ function registerCrudRoutes(routePath, tableName) {
 
     const updatePayload = routePath === 'project-milestones' ? normalizeMilestonePayload(req.body) : req.body;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabase!
       .from(tableName)
       .update(updatePayload)
       .eq('id', req.params.id)
@@ -378,9 +369,12 @@ function registerCrudRoutes(routePath, tableName) {
 
     if (routePath === 'project-task-subtasks') {
       try {
-        // determine the parent task id for this subtask
         const parentTaskId = data?.task_id || (await (async () => {
-          const { data: row } = await supabase.from(tableName).select('task_id').eq('id', req.params.id).maybeSingle();
+          const { data: row } = await supabase!
+            .from(tableName)
+            .select('task_id')
+            .eq('id', req.params.id)
+            .maybeSingle();
           return row?.task_id;
         })());
 
@@ -396,30 +390,30 @@ function registerCrudRoutes(routePath, tableName) {
   app.delete(`/api/${routePath}/:id`, async (req, res) => {
     if (!ensureSupabaseConfigured(res)) return;
 
-    let relatedProjectId = null;
-    let relatedTaskId = null;
+    let relatedProjectId: number | null = null;
+    let relatedTaskId: number | null = null;
 
     if (routePath === 'project-milestones' || routePath === 'project-tasks') {
-      const { data: existingRow } = await supabase
+      const { data: existingRow } = await supabase!
         .from(tableName)
         .select('project_id')
         .eq('id', req.params.id)
         .maybeSingle();
 
-      relatedProjectId = existingRow?.project_id ?? null;
+      relatedProjectId = (existingRow as { project_id?: number })?.project_id ?? null;
     }
 
     if (routePath === 'project-task-subtasks') {
-      const { data: existingRow } = await supabase
+      const { data: existingRow } = await supabase!
         .from(tableName)
         .select('task_id')
         .eq('id', req.params.id)
         .maybeSingle();
 
-      relatedTaskId = existingRow?.task_id ?? null;
+      relatedTaskId = (existingRow as { task_id?: number })?.task_id ?? null;
     }
 
-    const { error } = await supabase
+    const { error } = await supabase!
       .from(tableName)
       .delete()
       .eq('id', req.params.id);
@@ -445,8 +439,7 @@ function registerCrudRoutes(routePath, tableName) {
   });
 }
 
-// Recalculate subtask counters for a parent task and sync project progress
-async function recalcSubtaskCounts(taskId) {
+async function recalcSubtaskCounts(taskId: number) {
   if (!supabase || !taskId) return;
 
   const { data: subs, error: subsErr } = await supabase
@@ -460,7 +453,7 @@ async function recalcSubtaskCounts(taskId) {
   }
 
   const total = Array.isArray(subs) ? subs.length : 0;
-  const completed = Array.isArray(subs) ? subs.filter((s) => s.completed).length : 0;
+  const completed = Array.isArray(subs) ? subs.filter((s: any) => s.completed).length : 0;
 
   const { error: updateErr } = await supabase
     .from('project_tasks')
@@ -471,242 +464,220 @@ async function recalcSubtaskCounts(taskId) {
     console.error('Failed to update task subtask counters', updateErr);
   }
 
-  // fetch project id for the task and sync project progress
-  const { data: taskRow } = await supabase.from('project_tasks').select('project_id').eq('id', taskId).maybeSingle();
-  const projectId = taskRow?.project_id ?? null;
+  const { data: taskRow } = await supabase
+    .from('project_tasks')
+    .select('project_id')
+    .eq('id', taskId)
+    .maybeSingle();
+
+  const projectId = (taskRow as { project_id?: number })?.project_id ?? null;
   if (projectId) {
     await syncProjectProgress(projectId);
     await syncProjectTimesheets(projectId);
   }
 }
 
-app.use(helmet());
-app.use(
-  cors({
-    origin: [
-      'http://localhost:5176',
-      'http://127.0.0.1:5176',
-      'http://localhost:5177',
-      'http://127.0.0.1:5177',
-    ],
-    credentials: true,
-  })
-);
-app.use(express.json({ limit: '2mb' }));
-app.use(morgan('dev'));
+export function registerProjectModule(app: express.Express) {
+  app.post('/api/storage/project-documents', upload.array('files'), async (req, res) => {
+    if (!ensureSupabaseConfigured(res)) return;
 
-app.post('/api/storage/project-documents', upload.array('files'), async (req, res) => {
-  if (!ensureSupabaseConfigured(res)) return;
-
-  const files = req.files || [];
-  if (!Array.isArray(files) || files.length === 0) {
-    return res.status(400).json({ error: 'No files uploaded' });
-  }
-
-  const projectId = Number(req.body.projectId);
-  if (!Number.isNaN(projectId) && projectId <= 0) {
-    return res.status(400).json({ error: 'projectId must be a positive number when provided' });
-  }
-
-  const bucketCheck = await ensureStorageBucketExists(storageBucket);
-  if (!bucketCheck.ok) {
-    return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
-  }
-
-  const uploadedDocuments = [];
-
-  for (const file of files) {
-    const storagePath = `${Number.isNaN(projectId) ? 'unassigned' : projectId}/${Date.now()}-${uuidv4()}-${sanitizeFilename(file.originalname)}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from(storageBucket)
-      .upload(storagePath, file.buffer, {
-        contentType: file.mimetype || 'application/octet-stream',
-        upsert: false,
-      });
-
-    if (uploadError) {
-      return res.status(400).json({ error: `Upload failed for ${file.originalname}: ${extractError(uploadError)}` });
+    const files = req.files || [];
+    if (!Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
     }
 
-    const document = {
-      name: file.originalname,
-      size: file.size,
-      type: file.mimetype || null,
-      lastModified: null,
-      bucket: storageBucket,
-      storage_path: storagePath,
-      file_url: null,
-      uploaded_at: new Date().toISOString(),
-    };
+    const projectId = Number(req.body.projectId);
+    if (!Number.isNaN(projectId) && projectId <= 0) {
+      return res.status(400).json({ error: 'projectId must be a positive number when provided' });
+    }
 
-    uploadedDocuments.push(document);
+    const bucketCheck = await ensureStorageBucketExists(storageBucket);
+    if (!bucketCheck.ok) {
+      return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
+    }
 
-    if (!Number.isNaN(projectId)) {
-      const { error: fileRowError } = await supabase
-        .from(managedTables['project-files'])
-        .insert({
-          project_id: projectId,
-          name: file.originalname,
-          description: null,
-          file_size_bytes: file.size,
-          uploaded_by: 'system',
-          status: 'uploaded',
-          visibility: 'private',
-          storage_path: storagePath,
-          file_url: null,
-          mime_type: file.mimetype || null,
+    const uploadedDocuments: Array<Record<string, unknown>> = [];
+
+    for (const file of files as Express.Multer.File[]) {
+      const storagePath = `${Number.isNaN(projectId) ? 'unassigned' : projectId}/${Date.now()}-${uuidv4()}-${sanitizeFilename(file.originalname)}`;
+
+      const { error: uploadError } = await supabase!.storage
+        .from(storageBucket)
+        .upload(storagePath, file.buffer, {
+          contentType: file.mimetype || 'application/octet-stream',
+          upsert: false,
         });
 
-      if (fileRowError) {
-        return res.status(400).json({ error: `File metadata save failed for ${file.originalname}: ${extractError(fileRowError)}` });
+      if (uploadError) {
+        return res.status(400).json({ error: `Upload failed for ${file.originalname}: ${extractError(uploadError)}` });
+      }
+
+      const document = {
+        name: file.originalname,
+        size: file.size,
+        type: file.mimetype || null,
+        lastModified: null,
+        bucket: storageBucket,
+        storage_path: storagePath,
+        file_url: null,
+        uploaded_at: new Date().toISOString(),
+      };
+
+      uploadedDocuments.push(document);
+
+      if (!Number.isNaN(projectId)) {
+        const { error: fileRowError } = await supabase!
+          .from(managedTables['project-files'])
+          .insert({
+            project_id: projectId,
+            name: file.originalname,
+            description: null,
+            file_size_bytes: file.size,
+            uploaded_by: 'system',
+            status: 'uploaded',
+            visibility: 'private',
+            storage_path: storagePath,
+            file_url: null,
+            mime_type: file.mimetype || null,
+          });
+
+        if (fileRowError) {
+          return res.status(400).json({ error: `File metadata save failed for ${file.originalname}: ${extractError(fileRowError)}` });
+        }
       }
     }
-  }
 
-  res.status(201).json({
-    data: uploadedDocuments,
-    bucket: storageBucket,
+    res.status(201).json({
+      data: uploadedDocuments,
+      bucket: storageBucket,
+    });
   });
-});
 
-app.get('/api/storage/project-documents/signed-url', async (req, res) => {
-  if (!ensureSupabaseConfigured(res)) return;
+  app.get('/api/storage/project-documents/signed-url', async (req, res) => {
+    if (!ensureSupabaseConfigured(res)) return;
 
-  const storagePath = String(req.query.storagePath || '').trim();
-  const expiresIn = Number(req.query.expiresIn || 600);
+    const storagePath = String(req.query.storagePath || '').trim();
+    const expiresIn = Number(req.query.expiresIn || 600);
 
-  if (!storagePath) {
-    return res.status(400).json({ error: 'storagePath query parameter is required' });
-  }
-
-  const bucketCheck = await ensureStorageBucketExists(storageBucket);
-  if (!bucketCheck.ok) {
-    return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
-  }
-
-  const { data, error } = await supabase.storage
-    .from(storageBucket)
-    .createSignedUrl(storagePath, Number.isNaN(expiresIn) ? 600 : expiresIn);
-
-  if (error) {
-    return res.status(400).json({ error: extractError(error) });
-  }
-
-  res.json({ data });
-});
-
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    ok: true,
-    service: 'z-erp-backend',
-    timestamp: new Date().toISOString(),
-    supabaseConfigured: Boolean(supabase),
-  });
-});
-
-app.post('/api/storage/customer-communications', upload.array('files'), async (req, res) => {
-  if (!ensureSupabaseConfigured(res)) return;
-
-  const files = req.files || [];
-  if (!Array.isArray(files) || files.length === 0) {
-    return res.status(400).json({ error: 'No files uploaded' });
-  }
-
-  const communicationId = Number(req.body.communicationId);
-  if (!Number.isNaN(communicationId) && communicationId <= 0) {
-    return res.status(400).json({ error: 'communicationId must be a positive number when provided' });
-  }
-
-  const bucketCheck = await ensureStorageBucketExists(communicationStorageBucket);
-  if (!bucketCheck.ok) {
-    return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
-  }
-
-  const uploadedDocuments = [];
-
-  for (const file of files) {
-    const folder = Number.isNaN(communicationId) ? 'unassigned' : communicationId;
-    const storagePath = `${folder}/${Date.now()}-${uuidv4()}-${sanitizeFilename(file.originalname)}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from(communicationStorageBucket)
-      .upload(storagePath, file.buffer, {
-        contentType: file.mimetype || 'application/octet-stream',
-        upsert: false,
-      });
-
-    if (uploadError) {
-      return res.status(400).json({ error: `Upload failed for ${file.originalname}: ${extractError(uploadError)}` });
+    if (!storagePath) {
+      return res.status(400).json({ error: 'storagePath query parameter is required' });
     }
 
-    uploadedDocuments.push({
-      name: file.originalname,
-      size: file.size,
-      type: file.mimetype || null,
-      bucket: communicationStorageBucket,
-      storage_path: storagePath,
-      file_url: null,
-      uploaded_at: new Date().toISOString(),
-    });
-  }
+    const bucketCheck = await ensureStorageBucketExists(storageBucket);
+    if (!bucketCheck.ok) {
+      return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
+    }
 
-  res.status(201).json({
-    data: uploadedDocuments,
-    bucket: communicationStorageBucket,
+    const { data, error } = await supabase!.storage
+      .from(storageBucket)
+      .createSignedUrl(storagePath, Number.isNaN(expiresIn) ? 600 : expiresIn);
+
+    if (error) {
+      return res.status(400).json({ error: extractError(error) });
+    }
+
+    res.json({ data });
   });
-});
 
-app.get('/api/storage/customer-communications/signed-url', async (req, res) => {
-  if (!ensureSupabaseConfigured(res)) return;
+  app.post('/api/storage/customer-communications', upload.array('files'), async (req, res) => {
+    if (!ensureSupabaseConfigured(res)) return;
 
-  const storagePath = String(req.query.storagePath || '').trim();
-  const expiresIn = Number(req.query.expiresIn || 600);
+    const files = req.files || [];
+    if (!Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
 
-  if (!storagePath) {
-    return res.status(400).json({ error: 'storagePath query parameter is required' });
-  }
+    const communicationId = Number(req.body.communicationId);
+    if (!Number.isNaN(communicationId) && communicationId <= 0) {
+      return res.status(400).json({ error: 'communicationId must be a positive number when provided' });
+    }
 
-  const bucketCheck = await ensureStorageBucketExists(communicationStorageBucket);
-  if (!bucketCheck.ok) {
-    return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
-  }
+    const bucketCheck = await ensureStorageBucketExists(communicationStorageBucket);
+    if (!bucketCheck.ok) {
+      return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
+    }
 
-  const { data, error } = await supabase.storage
-    .from(communicationStorageBucket)
-    .createSignedUrl(storagePath, Number.isNaN(expiresIn) ? 600 : expiresIn);
+    const uploadedDocuments: Array<Record<string, unknown>> = [];
 
-  if (error) {
-    return res.status(400).json({ error: extractError(error) });
-  }
+    for (const file of files as Express.Multer.File[]) {
+      const folder = Number.isNaN(communicationId) ? 'unassigned' : communicationId;
+      const storagePath = `${folder}/${Date.now()}-${uuidv4()}-${sanitizeFilename(file.originalname)}`;
 
-  res.json({ data });
-});
+      const { error: uploadError } = await supabase!.storage
+        .from(communicationStorageBucket)
+        .upload(storagePath, file.buffer, {
+          contentType: file.mimetype || 'application/octet-stream',
+          upsert: false,
+        });
 
-app.get('/api/storage/customer-communications/ensure', async (req, res) => {
-  if (!ensureSupabaseConfigured(res)) return;
+      if (uploadError) {
+        return res.status(400).json({ error: `Upload failed for ${file.originalname}: ${extractError(uploadError)}` });
+      }
 
-  const bucketCheck = await ensureStorageBucketExists(communicationStorageBucket);
-  if (!bucketCheck.ok) {
-    return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
-  }
+      uploadedDocuments.push({
+        name: file.originalname,
+        size: file.size,
+        type: file.mimetype || null,
+        bucket: communicationStorageBucket,
+        storage_path: storagePath,
+        file_url: null,
+        uploaded_at: new Date().toISOString(),
+      });
+    }
 
-  res.json({ ok: true, bucket: communicationStorageBucket });
-});
+    res.status(201).json({
+      data: uploadedDocuments,
+      bucket: communicationStorageBucket,
+    });
+  });
 
-registerCrudRoutes('projects', managedTables.projects);
-registerCrudRoutes('customers', managedTables.customers);
-registerCrudRoutes('customer-groups', managedTables['customer-groups']);
-registerCrudRoutes('customer-group-members', managedTables['customer-group-members']);
-registerCrudRoutes('customer-communications', managedTables['customer-communications']);
-registerCrudRoutes('team-space-members', managedTables['team-space-members']);
-registerCrudRoutes('project-files', managedTables['project-files']);
-registerCrudRoutes('project-milestones', managedTables['project-milestones']);
-registerCrudRoutes('project-timesheets', managedTables['project-timesheets']);
-registerCrudRoutes('project-tasks', managedTables['project-tasks']);
-registerCrudRoutes('project-task-subtasks', managedTables['project-task-subtasks']);
-registerCrudRoutes('project-task-time-entries', managedTables['project-task-time-entries']);
+  app.get('/api/storage/customer-communications/signed-url', async (req, res) => {
+    if (!ensureSupabaseConfigured(res)) return;
 
-app.listen(port, () => {
-  console.log(`Z-ERP backend running on http://localhost:${port}`);
-});
+    const storagePath = String(req.query.storagePath || '').trim();
+    const expiresIn = Number(req.query.expiresIn || 600);
+
+    if (!storagePath) {
+      return res.status(400).json({ error: 'storagePath query parameter is required' });
+    }
+
+    const bucketCheck = await ensureStorageBucketExists(communicationStorageBucket);
+    if (!bucketCheck.ok) {
+      return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
+    }
+
+    const { data, error } = await supabase!.storage
+      .from(communicationStorageBucket)
+      .createSignedUrl(storagePath, Number.isNaN(expiresIn) ? 600 : expiresIn);
+
+    if (error) {
+      return res.status(400).json({ error: extractError(error) });
+    }
+
+    res.json({ data });
+  });
+
+  app.get('/api/storage/customer-communications/ensure', async (req, res) => {
+    if (!ensureSupabaseConfigured(res)) return;
+
+    const bucketCheck = await ensureStorageBucketExists(communicationStorageBucket);
+    if (!bucketCheck.ok) {
+      return res.status(500).json({ error: bucketCheck.error || 'Failed to ensure storage bucket exists' });
+    }
+
+    res.json({ ok: true, bucket: communicationStorageBucket });
+  });
+
+  registerCrudRoutes('projects', managedTables.projects, app);
+  registerCrudRoutes('customers', managedTables.customers, app);
+  registerCrudRoutes('customer-groups', managedTables['customer-groups'], app);
+  registerCrudRoutes('customer-group-members', managedTables['customer-group-members'], app);
+  registerCrudRoutes('customer-communications', managedTables['customer-communications'], app);
+  registerCrudRoutes('team-space-members', managedTables['team-space-members'], app);
+  registerCrudRoutes('project-files', managedTables['project-files'], app);
+  registerCrudRoutes('project-milestones', managedTables['project-milestones'], app);
+  registerCrudRoutes('project-timesheets', managedTables['project-timesheets'], app);
+  registerCrudRoutes('project-tasks', managedTables['project-tasks'], app);
+  registerCrudRoutes('project-task-subtasks', managedTables['project-task-subtasks'], app);
+  registerCrudRoutes('project-task-time-entries', managedTables['project-task-time-entries'], app);
+}

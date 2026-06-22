@@ -9,7 +9,7 @@ import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
 
 interface FormFieldProps {
   label: string;
-  name: string;
+  name: string; 
   type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'date' | 'textarea' | 'select';
   value: string | number;
   onChange: (value: string | number) => void;
